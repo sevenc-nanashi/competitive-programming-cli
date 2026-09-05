@@ -21,6 +21,8 @@ pub struct Cli {
 pub enum Commands {
     /// Initialize configuration and template directories interactively.
     Init(Init),
+    /// Show the workspace root and configuration, cookies, and template directories.
+    Config(Config),
     /// Import a Netscape cookie file and verify the session.
     Login(Login),
     /// Download one problem and its samples.
@@ -53,6 +55,31 @@ pub struct Init {
     /// Import [templates] from an oj-prepare configuration file.
     #[usage(long)]
     pub from_oj: Option<PathBuf>,
+}
+
+#[derive(Debug, usage::Args)]
+pub struct Config {
+    #[usage(arg_group)]
+    pub field: Option<ConfigField>,
+}
+
+#[derive(Debug, Clone, Copy, usage::ArgGroup)]
+#[usage(name = "field")]
+pub enum ConfigField {
+    /// Print only the absolute workspace root.
+    Root,
+    /// Print only the absolute configuration directory.
+    ConfigDir,
+    /// Print only the absolute cookies directory.
+    CookiesDir,
+    /// Print only the absolute workspace template directory.
+    WorkspaceTemplateDir,
+    /// Print only the absolute problem template directory.
+    ProblemTemplateDir,
+    /// Print only the absolute contest template directory.
+    ContestTemplateDir,
+    /// Print only the absolute single problem template directory.
+    SingleProblemTemplateDir,
 }
 
 #[derive(Debug, usage::Args)]
@@ -183,9 +210,6 @@ pub struct Results {
 
 #[derive(Debug, usage::Args)]
 pub struct List {
-    /// Print absolute paths.
-    #[usage(long)]
-    pub path: bool,
     #[usage(arg_group)]
     pub mode: Option<ListMode>,
 }

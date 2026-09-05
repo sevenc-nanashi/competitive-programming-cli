@@ -296,6 +296,109 @@ problem_directory = "."
 }
 
 #[test]
+fn configuration_paths() {
+    let directory = tempfile::tempdir().unwrap();
+    run(&directory, &["config"], 2);
+    run(&directory, &["config", "--root"], 2);
+    for (flag, path) in [
+        ("--config-dir", "config"),
+        ("--cookies-dir", "cookies"),
+        ("--workspace-template-dir", "config/workspace_template"),
+        ("--problem-template-dir", "config/problem_template"),
+        ("--contest-template-dir", "config/contest_template"),
+        (
+            "--single-problem-template-dir",
+            "config/single_problem_template",
+        ),
+    ] {
+        let output = run(&directory, &["config", flag], 0);
+        assert_eq!(
+            String::from_utf8(output.stdout).unwrap(),
+            format!("{}\n", directory.path().join(path).display())
+        );
+        assert!(output.stderr.is_empty());
+        assert!(!directory.path().join(path).exists());
+    }
+    fs::create_dir(directory.path().join("config")).unwrap();
+    let config_path = directory.path().join("config/config.toml");
+    let root = directory.path().join("workspace with spaces");
+    for configured_root in ["~/workspace with spaces", "workspace with spaces"] {
+        let contents = format!("root = {configured_root:?}\n");
+        fs::write(&config_path, &contents).unwrap();
+        let output = run(&directory, &["config"], 0);
+        assert_eq!(
+            String::from_utf8(output.stdout).unwrap(),
+            format!(
+                concat!(
+                    "Workspace root: {}\n",
+                    "Configuration directory: {}\n",
+                    "Cookies directory: {}\n",
+                    "Workspace template directory: {}\n",
+                    "Problem template directory: {}\n",
+                    "Contest template directory: {}\n",
+                    "Single problem template directory: {}\n"
+                ),
+                root.display(),
+                directory.path().join("config").display(),
+                directory.path().join("cookies").display(),
+                directory.path().join("config/workspace_template").display(),
+                directory.path().join("config/problem_template").display(),
+                directory.path().join("config/contest_template").display(),
+                directory
+                    .path()
+                    .join("config/single_problem_template")
+                    .display()
+            )
+        );
+        assert!(output.stderr.is_empty());
+        let output = run(&directory, &["config", "--root"], 0);
+        assert_eq!(
+            String::from_utf8(output.stdout).unwrap(),
+            format!("{}\n", root.display())
+        );
+        assert!(output.stderr.is_empty());
+        assert_eq!(fs::read_to_string(&config_path).unwrap(), contents);
+    }
+    for args in [
+        vec!["config"],
+        vec!["config", "--root"],
+        vec!["config", "--config-dir"],
+        vec!["config", "--cookies-dir"],
+        vec!["config", "--workspace-template-dir"],
+        vec!["config", "--problem-template-dir"],
+        vec!["config", "--contest-template-dir"],
+        vec!["config", "--single-problem-template-dir"],
+    ] {
+        let expected = run(&directory, &args, 0);
+        let output = command(&directory)
+            .env("CPCLI_CONFIG_HOME", "config")
+            .env("CPCLI_COOKIES_HOME", "cookies")
+            .args(&args)
+            .output()
+            .unwrap();
+        assert!(output.status.success(), "{output:?}");
+        assert_eq!(output.stdout, expected.stdout);
+    }
+    let flags = [
+        "--root",
+        "--config-dir",
+        "--cookies-dir",
+        "--workspace-template-dir",
+        "--problem-template-dir",
+        "--contest-template-dir",
+        "--single-problem-template-dir",
+    ];
+    for (index, flag) in flags.iter().enumerate() {
+        for other in &flags[index + 1..] {
+            run(&directory, &["config", flag, other], 2);
+        }
+    }
+    assert!(!root.exists());
+    assert!(!directory.path().join("cookies").exists());
+    run(&directory, &["list", "--path"], 2);
+}
+
+#[test]
 fn open_url_only() {
     let directory = tempfile::tempdir().unwrap();
     let output = run(&directory, &["open", "--url-only"], 2);
@@ -344,7 +447,7 @@ fn cli_contract_and_local_judging() {
     run(&directory, &["--version"], 0);
     for name in [
         "init", "login", "download", "d", "prepare", "p", "test", "t", "generate", "g", "submit",
-        "s", "results", "r", "list", "open", "o",
+        "s", "results", "r", "list", "open", "o", "config",
     ] {
         run(&directory, &[name, "--help"], 0);
     }
@@ -1167,17 +1270,12 @@ mock = "ruby"
             String::from_utf8_lossy(&output.stdout),
             format!("{}\n", expected.join("\n"))
         );
-        args.push("--path");
-        let output = run(&directory, &args, 0);
-        let absolute: Vec<_> = expected
-            .iter()
-            .map(|path| root.join(path).display().to_string())
-            .collect();
-        assert_eq!(
-            String::from_utf8_lossy(&output.stdout),
-            format!("{}\n", absolute.join("\n"))
-        );
     }
+    let output = run(&directory, &["config", "--root"], 0);
+    assert_eq!(
+        String::from_utf8(output.stdout).unwrap(),
+        format!("{}\n", root.display())
+    );
     let modes = ["--workspace", "--contests", "--problems", "--all-problems"];
     for (index, mode) in modes.iter().enumerate() {
         for other in &modes[index + 1..] {

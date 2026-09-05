@@ -100,6 +100,7 @@ cpcli o --url-only
 You can list the workspaces you've downloaded using the `list` command.
 
 By default, `list` shows workspace directories: contests and standalone problems.
+Paths are relative to the workspace root, which you can get with `cpcli config --root`.
 Choose one of the following mutually exclusive filters:
 
 | Option                  | Directories listed                                  |
@@ -113,8 +114,8 @@ Choose one of the following mutually exclusive filters:
 # List workspaces you've downloaded
 cpcli list
 
-# List workspaces with absolute paths
-cpcli list --path
+# Show the workspace root
+cpcli config --root
 
 # List contest directories
 cpcli list --contests
@@ -132,7 +133,9 @@ This feature is heavily inspired by [ghq](https://github.com/x-motemen/ghq).
 
 ```bash
 ccd() {
-    dir="$(cpcli list --path | fzf)"
-	[ -n "$dir" ] && cd "$dir"
+    local root dir
+    root="$(cpcli config --root)" || return
+    dir="$(cpcli list | fzf)" || return
+    [ -n "$dir" ] && cd -- "$root/$dir"
 }
 ```

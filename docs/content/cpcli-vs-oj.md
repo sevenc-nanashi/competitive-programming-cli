@@ -12,7 +12,7 @@ I've used them for a long time, but wanted a more integrated workflow for managi
 - Shares workspace templates between standalone problems and contests.
 - Compiles and tests a source file in one command, using configured language commands and build profiles. `preprocess` and `presubmit` hooks can transform source files before testing or submission.
 - Records problem and contest metadata, so `cpcli open`, `cpcli submit`, and `cpcli results` can detect the current context. `cpcli results --ui` monitors your submissions, including those made in the browser.
-- Lists downloaded workspaces with `cpcli list --path`, for use with tools such as `fzf`.
+- Lists downloaded workspaces with `cpcli list`, for use with tools such as `fzf`. Paths are relative to the root printed by `cpcli config --root`.
 
 `oj-prepare` already supports
 [configurable directory patterns](https://github.com/online-judge-tools/template-generator#oj-prepare).

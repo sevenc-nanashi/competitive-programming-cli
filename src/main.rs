@@ -11,7 +11,7 @@ mod services;
 mod workspace;
 
 use anyhow::{Context, Result, bail, ensure};
-use cli::{Cli, Commands, ListMode};
+use cli::{Cli, Commands, ConfigField, ListMode};
 use config::{Config, Paths, expand_path};
 use model::{Metadata, ResourceRef, ServiceId, SubmissionRequest};
 use services::Services;
@@ -28,6 +28,45 @@ fn run(cli: Cli, interrupted: &AtomicBool) -> Result<bool> {
     let paths = Paths::discover()?;
     match cli.command {
         Commands::Init(args) => config::init(&paths, &args, interrupted)?,
+        Commands::Config(args) => {
+            let config_dir = std::path::absolute(&paths.config)?;
+            match args.field {
+                Some(field) => {
+                    let path = match field {
+                        ConfigField::Root => Config::load(&paths)?.root()?,
+                        ConfigField::ConfigDir => config_dir,
+                        ConfigField::CookiesDir => std::path::absolute(&paths.cookies)?,
+                        ConfigField::WorkspaceTemplateDir => config_dir.join("workspace_template"),
+                        ConfigField::ProblemTemplateDir => config_dir.join("problem_template"),
+                        ConfigField::ContestTemplateDir => config_dir.join("contest_template"),
+                        ConfigField::SingleProblemTemplateDir => {
+                            config_dir.join("single_problem_template")
+                        }
+                    };
+                    println!("{}", path.display());
+                }
+                None => {
+                    println!(
+                        concat!(
+                            "Workspace root: {}\n",
+                            "Configuration directory: {}\n",
+                            "Cookies directory: {}\n",
+                            "Workspace template directory: {}\n",
+                            "Problem template directory: {}\n",
+                            "Contest template directory: {}\n",
+                            "Single problem template directory: {}"
+                        ),
+                        Config::load(&paths)?.root()?.display(),
+                        config_dir.display(),
+                        std::path::absolute(&paths.cookies)?.display(),
+                        config_dir.join("workspace_template").display(),
+                        config_dir.join("problem_template").display(),
+                        config_dir.join("contest_template").display(),
+                        config_dir.join("single_problem_template").display()
+                    );
+                }
+            }
+        }
         Commands::Login(args) => Services::login(&paths, args.service, &args.cookie_file)?,
         Commands::Test(args) => {
             return runner::test(&Config::load(&paths)?, &args, cli.no_color, interrupted);
@@ -56,15 +95,7 @@ fn run(cli: Cli, interrupted: &AtomicBool) -> Result<bool> {
                 None => ListMode::Workspace,
             };
             for path in workspace::list(&config, mode)? {
-                println!(
-                    "{}",
-                    if args.path {
-                        path.as_path()
-                    } else {
-                        path.strip_prefix(&root)?
-                    }
-                    .display()
-                );
+                println!("{}", path.strip_prefix(&root)?.display());
             }
         }
         Commands::Download(args) => {

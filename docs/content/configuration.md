@@ -27,6 +27,37 @@ You can also set the workspace root manually in `$config/config.toml`:
 root = "/home/your-name/competitive-programming"
 ```
 
+After setting the root, inspect the current paths with:
+
+```bash
+cpcli config
+# Workspace root: /home/your-name/competitive-programming
+# Configuration directory: /home/your-name/.config/cpcli
+# Cookies directory: /home/your-name/.local/share/cpcli/cookies
+# Workspace template directory: /home/your-name/.config/cpcli/workspace_template
+# Problem template directory: /home/your-name/.config/cpcli/problem_template
+# Contest template directory: /home/your-name/.config/cpcli/contest_template
+# Single problem template directory: /home/your-name/.config/cpcli/single_problem_template
+
+# Print only the workspace root, for use in scripts
+cpcli config --root
+
+# Or print only one of the other directories
+cpcli config --config-dir
+cpcli config --cookies-dir
+cpcli config --workspace-template-dir
+cpcli config --problem-template-dir
+cpcli config --contest-template-dir
+cpcli config --single-problem-template-dir
+```
+
+Paths are absolute and reflect the environment overrides above and in
+[Login](#login). These commands do not create directories or modify settings.
+The flags are mutually exclusive. The full display and `--root` require a
+configured root; run `cpcli init` or set `root` first. All directory flags also work
+before initialization. Template directories are located within the configuration
+directory, including when `$CPCLI_CONFIG_HOME` is set.
+
 [Language settings](./testing.md) belong in the same file. Path settings and CLI
 path arguments expand a leading `~` or `~/` to `$HOME`, including `root`, source
 files, test/generation directories, judge files, and configuration/Cookie paths.
