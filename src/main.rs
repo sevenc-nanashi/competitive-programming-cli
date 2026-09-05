@@ -29,7 +29,9 @@ fn run(cli: Cli, interrupted: &AtomicBool) -> Result<bool> {
     match cli.command {
         Commands::Init(args) => config::init(&paths, &args, interrupted)?,
         Commands::Login(args) => Services::login(&paths, args.service, &args.cookie_file)?,
-        Commands::Test(args) => return runner::test(&Config::load(&paths)?, &args, interrupted),
+        Commands::Test(args) => {
+            return runner::test(&Config::load(&paths)?, &args, cli.no_color, interrupted);
+        }
         Commands::Generate(args) => runner::generate(&Config::load(&paths)?, &args, interrupted)?,
         Commands::Open => {
             let url = match workspace::locate(&std::env::current_dir()?)? {

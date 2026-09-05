@@ -5,7 +5,7 @@ use crate::{
     services::Services,
 };
 use anyhow::{Result, ensure};
-use console::{Alignment, Color, Style, measure_text_width, pad_str, truncate_str};
+use console::{Alignment, Style, measure_text_width, pad_str, truncate_str};
 use crossterm::{
     cursor::{Hide, MoveTo, Show},
     event::{self, Event, KeyCode, KeyEventKind, KeyModifiers},
@@ -77,27 +77,24 @@ pub fn run(
     Ok(())
 }
 
-fn status_style(status: &str) -> Style {
-    // AtCoder Error Colorizer by iiko11 (MIT):
+pub(crate) fn color_status(status: &str, color: bool) -> String {
+    if !color {
+        return status.to_owned();
+    }
+    // ANSI foreground approximations of AtCoder Error Colorizer by iiko11 (MIT):
     // https://greasyfork.org/scripts/478281-atcoder-error-colorizer
-    let rgb = match status.split_whitespace().last() {
-        Some("AC") => (92, 184, 92),
-        Some("WA") => (240, 173, 78),
-        Some("TLE") => (255, 105, 180), // hotpink
-        Some("RE") => (148, 0, 211),    // darkviolet
-        Some("CE") => (30, 144, 255),   // dodgerblue
-        Some("MLE") => (128, 0, 0),     // maroon
-        Some("OLE") => (250, 128, 114), // salmon
-        Some("IE") => (47, 79, 79),     // darkslategray
-        _ => (119, 119, 119),
+    let code = match status.split_whitespace().last() {
+        Some("AC") => 32,  // green
+        Some("WA") => 33,  // yellow
+        Some("TLE") => 95, // bright magenta
+        Some("RE") => 35,  // magenta
+        Some("CE") => 94,  // bright blue
+        Some("MLE") => 31, // red
+        Some("OLE") => 91, // bright red
+        Some("IE") => 36,  // cyan
+        _ => 90,           // bright black
     };
-    let foreground = match status.split_whitespace().last() {
-        Some("AC" | "WA" | "TLE" | "CE" | "OLE") => Color::Black,
-        _ => Color::White,
-    };
-    Style::new()
-        .fg(foreground)
-        .bg(Color::TrueColor(rgb.0, rgb.1, rgb.2))
+    format!("\x1b[{code}m{status}\x1b[0m")
 }
 
 fn table(submissions: &[Submission], color: bool) -> Vec<String> {
@@ -127,14 +124,15 @@ fn table(submissions: &[Submission], color: bool) -> Vec<String> {
                 .enumerate()
                 .map(|(column, text)| {
                     let padded = pad_str(text, widths[column], Alignment::Left, None);
-                    let style = if index == 0 {
-                        Style::new().bold()
-                    } else if column == 0 {
-                        status_style(text)
-                    } else {
-                        Style::new()
-                    };
-                    style.apply_to(padded).force_styling(color).to_string()
+                    match (index, column) {
+                        (0, _) => Style::new()
+                            .bold()
+                            .apply_to(padded)
+                            .force_styling(color)
+                            .to_string(),
+                        (_, 0) => color_status(&padded, color),
+                        _ => padded.into_owned(),
+                    }
                 })
                 .collect::<Vec<_>>()
                 .join("  ")
@@ -340,26 +338,24 @@ mod tests {
 
     #[test]
     fn colors_and_unicode_columns() {
-        for (status, rgb) in [
-            ("AC", "92;184;92"),
-            ("WA", "240;173;78"),
-            ("TLE", "255;105;180"),
-            ("RE", "148;0;211"),
-            ("CE", "30;144;255"),
-            ("MLE", "128;0;0"),
-            ("OLE", "250;128;114"),
-            ("IE", "47;79;79"),
-            ("WJ", "119;119;119"),
-            ("WR", "119;119;119"),
-            ("1 / 20", "119;119;119"),
-            ("unknown", "119;119;119"),
+        for (status, color) in [
+            ("AC", 32),
+            ("WA", 33),
+            ("TLE", 95),
+            ("RE", 35),
+            ("CE", 94),
+            ("MLE", 31),
+            ("OLE", 91),
+            ("IE", 36),
+            ("WJ", 90),
+            ("WR", 90),
+            ("1 / 20", 90),
+            ("unknown", 90),
         ] {
-            let text = status_style(status)
-                .apply_to(status)
-                .force_styling(true)
-                .to_string();
-            assert!(text.contains(&format!("\x1b[48;2;{rgb}m")));
+            let text = color_status(status, true);
+            assert_eq!(text, format!("\x1b[{color}m{status}\x1b[0m"));
             assert_eq!(console::strip_ansi_codes(&text), status);
+            assert_eq!(color_status(status, false), status);
         }
         let first = Submission {
             id: "10".into(),

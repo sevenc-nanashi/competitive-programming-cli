@@ -6,7 +6,7 @@ use anyhow::{Context, Result, ensure};
 use std::{
     ffi::{OsStr, OsString},
     fs::{self, File},
-    io::{self, Read, Write},
+    io::{self, IsTerminal, Read, Write},
     os::unix::process::CommandExt,
     path::{Path, PathBuf},
     process::{Child, Command, ExitStatus, Stdio},
@@ -583,7 +583,13 @@ fn matches(expected: &[u8], actual: &[u8], options: &Test) -> bool {
         })
 }
 
-pub fn test(config: &Config, options: &Test, interrupted: &AtomicBool) -> Result<bool> {
+pub fn test(
+    config: &Config,
+    options: &Test,
+    no_color: bool,
+    interrupted: &AtomicBool,
+) -> Result<bool> {
+    let color = io::stdout().is_terminal() && !no_color && std::env::var_os("NO_COLOR").is_none();
     let program = Program::prepare(config, &options.program, interrupted)?;
     let directory = match &options.test_dir {
         Some(dir) => std::path::absolute(expand_path(dir)?)?,
@@ -691,7 +697,7 @@ pub fn test(config: &Config, options: &Test, interrupted: &AtomicBool) -> Result
         println!(
             "{}: {} ({} ms, {} KiB)",
             name,
-            result.verdict,
+            crate::results::color_status(&result.verdict.to_string(), color),
             result.elapsed.as_millis(),
             result.memory / 1024
         );

@@ -91,14 +91,30 @@ set_status = lambda do |status|
 end
 
 begin
+  [
+    ['AC', 32, ['cat'], 0],
+    ['WA', 33, ['true'], 1],
+    ['RE', 35, ['false'], 1]
+  ].each do |verdict, color, command, code|
+    Terminal.new(binary, 'test', '--', *command) do |term|
+      term.finish(code, ui: false)
+      check(term.output.include?("\e[#{color}m#{verdict}\e[0m"), "Missing #{verdict} color")
+    end
+  end
+
   Terminal.new(binary, 'results') do |term|
     term.finish(0, ui: false)
-    check(term.output.include?("\e[48;2;92;184;92m"), 'Missing AC color with redirected stderr')
+    check(term.output.include?("\e[32m"), 'Missing AC color with redirected stderr')
     check(!term.output.include?("\t"), 'Terminal listing still uses tabs')
     check(term.output.include?("    #{expected_url}"), 'Missing indented URL')
   end
 
   [ [['--no-color'], {}], [[], { 'NO_COLOR' => '1' }] ].each do |flags, env|
+    Terminal.new(binary, 'test', *flags, '--', 'cat', env: env) do |term|
+      term.finish(0, ui: false)
+      check(term.output.include?('sample: AC (') && !term.output.include?("\e"),
+            'Test verdict colors were not disabled')
+    end
     Terminal.new(binary, 'results', *flags, env: env) do |term|
       term.finish(0, ui: false)
       check(!term.output.include?("\e"), 'Colors were not disabled')
@@ -124,10 +140,10 @@ begin
       spinner_frames = term.output.scan(/([|\/\\-]) Running    \|/).flatten.uniq
       check(spinner_frames.length > 1, 'Running spinner did not animate')
       check(term.output.include?("\e[?1049h"), 'No alternate screen')
-      check(term.output.include?("\e[48;2;92;184;92m"), 'No TUI AC color')
+      check(term.output.include?("\e[32m"), 'No TUI AC color')
       set_status.call('WA')
       term.send('')
-      term.expect("\e[48;2;240;173;78m")
+      term.expect("\e[33m")
       term.send('p')
       term.expect('* Paused     |')
       set_status.call('TLE')
@@ -135,16 +151,16 @@ begin
       term.read_for(3.4)
       check(!term.output.include?('TLE'), 'Pause did not stop polling')
       term.send('r')
-      term.expect("\e[48;2;255;105;180m")
+      term.expect("\e[95m")
       check(term.output.include?('Paused'), 'Manual refresh should remain paused')
       term.resize(1, 1)
       term.read_for(0.2)
       term.resize(4, 100)
       term.expect('Paused')
       term.send("\e[A")
-      term.expect("\e[48;2;92;184;92m")
+      term.expect("\e[32m")
       term.send("\e[B")
-      term.expect("\e[48;2;255;105;180m")
+      term.expect("\e[95m")
       term.resize(24, 180)
       term.expect('Paused')
       term.send('1')

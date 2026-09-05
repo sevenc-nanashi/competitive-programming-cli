@@ -324,7 +324,9 @@ fn cli_contract_and_local_judging() {
     run(&directory, &["test", "file.rb", "--", "cat"], 2);
     run(&directory, &["test", "--", "cat"], 2);
     case(&directory, b"hello\r\n", b"hello\n");
-    run(&directory, &["t", "--", "cat"], 0);
+    let output = run(&directory, &["t", "--", "cat"], 0);
+    assert!(String::from_utf8_lossy(&output.stdout).contains("sample: AC ("));
+    assert!(!output.stdout.contains(&0x1b));
     run(
         &directory,
         &["test", "--no-ignore-line-ending", "--", "cat"],
