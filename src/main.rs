@@ -23,6 +23,7 @@ use std::{
 fn run(cli: Cli, interrupted: &AtomicBool) -> Result<bool> {
     let paths = Paths::discover()?;
     match cli.command {
+        Commands::Init(args) => config::init(&paths, &args, interrupted)?,
         Commands::Login(args) => Services::login(&paths, args.service, &args.cookie_file)?,
         Commands::Test(args) => return runner::test(&Config::load(&paths)?, &args, interrupted),
         Commands::Generate(args) => runner::generate(&Config::load(&paths)?, &args, interrupted)?,

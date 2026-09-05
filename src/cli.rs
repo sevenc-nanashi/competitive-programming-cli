@@ -19,6 +19,8 @@ pub struct Cli {
 
 #[derive(Debug, usage::Subcommands)]
 pub enum Commands {
+    /// Initialize configuration and template directories interactively.
+    Init(Init),
     /// Import a Netscape cookie file and verify the session.
     Login(Login),
     /// Download one problem and its samples.
@@ -41,6 +43,13 @@ pub enum Commands {
     Results(Results),
     /// List downloaded workspaces, contests, or problems.
     List(List),
+}
+
+#[derive(Debug, usage::Args)]
+pub struct Init {
+    /// Import [templates] from an oj-prepare configuration file.
+    #[usage(long)]
+    pub from_oj: Option<PathBuf>,
 }
 
 #[derive(Debug, usage::Args)]

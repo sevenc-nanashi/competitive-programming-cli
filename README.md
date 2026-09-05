@@ -32,7 +32,21 @@ Overridable with `$CPCLI_CONFIG_HOME` environment variable.
 When XDG variables are unset, the configuration directory is `~/.config/cpcli`
 and the data directory is `~/.local/share/cpcli`.
 
-Set the workspace root in `$config/config.toml` before downloading or listing problems:
+Run the interactive setup before downloading or listing problems:
+
+```bash
+cpcli init
+```
+
+It asks for the workspace root (default: `~/cpcli`), creates `config.toml`, the
+workspace root, and the four template directories below, then prints a guide
+to language settings, templates, login, and downloading problems. Relative paths
+are saved as absolute paths. Re-running it keeps an existing configuration and
+template files and creates any missing directories.
+
+If configuration file of oj-prepare exists, it will be imported automatically.
+
+You can also set the workspace root manually in `$config/config.toml`:
 
 ```toml
 root = "/home/your-name/competitive-programming"
@@ -471,4 +485,35 @@ You can install those binaries manually or using package managers like `mise`.
 ```bash
 # Using mise
 mise use -g github:sevenc-nanashi/competitive-programming-cli
+```
+
+## Acknowledgements
+
+This tools is heavily inspired by following tools:
+
+- [online-judge-tools/oj](https://github.com/online-judge-tools/oj)
+- [online-judge-tools/template-generator](https://github.com/online-judge-tools/template-generator)
+
+```
+MIT License
+
+Copyright (c) 2020 Kimiyuki Onaka
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
 ```

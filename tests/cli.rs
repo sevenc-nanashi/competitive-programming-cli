@@ -1,6 +1,6 @@
 use std::{
     fs,
-    io::{BufRead, BufReader},
+    io::{BufRead, BufReader, Write},
     process::{Command, Output, Stdio},
     thread,
     time::{Duration, Instant},
@@ -36,13 +36,272 @@ fn case(directory: &TempDir, input: &[u8], output: &[u8]) {
     fs::write(directory.path().join("test/sample.out"), output).unwrap();
 }
 
+fn run_with_input(command: &mut Command, input: &str, expected: i32) -> Output {
+    let mut child = command
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    child
+        .stdin
+        .take()
+        .unwrap()
+        .write_all(input.as_bytes())
+        .unwrap();
+    let output = child.wait_with_output().unwrap();
+    assert_eq!(
+        output.status.code(),
+        Some(expected),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    output
+}
+
+#[test]
+fn interactive_initialization() {
+    fn initialize(directory: &TempDir, input: &str, expected: i32) -> Output {
+        run_with_input(command(directory).arg("init"), input, expected)
+    }
+
+    for (input, expected_root) in [
+        ("\n", "cpcli"),
+        ("~/my \"競プロ\" workspace\n", "my \"競プロ\" workspace"),
+        ("relative workspace\n", "relative workspace"),
+    ] {
+        let directory = tempfile::tempdir().unwrap();
+        let output = initialize(&directory, input, 0);
+        assert!(String::from_utf8_lossy(&output.stderr).contains("Workspace root [~/cpcli]:"));
+        let root = directory.path().join(expected_root);
+        let config_path = directory.path().join("config/config.toml");
+        let config: toml::Value =
+            toml::from_str(&fs::read_to_string(&config_path).unwrap()).unwrap();
+        assert_eq!(config["root"].as_str().unwrap(), root.to_str().unwrap());
+        assert!(root.is_dir());
+        let guide = String::from_utf8_lossy(&output.stdout);
+        assert!(guide.contains(config_path.to_str().unwrap()));
+        for template in [
+            "workspace_template",
+            "problem_template",
+            "contest_template",
+            "single_problem_template",
+        ] {
+            let path = directory.path().join("config").join(template);
+            assert!(path.is_dir());
+            assert!(guide.contains(path.to_str().unwrap()));
+        }
+        for step in [
+            "[language.cpp]",
+            "cpcli login",
+            "cpcli download",
+            "cpcli prepare",
+            "cpcli test",
+            "cpcli submit",
+        ] {
+            assert!(guide.contains(step), "Missing guide step: {step}");
+        }
+        run(&directory, &["list"], 0);
+
+        let original = format!(
+            "{}\n# Keep my language settings\n[language.ruby]\nextensions = [\"rb\"]\nrun = \"ruby {{input}}\"\n",
+            fs::read_to_string(&config_path).unwrap()
+        );
+        fs::write(&config_path, &original).unwrap();
+        let template = directory.path().join("config/problem_template/solution.rb");
+        fs::write(&template, "puts 42\n").unwrap();
+        let missing = directory.path().join("config/contest_template");
+        fs::remove_dir(&missing).unwrap();
+        let output = run(&directory, &["init"], 0);
+        assert!(!String::from_utf8_lossy(&output.stderr).contains("Workspace root ["));
+        assert_eq!(fs::read_to_string(&config_path).unwrap(), original);
+        assert_eq!(fs::read_to_string(template).unwrap(), "puts 42\n");
+        assert!(missing.is_dir());
+    }
+
+    let directory = tempfile::tempdir().unwrap();
+    let output = initialize(&directory, "", 2);
+    assert!(String::from_utf8_lossy(&output.stderr).contains("no input"));
+    assert!(!directory.path().join("config").exists());
+    assert!(!directory.path().join("cpcli").exists());
+    fs::write(directory.path().join("not-a-directory"), "keep").unwrap();
+    initialize(&directory, "not-a-directory\n", 2);
+    assert!(!directory.path().join("config").exists());
+    assert_eq!(
+        fs::read_to_string(directory.path().join("not-a-directory")).unwrap(),
+        "keep"
+    );
+
+    let mut child = command(&directory)
+        .arg("init")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::null())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    let mut prompt = Vec::new();
+    BufReader::new(child.stderr.take().unwrap())
+        .read_until(b':', &mut prompt)
+        .unwrap();
+    assert!(String::from_utf8_lossy(&prompt).contains("Workspace root"));
+    unsafe {
+        libc::kill(child.id() as i32, libc::SIGINT);
+    }
+    let started = Instant::now();
+    loop {
+        if let Some(status) = child.try_wait().unwrap() {
+            assert_eq!(status.code(), Some(130));
+            break;
+        }
+        if started.elapsed() > Duration::from_secs(5) {
+            child.kill().unwrap();
+            child.wait().unwrap();
+            panic!("init ignored SIGINT while waiting for input");
+        }
+        thread::sleep(Duration::from_millis(10));
+    }
+    assert!(!directory.path().join("config").exists());
+}
+
+#[test]
+fn migrate_oj_templates() {
+    use std::os::unix::fs::{PermissionsExt, symlink};
+
+    let directory = tempfile::tempdir().unwrap();
+    let oj = directory.path().join("oj-config/online-judge-tools");
+    fs::create_dir_all(oj.join("template")).unwrap();
+    fs::write(
+        oj.join("template/main.rb"),
+        "#!/usr/bin/env ruby\nputs 42\n",
+    )
+    .unwrap();
+    fs::set_permissions(
+        oj.join("template/main.rb"),
+        fs::Permissions::from_mode(0o755),
+    )
+    .unwrap();
+    fs::write(oj.join("custom.cpp"), "int main() {}\n").unwrap();
+    fs::write(directory.path().join("main.cr"), "puts 42\n").unwrap();
+    let config = oj.join("prepare.config.toml");
+    let original = r#"contest_directory = "./{contest_id}/{problem_id}"
+problem_directory = "."
+[templates]
+"main.rb" = "main.rb"
+"./naive.rb" = "main.rb"
+"src/main.cpp" = "./custom.cpp"
+"main.cr" = "~/main.cr"
+"#;
+    fs::write(&config, original).unwrap();
+    let output = run_with_input(
+        command(&directory)
+            .arg("init")
+            .env("XDG_CONFIG_HOME", "~/oj-config"),
+        "\n\n",
+        0,
+    );
+    assert!(String::from_utf8_lossy(&output.stderr).contains("Import [templates]"));
+    let destination = directory.path().join("config/problem_template");
+    for file in ["main.rb", "naive.rb"] {
+        assert_eq!(
+            fs::read(destination.join(file)).unwrap(),
+            fs::read(oj.join("template/main.rb")).unwrap()
+        );
+        assert_eq!(
+            fs::metadata(destination.join(file))
+                .unwrap()
+                .permissions()
+                .mode()
+                & 0o777,
+            0o755
+        );
+    }
+    assert_eq!(
+        fs::read_to_string(destination.join("src/main.cpp")).unwrap(),
+        "int main() {}\n"
+    );
+    assert_eq!(
+        fs::read_to_string(destination.join("main.cr")).unwrap(),
+        "puts 42\n"
+    );
+    assert_eq!(fs::read_to_string(&config).unwrap(), original);
+
+    let cpcli_config = directory.path().join("config/config.toml");
+    let original_cpcli = fs::read(&cpcli_config).unwrap();
+    fs::write(destination.join("main.rb"), "# keep my edits\n").unwrap();
+    let output = run(
+        &directory,
+        &[
+            "init",
+            "--from-oj",
+            "~/oj-config/online-judge-tools/prepare.config.toml",
+        ],
+        0,
+    );
+    assert!(!String::from_utf8_lossy(&output.stderr).contains("Import [templates]"));
+    assert_eq!(
+        fs::read_to_string(destination.join("main.rb")).unwrap(),
+        "# keep my edits\n"
+    );
+    assert_eq!(fs::read(cpcli_config).unwrap(), original_cpcli);
+
+    run_with_input(
+        command(&directory)
+            .arg("init")
+            .env("XDG_CONFIG_HOME", "~/oj-config")
+            .env("CPCLI_CONFIG_HOME", "~/declined"),
+        "\nn\n",
+        0,
+    );
+    assert_eq!(
+        fs::read_dir(directory.path().join("declined/problem_template"))
+            .unwrap()
+            .count(),
+        0
+    );
+
+    for invalid in [
+        "[templates]\n\"../escape\" = \"main.rb\"\n",
+        "[templates]\n\"/absolute.rb\" = \"main.rb\"\n",
+        "[templates]\n\"main.rb\" = 42\n",
+        "[templates]\n\"main.rb\" = \"missing.rb\"\n",
+        "problem_directory = \".\"\n",
+    ] {
+        fs::write(&config, invalid).unwrap();
+        run_with_input(
+            command(&directory)
+                .args(["init", "--from-oj", config.to_str().unwrap()])
+                .env("CPCLI_CONFIG_HOME", "~/invalid"),
+            "\n",
+            2,
+        );
+        assert!(!directory.path().join("invalid").exists());
+        assert!(!directory.path().join("escape").exists());
+    }
+
+    // A nested destination symlink must not allow writes outside problem_template.
+    fs::create_dir(directory.path().join("outside")).unwrap();
+    symlink(directory.path().join("outside"), destination.join("linked")).unwrap();
+    fs::write(&config, "[templates]\n\"linked/main.rb\" = \"main.rb\"\n").unwrap();
+    let output = run(
+        &directory,
+        &["init", "--from-oj", config.to_str().unwrap()],
+        2,
+    );
+    assert!(String::from_utf8_lossy(&output.stderr).contains("symlink"));
+    assert!(!directory.path().join("outside/main.rb").exists());
+    assert_eq!(
+        fs::read_to_string(oj.join("template/main.rb")).unwrap(),
+        "#!/usr/bin/env ruby\nputs 42\n"
+    );
+}
+
 #[test]
 fn cli_contract_and_local_judging() {
     let directory = tempfile::tempdir().unwrap();
     run(&directory, &["--version"], 0);
     for name in [
-        "login", "download", "d", "prepare", "p", "test", "t", "generate", "g", "submit", "s",
-        "results", "r", "list",
+        "init", "login", "download", "d", "prepare", "p", "test", "t", "generate", "g", "submit",
+        "s", "results", "r", "list",
     ] {
         run(&directory, &[name, "--help"], 0);
     }
