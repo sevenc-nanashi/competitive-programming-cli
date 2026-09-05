@@ -7,7 +7,7 @@ description = "A command-line workspace and testing tool for competitive program
 license = "MIT"
 repository = "https://github.com/sevenc-nanashi/competitive-programming-cli"
 readme = "README.md"
-exclude = ["__gi_*", ".github"]
+exclude = ["__gi_*", ".github", "docs"]
 
 [[bin]]
 name = "cpcli"

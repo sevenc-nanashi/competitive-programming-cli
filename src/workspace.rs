@@ -134,11 +134,7 @@ fn write_problem(paths: &Paths, destination: &Path, problem: Problem, single: bo
     let template_checksums = template_checksums(destination)?;
     fs::create_dir_all(destination.join("test"))?;
     for (i, sample) in problem.samples.iter().enumerate() {
-        let name = if problem.samples.len() == 1 {
-            "sample".into()
-        } else {
-            format!("sample-{}", i + 1)
-        };
+        let name = format!("sample-{}", i + 1);
         fs::write(
             destination.join("test").join(format!("{name}.in")),
             &sample.input,

@@ -32,8 +32,8 @@ fn run(directory: &TempDir, args: &[&str], code: i32) -> Output {
 
 fn case(directory: &TempDir, input: &[u8], output: &[u8]) {
     fs::create_dir_all(directory.path().join("test")).unwrap();
-    fs::write(directory.path().join("test/sample.in"), input).unwrap();
-    fs::write(directory.path().join("test/sample.out"), output).unwrap();
+    fs::write(directory.path().join("test/sample-1.in"), input).unwrap();
+    fs::write(directory.path().join("test/sample-1.out"), output).unwrap();
 }
 
 fn run_with_input(command: &mut Command, input: &str, expected: i32) -> Output {
@@ -325,7 +325,7 @@ fn cli_contract_and_local_judging() {
     run(&directory, &["test", "--", "cat"], 2);
     case(&directory, b"hello\r\n", b"hello\n");
     let output = run(&directory, &["t", "--", "cat"], 0);
-    assert!(String::from_utf8_lossy(&output.stdout).contains("sample: AC ("));
+    assert!(String::from_utf8_lossy(&output.stdout).contains("sample-1: AC ("));
     assert!(!output.stdout.contains(&0x1b));
     run(
         &directory,
@@ -401,6 +401,78 @@ fn cli_contract_and_local_judging() {
     fs::write(directory.path().join("test/second.out"), "wrong").unwrap();
     let output = run(&directory, &["test", "--fast-fail", "--", "true"], 1);
     assert!(String::from_utf8_lossy(&output.stdout).contains("0/1 accepted"));
+}
+
+#[test]
+fn missing_expected_outputs() {
+    let directory = tempfile::tempdir().unwrap();
+    case(&directory, b"hello\n", b"hello\n");
+    let expected = directory.path().join("test/sample-1.out");
+    fs::remove_file(&expected).unwrap();
+    let output = run(&directory, &["test", "--", "cat"], 0);
+    assert!(String::from_utf8_lossy(&output.stdout).contains("sample-1: AC ("));
+    let output = run(&directory, &["test", "--", "false"], 1);
+    assert!(String::from_utf8_lossy(&output.stdout).contains("sample-1: RE ("));
+    assert!(!expected.exists());
+    run(
+        &directory,
+        &[
+            "test",
+            "--judge",
+            "printf '%s' {test_output} > expected-path; test -f {test_output} && test ! -s {test_output} && cmp {test_input} {solution_output}",
+            "--",
+            "cat",
+        ],
+        0,
+    );
+    let temporary = fs::read_to_string(directory.path().join("expected-path")).unwrap();
+    assert!(!std::path::Path::new(&temporary).exists());
+    assert!(!expected.exists());
+    let output = run(
+        &directory,
+        &[
+            "test",
+            "--judge",
+            "printf '%s' {test_output} > expected-path; false",
+            "--",
+            "cat",
+        ],
+        1,
+    );
+    assert!(String::from_utf8_lossy(&output.stdout).contains("sample-1: WA ("));
+    let temporary = fs::read_to_string(directory.path().join("expected-path")).unwrap();
+    assert!(!std::path::Path::new(&temporary).exists());
+    assert!(!expected.exists());
+    fs::write(
+        directory.path().join("judge.rb"),
+        "abort unless ARGV.size == 3 && File.read(ARGV[1]).empty? && File.read(ARGV[0]) == File.read(ARGV[2])",
+    )
+    .unwrap();
+    run(
+        &directory,
+        &["test", "--judge", "ruby ./judge.rb", "--", "cat"],
+        0,
+    );
+    assert!(!expected.exists());
+    run(&directory, &["test", "--", "cat"], 0);
+    run(
+        &directory,
+        &["generate", "--dir", "test", "--answer", "--", "cat"],
+        0,
+    );
+    run(&directory, &["test", "--judge", "true", "--", "cat"], 0);
+    assert_eq!(fs::read(&expected).unwrap(), b"hello\n");
+    fs::remove_file(&expected).unwrap();
+
+    fs::write(directory.path().join("test/second.in"), "hello\n").unwrap();
+    fs::write(directory.path().join("test/second.out"), "").unwrap();
+    let output = run(&directory, &["test", "--", "cat"], 1);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("sample-1: AC (") && stdout.contains("second: WA ("));
+    assert!(stdout.contains("1/2 accepted"));
+
+    fs::create_dir(&expected).unwrap();
+    run(&directory, &["test", "--", "cat"], 2);
 }
 
 #[test]
@@ -585,6 +657,7 @@ run = "{binary}"
 fn limits_interactive_and_cleanup() {
     let directory = tempfile::tempdir().unwrap();
     case(&directory, b"", b"");
+    fs::remove_file(directory.path().join("test/sample-1.out")).unwrap();
     let output = run(
         &directory,
         &[
@@ -649,13 +722,14 @@ fn limits_interactive_and_cleanup() {
         0,
     );
     case(&directory, b"", b"");
+    fs::remove_file(directory.path().join("test/sample-1.out")).unwrap();
     run(
         &directory,
         &[
             "test",
             "--interactive",
             "--judge",
-            "ruby ./judge.rb",
+            "printf '%s' {test_output} > expected-path; test -f {test_input} && test -f {test_output} && test ! -s {test_output} && ruby ./judge.rb",
             "--time-limit",
             "2000",
             "--",
@@ -671,7 +745,7 @@ fn limits_interactive_and_cleanup() {
             "test",
             "--interactive",
             "--judge",
-            "exit 1",
+            "printf '%s' {test_output} > expected-path; exit 1",
             "--time-limit",
             "100",
             "--",
@@ -680,6 +754,9 @@ fn limits_interactive_and_cleanup() {
         ],
         1,
     );
+    let temporary = fs::read_to_string(directory.path().join("expected-path")).unwrap();
+    assert!(!std::path::Path::new(&temporary).exists());
+    assert!(!directory.path().join("test/sample-1.out").exists());
     let mut child = command(&directory)
         .args(["test", "--", "sh", "-c", "echo ready >&2; sleep 10"])
         .stderr(Stdio::piped())
@@ -784,7 +861,12 @@ mock = "ruby"
     run(&directory, &["d", "https://mock.local/problems/echo"], 0);
     let echo = root.join("mock/problems/echo");
     assert_eq!(fs::read_to_string(echo.join("marker")).unwrap(), "single");
-    assert_eq!(fs::read(echo.join("test/sample.in")).unwrap(), b"hello\n");
+    assert_eq!(fs::read(echo.join("test/sample-1.in")).unwrap(), b"hello\n");
+    assert_eq!(
+        fs::read(echo.join("test/sample-1.out")).unwrap(),
+        b"hello\n"
+    );
+    assert_eq!(fs::read_dir(echo.join("test")).unwrap().count(), 2);
     assert!(echo.join("workspace.txt").is_file());
     let metadata: toml::Value =
         toml::from_str(&fs::read_to_string(echo.join(".cpcli.toml")).unwrap()).unwrap();
@@ -796,7 +878,7 @@ mock = "ruby"
     );
     assert!(
         metadata["template_checksums"]
-            .get("test/sample.in")
+            .get("test/sample-1.in")
             .is_none()
     );
     run(
@@ -826,6 +908,18 @@ mock = "ruby"
     assert!(!contest.join("01_sum/workspace.txt").exists());
     assert!(contest.join("01_sum/test/sample-2.out").is_file());
     assert!(contest.join("02_echo/.cpcli.toml").is_file());
+    assert_eq!(
+        fs::read(contest.join("02_echo/test/sample-1.in")).unwrap(),
+        b"hello\n"
+    );
+    assert_eq!(
+        fs::read(contest.join("02_echo/test/sample-1.out")).unwrap(),
+        b"hello\n"
+    );
+    assert_eq!(
+        fs::read_dir(contest.join("02_echo/test")).unwrap().count(),
+        2
+    );
     let browser_bin = directory.path().join("browser-bin");
     fs::create_dir(&browser_bin).unwrap();
     let opener = browser_bin.join("xdg-open");

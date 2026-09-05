@@ -601,13 +601,6 @@ pub fn test(
         "No .in test cases in {}",
         directory.display()
     );
-    for input in &cases {
-        ensure!(
-            input.with_extension("out").is_file(),
-            "Missing expected output: {}",
-            input.with_extension("out").display()
-        );
-    }
     let judge = options
         .judge
         .as_ref()
@@ -637,7 +630,17 @@ pub fn test(
     let mut accepted = 0;
     let mut total = 0;
     for input in cases {
-        let expected = input.as_ref().map(|p| p.with_extension("out"));
+        let mut expected = input.as_ref().map(|p| p.with_extension("out"));
+        let _empty_expected = if judge.is_some()
+            && let Some(path) = &mut expected
+            && !path.try_exists()?
+        {
+            let file = tempfile::NamedTempFile::new()?;
+            *path = file.path().to_owned();
+            Some(file)
+        } else {
+            None
+        };
         let name = match &input {
             Some(p) => p
                 .file_stem()
@@ -678,11 +681,9 @@ pub fn test(
                     .verdict
                         == Verdict::Ac
                 } else {
-                    matches(
-                        &fs::read(expected.as_ref().expect("regular case"))?,
-                        &fs::read(actual.path())?,
-                        options,
-                    )
+                    let expected = expected.as_ref().expect("regular case");
+                    !expected.try_exists()?
+                        || matches(&fs::read(expected)?, &fs::read(actual.path())?, options)
                 };
                 if !correct {
                     result.verdict = Verdict::Wa;

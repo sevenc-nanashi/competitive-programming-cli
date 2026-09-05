@@ -112,7 +112,7 @@ begin
   [ [['--no-color'], {}], [[], { 'NO_COLOR' => '1' }] ].each do |flags, env|
     Terminal.new(binary, 'test', *flags, '--', 'cat', env: env) do |term|
       term.finish(0, ui: false)
-      check(term.output.include?('sample: AC (') && !term.output.include?("\e"),
+      check(term.output.include?('sample-1: AC (') && !term.output.include?("\e"),
             'Test verdict colors were not disabled')
     end
     Terminal.new(binary, 'results', *flags, env: env) do |term|

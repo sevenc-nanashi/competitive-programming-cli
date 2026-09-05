@@ -1,3 +1,5 @@
 /target
+/docs/node_modules
+/docs/dist
 /mock_service/submissions
 !/mock_service/**/test/*.out

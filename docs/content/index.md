@@ -1,0 +1,38 @@
+# Competitive Programming CLI (cpcli)
+
+> [!WARNING]
+> This project is in early development.
+>
+> - Configuration and metadata formats may change.
+> - Only Linux is supported for now.
+
+cpcli is a command-line interface tool for competitive programming.
+
+This tool can:
+
+- Download a problem from various online judges.
+- Download multiple problems from a contest.
+- Compile and test solutions, including custom and interactive judges.
+- Generate test cases and reference answers.
+- Submit solutions to judges.
+- Watch submission results.
+- List problems and contests you've downloaded.
+
+Currently supported online judges:
+
+- AtCoder
+- AtCoder Problems (Virtual Contests)
+- Yukicoder
+
+cpcli currently supports Linux. Building requires Rust 1.91 or newer.
+
+## Getting started
+
+1. [Install cpcli](./installation.md).
+2. [Configure your workspace and log in](./configuration.md).
+3. [Download a problem or contest](./workspaces.md).
+4. [Test your solution](./testing.md) and [generate extra test cases](./generating.md).
+5. [Submit your solution and watch the results](./submissions.md).
+
+See the [project README](https://github.com/sevenc-nanashi/competitive-programming-cli#acknowledgements)
+for acknowledgements and third-party license notices.
