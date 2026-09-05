@@ -481,6 +481,42 @@ fn show_io() {
 }
 
 #[test]
+fn judge_argument_order() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let directory = tempfile::tempdir().unwrap();
+    fs::create_dir(directory.path().join("config")).unwrap();
+    fs::write(
+        directory.path().join("config/config.toml"),
+        "[language.ruby]\nextensions = ['rb']\nrun = 'ruby {input}'\n",
+    )
+    .unwrap();
+    for expected in ["expected\n", ""] {
+        case(&directory, b"input\n", expected.as_bytes());
+        if expected.is_empty() {
+            fs::remove_file(directory.path().join("test/sample-1.out")).unwrap();
+        }
+        for name in ["judge", "judge.rb"] {
+            let path = directory.path().join(name);
+            fs::write(&path, format!("#!/usr/bin/env ruby\nabort ARGV.inspect unless ARGV.map {{ |path| File.read(path) }} == [\"input\\n\", \"actual\\n\", {expected:?}]\n")).unwrap();
+            fs::set_permissions(path, fs::Permissions::from_mode(0o755)).unwrap();
+        }
+        for judge in [
+            "./judge",
+            "./judge.rb",
+            "ruby ./judge.rb",
+            "ruby ./judge.rb {test_input} {solution_output} {test_output}",
+        ] {
+            run(
+                &directory,
+                &["test", "--judge", judge, "--", "printf", "actual\n"],
+                0,
+            );
+        }
+    }
+}
+
+#[test]
 fn missing_expected_outputs() {
     let directory = tempfile::tempdir().unwrap();
     case(&directory, b"hello\n", b"hello\n");
@@ -522,7 +558,7 @@ fn missing_expected_outputs() {
     assert!(!expected.exists());
     fs::write(
         directory.path().join("judge.rb"),
-        "abort unless ARGV.size == 3 && File.read(ARGV[1]).empty? && File.read(ARGV[0]) == File.read(ARGV[2])",
+        "abort unless ARGV.size == 3 && File.read(ARGV[2]).empty? && File.read(ARGV[0]) == File.read(ARGV[1])",
     )
     .unwrap();
     run(

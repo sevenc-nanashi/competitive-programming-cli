@@ -145,7 +145,7 @@ cpcli test --float-error 1e-6 --float-error-type relative ./solution.cpp
 ```
 
 For custom judges, you can specify the command to execute for each test case:
-The judge will receive three arguments: the test input file (`{test_input}`), the expected output file (`{test_output}`), and the actual output file from the solution (`{solution_output}`).
+The judge will receive three arguments in the same order as oj: the test input file (`{test_input}`), the actual output file from the solution (`{solution_output}`), and the expected output file (`{test_output}`).
 `{test_output}` is the corresponding `.out` path. If it is missing, cpcli passes
 an empty temporary file instead and deletes it after the case finishes.
 If the judge command does not have these placeholders, cpcli will append them to the end of the command.
@@ -156,7 +156,7 @@ Judges should return exit code 0 for accepted, otherwise return non-zero exit co
 cpcli test --judge ./judge.rb ./solution.rb
 
 # Or directly specify the command to execute for each test case
-cpcli test --judge "ruby ./judge.rb {test_input} {test_output} {solution_output}" ./solution.rb
+cpcli test --judge "ruby ./judge.rb {test_input} {solution_output} {test_output}" ./solution.rb
 ```
 
 ## Test interactive problems

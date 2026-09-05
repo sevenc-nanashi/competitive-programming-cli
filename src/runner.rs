@@ -464,8 +464,8 @@ impl Judge {
     ) -> Result<Program> {
         let values = [
             ("{test_input}", input),
-            ("{test_output}", expected),
             ("{solution_output}", actual),
+            ("{test_output}", expected),
         ];
         match self {
             Self::File(program) => {

@@ -62,12 +62,12 @@ and `cpcli test --help` when adapting scripts:
   `--strip`. Use `--show-io never` to hide cpcli's I/O details, `always` to show
   every case, or `failure` (the default) to show failed cases. oj's `-j` selects
   parallel jobs; cpcli's `-j` selects a judge, and cases run sequentially.
-- **Custom judge arguments:** oj passes input, actual output, then expected
-  output. cpcli's default order is input, expected output, then actual output.
-  Use explicit placeholders to reuse an oj judge without changing its script:
+
+Custom judges receive input, actual output, then expected output in both tools.
+You can reuse an oj judge directly:
 
 ```bash
-cpcli test --judge 'ruby judge.rb {test_input} {solution_output} {test_output}' -- ruby solution.rb
+cpcli test --judge 'ruby judge.rb' -- ruby solution.rb
 ```
 
 cpcli copies template files as they are. It does not analyze problem statements
