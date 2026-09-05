@@ -3,6 +3,7 @@ use crate::{
     config::{Config, Language, expand_path},
 };
 use anyhow::{Context, Result, ensure};
+use console::Style;
 use std::{
     ffi::{OsStr, OsString},
     fs::{self, File},
@@ -598,8 +599,12 @@ fn matches(expected: &[u8], actual: &[u8], options: &Test) -> bool {
         })
 }
 
-fn print_io(label: &str, path: &Path) -> Result<()> {
-    println!("{label}:\n{}", String::from_utf8_lossy(&fs::read(path)?));
+fn print_io(label: &str, path: &Path, style: Style) -> Result<()> {
+    println!(
+        "{}\n{}",
+        style.apply_to(format!("{label}:")),
+        String::from_utf8_lossy(&fs::read(path)?)
+    );
     Ok(())
 }
 
@@ -651,16 +656,6 @@ pub fn test(
     let mut total = 0;
     for input in cases {
         let mut expected = input.as_ref().map(|p| p.with_extension("out"));
-        let _empty_expected = if judge.is_some()
-            && let Some(path) = &mut expected
-            && !path.try_exists()?
-        {
-            let file = tempfile::NamedTempFile::new()?;
-            *path = file.path().to_owned();
-            Some(file)
-        } else {
-            None
-        };
         let name = match &input {
             Some(p) => p
                 .file_stem()
@@ -669,6 +664,22 @@ pub fn test(
                 .into_owned(),
             None => "interactive".into(),
         };
+        let is_placeholder_output = if judge.is_some()
+            && let Some(path) = &mut expected
+            && !path.try_exists()?
+        {
+            let file = tempfile::NamedTempFile::new()?;
+            *path = file.path().to_owned();
+            if options.judge.is_none() {
+                tracing::warn!(
+                    "Missing expected output for {name}; the only exit code will be checked"
+                );
+            }
+            Some(file)
+        } else {
+            None
+        };
+        tracing::info!("Running test case {name}...");
         let actual = tempfile::NamedTempFile::new()?;
         let result = if options.interactive {
             let judge = judge
@@ -705,10 +716,11 @@ pub fn test(
                     )?
                     .verdict
                         == Verdict::Ac
+                } else if is_placeholder_output.is_some() {
+                    true
                 } else {
                     let expected = expected.as_ref().expect("regular case");
-                    !expected.try_exists()?
-                        || matches(&fs::read(expected)?, &fs::read(actual.path())?, options)
+                    matches(&fs::read(expected)?, &fs::read(actual.path())?, options)
                 };
                 if !correct {
                     result.verdict = Verdict::Wa;
@@ -732,28 +744,33 @@ pub fn test(
             ShowIo::Failure => result.verdict != Verdict::Ac,
             ShowIo::Never => false,
         } {
+            let style = Style::new().bold().force_styling(color);
             if let Some(input) = &input {
-                print_io("Input", input)?;
+                print_io("Input", input, style.clone())?;
             }
             if let Some(expected) = &expected
                 && expected.try_exists()?
             {
-                print_io("Expected output", expected)?;
+                print_io("Expected output", expected, style.clone().green())?;
             }
-            print_io(
-                if options.interactive {
-                    "Interaction"
-                } else {
-                    "Actual output"
-                },
-                actual.path(),
-            )?;
+            let (label, style) = if options.interactive {
+                ("Interaction", style)
+            } else {
+                ("Actual output", style.yellow())
+            };
+            print_io(label, actual.path(), style)?;
         }
         if result.verdict != Verdict::Ac && options.fast_fail {
             break;
         }
     }
-    println!("{accepted}/{total} accepted");
+    if total == 0 {
+        tracing::warn!("No test cases were run");
+    } else if accepted == total {
+        tracing::info!("All {total} test case(s) passed");
+    } else {
+        tracing::warn!("{} of {} test case(s) passed", accepted, total);
+    }
     Ok(accepted == total)
 }
 
