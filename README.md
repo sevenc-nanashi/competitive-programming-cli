@@ -1,7 +1,10 @@
 # Competitive Programming CLI (cpcli)
 
 > [!WARNING]
-> This project is in early development. Configuration and metadata formats may change.
+> This project is in early development.
+>
+> - Configuration and metadata formats may change.
+> - Only Linux is supported for now.
 
 cpcli is a command-line interface tool for competitive programming.
 
@@ -163,6 +166,18 @@ cpcli prepare https://atcoder.jp/contests/abc473
 # Or shortcut
 cpcli p https://atcoder.jp/contests/abc473
 ```
+
+### Open the current problem or contest
+
+```bash
+cpcli open
+# Or shortcut
+cpcli o
+```
+
+Opens the problem or contest URL from the nearest `.cpcli.toml` in your default
+browser. This also works from subdirectories. A problem directory inside a
+contest opens that problem; the contest directory opens the contest page.
 
 ### Test a solution
 

@@ -27,7 +27,7 @@ impl AtCoderBackend {
         document
             .select(&selector("form"))
             .find(|form| {
-                form.select(&selector("select[name='data.LanguageId']"))
+                form.select(&selector("div[data-name='data.LanguageId']"))
                     .next()
                     .is_some()
             })
@@ -173,20 +173,25 @@ impl ServiceBackend for AtCoderBackend {
     fn languages(&self, problem: &ProblemRef) -> Result<Vec<SubmissionLanguage>> {
         let (_, document) = self.submission_page(problem)?;
         let form = Self::submission_form(&document)?;
-        let mut languages = Vec::new();
-        for option in form.select(&selector("select[name='data.LanguageId'] option[value]")) {
+        let mut languages = std::collections::HashMap::new();
+        for option in form.select(&selector("div[data-name='data.LanguageId'] option[value]")) {
             let id = option.value().attr("value").expect("selected value");
             if !id.is_empty() {
-                languages.push(SubmissionLanguage {
-                    id: id.into(),
-                    name: text(option),
-                });
+                languages.insert(
+                    id.to_owned(),
+                    SubmissionLanguage {
+                        id: id.into(),
+                        name: text(option),
+                    },
+                );
             }
         }
         ensure!(
             !languages.is_empty(),
             "No AtCoder submission languages available"
         );
+        let mut languages = languages.into_values().collect::<Vec<_>>();
+        languages.sort_by(|a, b| a.id.cmp(&b.id));
         Ok(languages)
     }
 
@@ -222,7 +227,11 @@ impl ServiceBackend for AtCoderBackend {
         let (url, document) = self.http.post(&action, fields, None, None)?;
         ensure!(
             url.path().contains("/submissions/"),
-            "AtCoder did not confirm submission; check results before submitting again"
+            concat!(
+                "AtCoder did not confirm submission; check results before submitting again. ",
+                "Note that AtCoder has captchas for past contests, which cannot be bypassed by cpcli.",
+                "Please submit manually if this is the case."
+            )
         );
         let submissions = parse_submissions(&document, &url)?;
         let mut new = Vec::new();

@@ -301,7 +301,7 @@ fn cli_contract_and_local_judging() {
     run(&directory, &["--version"], 0);
     for name in [
         "init", "login", "download", "d", "prepare", "p", "test", "t", "generate", "g", "submit",
-        "s", "results", "r", "list",
+        "s", "results", "r", "list", "open", "o",
     ] {
         run(&directory, &[name, "--help"], 0);
     }
@@ -819,6 +819,58 @@ mock = "ruby"
     assert!(!contest.join("01_sum/workspace.txt").exists());
     assert!(contest.join("01_sum/test/sample-2.out").is_file());
     assert!(contest.join("02_echo/.cpcli.toml").is_file());
+    let browser_bin = directory.path().join("browser-bin");
+    fs::create_dir(&browser_bin).unwrap();
+    let opener = browser_bin.join("xdg-open");
+    let ruby = Command::new("ruby")
+        .args(["-rrbconfig", "-e", "print RbConfig.ruby"])
+        .output()
+        .unwrap();
+    assert!(ruby.status.success());
+    fs::write(&opener, format!("#!{}\nraise 'Expected one URL' unless ARGV.length == 1\nFile.open(ENV.fetch('CPCLI_OPEN_LOG'), 'a') {{ |f| f.puts ARGV.fetch(0) }}\nexit Integer(ENV.fetch('CPCLI_OPEN_EXIT'))\n", String::from_utf8(ruby.stdout).unwrap())).unwrap();
+    fs::set_permissions(&opener, fs::Permissions::from_mode(0o755)).unwrap();
+    let opened = directory.path().join("opened-urls");
+    let open_command = |cwd: &std::path::Path, alias: &str| {
+        let mut cmd = command(&directory);
+        cmd.current_dir(cwd)
+            .arg(alias)
+            .env("PATH", &browser_bin)
+            .env("CPCLI_OPEN_LOG", &opened)
+            .env("CPCLI_OPEN_EXIT", "0");
+        cmd
+    };
+    for (cwd, alias) in [
+        (echo.clone(), "open"),
+        (echo.join("src"), "o"),
+        (contest.join("01_sum/src"), "open"),
+        (contest.clone(), "o"),
+    ] {
+        let output = open_command(&cwd, alias).output().unwrap();
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+    let expected = "https://mock.local/problems/echo\nhttps://mock.local/problems/echo\nhttps://mock.local/problems/sum\nhttps://mock.local/contests/practice\n";
+    assert_eq!(fs::read_to_string(&opened).unwrap(), expected);
+    let output = open_command(directory.path(), "o").output().unwrap();
+    assert_eq!(output.status.code(), Some(2));
+    assert!(String::from_utf8_lossy(&output.stderr).contains("No .cpcli.toml"));
+    assert_eq!(fs::read_to_string(&opened).unwrap(), expected);
+    let output = open_command(&echo, "o")
+        .env("CPCLI_OPEN_EXIT", "7")
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(2));
+    assert!(String::from_utf8_lossy(&output.stderr).contains("Cannot open"));
+    fs::remove_file(opener).unwrap();
+    let output = open_command(&echo, "o")
+        .env("PATH", &browser_bin)
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(2));
+    assert!(String::from_utf8_lossy(&output.stderr).contains("Cannot open"));
     for (mode, expected) in [
         (None, vec!["mock/contests/practice", "mock/problems/echo"]),
         (

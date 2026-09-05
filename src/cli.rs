@@ -29,6 +29,9 @@ pub enum Commands {
     /// Prepare all problems in a contest.
     #[usage(alias = "p")]
     Prepare(Download),
+    /// Open the current problem or contest in your browser.
+    #[usage(alias = "o")]
+    Open,
     /// Compile and test a solution.
     #[usage(alias = "t")]
     Test(Test),

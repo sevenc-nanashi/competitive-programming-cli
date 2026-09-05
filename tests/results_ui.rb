@@ -116,7 +116,7 @@ begin
     opener = File.join(directory, 'xdg-open')
     File.write(opener, "#!#{RbConfig.ruby}\nFile.write(ENV.fetch('CPCLI_OPENED_URL'), ARGV.fetch(0))\n")
     File.chmod(0o755, opener)
-    env = { 'PATH' => "#{directory}:#{ENV.fetch('PATH')}", 'CPCLI_OPENED_URL' => opened }
+    env = { 'PATH' => directory, 'CPCLI_OPENED_URL' => opened }
     Terminal.new(binary, 'results', '--ui', '--limit', '2', env: env) do |term|
       term.expect('! Refreshing |')
       term.expect('Running')

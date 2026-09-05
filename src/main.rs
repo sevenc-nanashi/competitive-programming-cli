@@ -13,12 +13,16 @@ mod workspace;
 use anyhow::{Context, Result, bail, ensure};
 use cli::{Cli, Commands, ListMode};
 use config::{Config, Paths, expand_path};
-use model::{Metadata, ResourceRef, SubmissionRequest};
+use model::{Metadata, ResourceRef, ServiceId, SubmissionRequest};
 use services::Services;
 use std::{
     fs,
     sync::atomic::{AtomicBool, Ordering},
 };
+
+fn open_browser(url: &url::Url) -> Result<()> {
+    open::that(url.as_str()).with_context(|| format!("Cannot open {url} in your browser"))
+}
 
 fn run(cli: Cli, interrupted: &AtomicBool) -> Result<bool> {
     let paths = Paths::discover()?;
@@ -27,6 +31,16 @@ fn run(cli: Cli, interrupted: &AtomicBool) -> Result<bool> {
         Commands::Login(args) => Services::login(&paths, args.service, &args.cookie_file)?,
         Commands::Test(args) => return runner::test(&Config::load(&paths)?, &args, interrupted),
         Commands::Generate(args) => runner::generate(&Config::load(&paths)?, &args, interrupted)?,
+        Commands::Open => {
+            let url = match workspace::locate(&std::env::current_dir()?)? {
+                Metadata::Problem { reference, .. } => reference.url,
+                Metadata::Contest(contest) => contest.reference.url,
+            };
+            ServiceId::from_url(&url)?;
+            ensure!(!interrupted.load(Ordering::Relaxed), "Interrupted");
+            open_browser(&url)?;
+            tracing::info!("Opened {url}");
+        }
         Commands::List(args) => {
             let config = Config::load(&paths)?;
             let root = config.root()?;

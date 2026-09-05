@@ -4,7 +4,7 @@ use crate::{
     model::{Metadata, Submission, SubmissionScope},
     services::Services,
 };
-use anyhow::{Context, Result, ensure};
+use anyhow::{Result, ensure};
 use console::{Alignment, Color, Style, measure_text_width, pad_str, truncate_str};
 use crossterm::{
     cursor::{Hide, MoveTo, Show},
@@ -14,7 +14,6 @@ use crossterm::{
 };
 use std::{
     io::{self, IsTerminal, Write},
-    process::{Command, Stdio},
     sync::{
         atomic::{AtomicBool, Ordering},
         mpsc::{self, TryRecvError},
@@ -315,22 +314,11 @@ fn monitor(
                 if let Some(submission) =
                     submissions.get(offset + index).filter(|_| index < visible)
                 {
-                    let url = submission.url.to_string();
+                    let url = submission.url.clone();
                     let sender = open_tx.clone();
                     message = "Opening submission…".into();
                     thread::spawn(move || {
-                        let result = (|| -> Result<()> {
-                            let status = Command::new("xdg-open")
-                                .arg(url)
-                                .stdin(Stdio::null())
-                                .stdout(Stdio::null())
-                                .stderr(Stdio::null())
-                                .status()
-                                .context("Cannot launch xdg-open")?;
-                            ensure!(status.success(), "xdg-open failed: {status}");
-                            Ok(())
-                        })();
-                        let _ = sender.send(result);
+                        let _ = sender.send(crate::open_browser(&url));
                     });
                 }
             }
