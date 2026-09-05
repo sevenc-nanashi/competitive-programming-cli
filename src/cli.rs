@@ -89,10 +89,20 @@ pub enum FloatErrorType {
     Relative,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, usage::ValueEnum)]
+pub enum ShowIo {
+    Always,
+    Failure,
+    Never,
+}
+
 #[derive(Debug, usage::Args)]
 pub struct Test {
     #[usage(flatten)]
     pub program: ProgramArgs,
+    /// Show case input, expected output, and actual output (or interactive transcript).
+    #[usage(long, value_enum, default = "failure")]
+    pub show_io: ShowIo,
     #[usage(long, short = 'd')]
     pub test_dir: Option<PathBuf>,
     /// Wall-clock limit per case, in milliseconds.

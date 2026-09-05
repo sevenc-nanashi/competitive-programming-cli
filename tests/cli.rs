@@ -404,6 +404,83 @@ fn cli_contract_and_local_judging() {
 }
 
 #[test]
+fn show_io() {
+    let directory = tempfile::tempdir().unwrap();
+    case(&directory, b"input\n", b"answer\n");
+    run(
+        &directory,
+        &["test", "--show-io", "invalid", "--", "cat"],
+        2,
+    );
+    run(&directory, &["test", "--show-io"], 2);
+
+    for mode in [None, Some("always"), Some("failure"), Some("never")] {
+        for (solution, judge, actual, verdict) in [
+            ("printf 'answer\\n'", None, "answer\n", "AC"),
+            ("printf wrong", None, "wrong", "WA"),
+            ("printf partial; exit 7", None, "partial", "RE"),
+            ("printf 'answer\\n'", Some("false"), "answer\n", "WA"),
+        ] {
+            let mut args = vec!["test"];
+            if let Some(mode) = mode {
+                args.extend(["--show-io", mode]);
+            }
+            if let Some(judge) = judge {
+                args.extend(["--judge", judge]);
+            }
+            args.extend(["--", "sh", "-c", solution]);
+            let output = run(&directory, &args, i32::from(verdict != "AC"));
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            let shown = mode != Some("never") && (mode == Some("always") || verdict != "AC");
+            assert!(stdout.contains(&format!("sample-1: {verdict} (")));
+            for details in [
+                "Input:\ninput\n".to_owned(),
+                "Expected output:\nanswer\n".to_owned(),
+                format!("Actual output:\n{actual}\n"),
+            ] {
+                assert_eq!(stdout.contains(&details), shown, "{args:?}\n{stdout}");
+            }
+            assert!(stdout.contains(&format!("{}/1 accepted", usize::from(verdict == "AC"))));
+        }
+    }
+
+    fs::remove_file(directory.path().join("test/sample-1.out")).unwrap();
+    let output = run(&directory, &["test", "--show-io", "always", "--", "cat"], 0);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("Input:\ninput\n"));
+    assert!(stdout.contains("Actual output:\ninput\n"));
+    assert!(!stdout.contains("Expected output:"));
+
+    fs::remove_dir_all(directory.path().join("test")).unwrap();
+    for mode in [None, Some("always"), Some("failure"), Some("never")] {
+        for code in [0, 1] {
+            let judge = format!("printf 'question\\n'; read answer; exit {code}");
+            let mut args = vec![
+                "test",
+                "--interactive",
+                "--judge",
+                &judge,
+                "--time-limit",
+                "2000",
+            ];
+            if let Some(mode) = mode {
+                args.extend(["--show-io", mode]);
+            }
+            args.extend(["--", "sh", "-c", "read question; printf 'answer\\n'"]);
+            let output = run(&directory, &args, code);
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            let shown = mode != Some("never") && (mode == Some("always") || code != 0);
+            for text in ["Interaction:", "? question", "! answer"] {
+                assert_eq!(stdout.contains(text), shown, "{args:?}\n{stdout}");
+                assert!(!stderr.contains(text), "{args:?}\n{stderr}");
+            }
+            assert!(stdout.contains(&format!("{}/1 accepted", 1 - code)));
+        }
+    }
+}
+
+#[test]
 fn missing_expected_outputs() {
     let directory = tempfile::tempdir().unwrap();
     case(&directory, b"hello\n", b"hello\n");

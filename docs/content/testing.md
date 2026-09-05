@@ -93,6 +93,21 @@ Without a custom judge, a missing `.out` skips output comparison: the case is
 `AC` if the solution exits with `0`, otherwise `RE`. Time and memory limits still
 apply. An existing empty `.out` requires empty output.
 
+Use `--show-io` to choose when to display each case's input, expected output
+(when available), and actual output:
+
+- `always`: show I/O for every case.
+- `failure` (default): show I/O only for failed cases, including `WA`, `RE`, `TLE`, and `MLE`.
+- `never`: hide I/O details.
+
+Verdicts and the summary are always shown. Standard error from the solution
+and judge is still streamed directly.
+
+```bash
+cpcli test --show-io always ./solution.cpp
+cpcli test --show-io never -- ruby ./solution.rb
+```
+
 For stripping trailing white-space in the output, you can use `--strip` option to ignore trailing white-space differences between the expected output and the actual output.
 
 ```bash
@@ -149,6 +164,7 @@ cpcli test --judge "ruby ./judge.rb {test_input} {test_output} {solution_output}
 You can test interactive problems with custom judge.
 The judge's standard input will receive the output from the solution, and the judge's standard output will be sent to the solution's standard input.
 cpcli will prefix `?` for the judge's output and `!` for the solution's output.
+The transcript is displayed after each case according to `--show-io`.
 If test files exist, the judge will receive the path as `{test_input}` and `{test_output}` arguments, and cpcli will run the judge and solution for each test case.
 As with custom judges, a missing `.out` is replaced with an empty temporary file for that run.
 Unlike other test commands, this command can be run without test files, and the judge will be run only once with no test files.

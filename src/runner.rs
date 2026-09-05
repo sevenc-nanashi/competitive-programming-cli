@@ -1,5 +1,5 @@
 use crate::{
-    cli::{FloatErrorType, Generate, ProgramArgs, Test},
+    cli::{FloatErrorType, Generate, ProgramArgs, ShowIo, Test},
     config::{Config, Language, expand_path},
 };
 use anyhow::{Context, Result, ensure};
@@ -11,7 +11,7 @@ use std::{
     path::{Path, PathBuf},
     process::{Child, Command, ExitStatus, Stdio},
     sync::{
-        Arc,
+        Arc, Mutex,
         atomic::{AtomicBool, Ordering},
     },
     thread,
@@ -366,12 +366,25 @@ fn execute(
     monitor(&mut [&mut child], limits, interrupted)
 }
 
-fn relay(mut input: impl Read, mut output: impl Write, prefix: &str) -> io::Result<()> {
+fn relay(
+    mut input: impl Read,
+    mut output: impl Write,
+    prefix: &str,
+    transcript: Option<Arc<Mutex<File>>>,
+) -> io::Result<()> {
     let mut buffer = [0; 4096];
     loop {
         let n = input.read(&mut buffer)?;
         if n == 0 {
             return Ok(());
+        }
+        if let Some(transcript) = &transcript {
+            writeln!(
+                transcript.lock().expect("transcript lock poisoned"),
+                "{}{}",
+                prefix,
+                String::from_utf8_lossy(&buffer[..n])
+            )?;
         }
         if let Err(error) = output.write_all(&buffer[..n]).and_then(|()| output.flush()) {
             if error.kind() == io::ErrorKind::BrokenPipe {
@@ -379,7 +392,6 @@ fn relay(mut input: impl Read, mut output: impl Write, prefix: &str) -> io::Resu
             }
             return Err(error);
         }
-        tracing::info!(target: "cpcli::interactive", "{}{}", prefix, String::from_utf8_lossy(&buffer[..n]));
     }
 }
 
@@ -388,6 +400,7 @@ fn interactive(
     judge: &Program,
     limits: Limits,
     interrupted: &AtomicBool,
+    transcript: Option<File>,
 ) -> Result<RunResult> {
     let mut solution = ManagedChild::spawn(program, Stdio::piped(), Stdio::piped())?;
     let mut judge = ManagedChild::spawn(judge, Stdio::piped(), Stdio::piped())?;
@@ -395,8 +408,10 @@ fn interactive(
     let judge_in = judge.child.stdin.take().expect("piped stdin");
     let judge_out = judge.child.stdout.take().expect("piped stdout");
     let solution_in = solution.child.stdin.take().expect("piped stdin");
-    let forward = thread::spawn(move || relay(solution_out, judge_in, "! "));
-    let backward = thread::spawn(move || relay(judge_out, solution_in, "? "));
+    let transcript = transcript.map(|file| Arc::new(Mutex::new(file)));
+    let forward_transcript = transcript.clone();
+    let forward = thread::spawn(move || relay(solution_out, judge_in, "! ", forward_transcript));
+    let backward = thread::spawn(move || relay(judge_out, solution_in, "? ", transcript));
     let result = monitor(&mut [&mut solution, &mut judge], limits, interrupted);
     drop(solution);
     drop(judge);
@@ -583,6 +598,11 @@ fn matches(expected: &[u8], actual: &[u8], options: &Test) -> bool {
         })
 }
 
+fn print_io(label: &str, path: &Path) -> Result<()> {
+    println!("{label}:\n{}", String::from_utf8_lossy(&fs::read(path)?));
+    Ok(())
+}
+
 pub fn test(
     config: &Config,
     options: &Test,
@@ -649,14 +669,19 @@ pub fn test(
                 .into_owned(),
             None => "interactive".into(),
         };
+        let actual = tempfile::NamedTempFile::new()?;
         let result = if options.interactive {
             let judge = judge
                 .as_ref()
                 .context("Interactive tests require --judge")?
                 .command(input.as_deref(), expected.as_deref(), None)?;
-            interactive(&program, &judge, limits, interrupted)?
+            let transcript = if options.show_io == ShowIo::Never {
+                None
+            } else {
+                Some(actual.reopen()?)
+            };
+            interactive(&program, &judge, limits, interrupted, transcript)?
         } else {
-            let actual = tempfile::NamedTempFile::new()?;
             let mut result = execute(
                 &program,
                 File::open(input.as_ref().expect("regular case"))?.into(),
@@ -702,6 +727,28 @@ pub fn test(
             result.elapsed.as_millis(),
             result.memory / 1024
         );
+        if match options.show_io {
+            ShowIo::Always => true,
+            ShowIo::Failure => result.verdict != Verdict::Ac,
+            ShowIo::Never => false,
+        } {
+            if let Some(input) = &input {
+                print_io("Input", input)?;
+            }
+            if let Some(expected) = &expected
+                && expected.try_exists()?
+            {
+                print_io("Expected output", expected)?;
+            }
+            print_io(
+                if options.interactive {
+                    "Interaction"
+                } else {
+                    "Actual output"
+                },
+                actual.path(),
+            )?;
+        }
         if result.verdict != Verdict::Ac && options.fast_fail {
             break;
         }

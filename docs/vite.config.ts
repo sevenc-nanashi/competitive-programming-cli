@@ -18,6 +18,7 @@ export default defineConfig({
         theme: defineTheme({
           sidebar: [
             { text: "Introduction", link: "/index.md" },
+            { text: "cpcli vs oj", link: "/cpcli-vs-oj.md" },
             { text: "Installation", link: "/installation.md" },
             { text: "Configuration and login", link: "/configuration.md" },
             { text: "Workspaces", link: "/workspaces.md" },

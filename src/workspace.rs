@@ -203,6 +203,7 @@ pub fn download(
             );
             template(paths, "workspace_template", staging.path())?;
             template(paths, "contest_template", staging.path())?;
+            let zfill_length = contest.problems.len().to_string().len();
             for (i, p) in contest.problems.iter().enumerate() {
                 tracing::info!(
                     "Downloading {} ({}/{})...",
@@ -210,9 +211,12 @@ pub fn download(
                     i + 1,
                     contest.problems.len()
                 );
-                let destination = staging
-                    .path()
-                    .join(format!("{:02}_{}", i + 1, safe_id(&p.id)?));
+                let destination = staging.path().join(format!(
+                    "{:0zfill$}_{}",
+                    i + 1,
+                    safe_id(&p.id)?,
+                    zfill = zfill_length
+                ));
                 write_problem(
                     paths,
                     &destination,
