@@ -1,3 +1,172 @@
+#[cfg(not(target_os = "linux"))]
+compile_error!("cpcli currently supports Linux only");
+
+mod cli;
+mod config;
+mod log_writer;
+mod model;
+mod results;
+mod runner;
+mod services;
+mod workspace;
+
+use anyhow::{Context, Result, bail, ensure};
+use cli::{Cli, Commands, ListMode};
+use config::{Config, Paths, expand_path};
+use model::{Metadata, ResourceRef, SubmissionRequest};
+use services::Services;
+use std::{
+    fs,
+    sync::atomic::{AtomicBool, Ordering},
+};
+
+fn run(cli: Cli, interrupted: &AtomicBool) -> Result<bool> {
+    let paths = Paths::discover()?;
+    match cli.command {
+        Commands::Login(args) => Services::login(&paths, args.service, &args.cookie_file)?,
+        Commands::Test(args) => return runner::test(&Config::load(&paths)?, &args, interrupted),
+        Commands::Generate(args) => runner::generate(&Config::load(&paths)?, &args, interrupted)?,
+        Commands::List(args) => {
+            let config = Config::load(&paths)?;
+            let root = config.root()?;
+            let mode = match args.mode {
+                Some(mode) => mode,
+                None => ListMode::Workspace,
+            };
+            for path in workspace::list(&config, mode)? {
+                println!(
+                    "{}",
+                    if args.path {
+                        path.as_path()
+                    } else {
+                        path.strip_prefix(&root)?
+                    }
+                    .display()
+                );
+            }
+        }
+        Commands::Download(args) => {
+            let services = Services::new(&paths)?;
+            let problem = services.resolve(&args.url)?.problem()?;
+            let directory = workspace::download(
+                &paths,
+                &Config::load(&paths)?,
+                &services,
+                ResourceRef::Problem(problem),
+            )?;
+            println!("{}", directory.display());
+        }
+        Commands::Prepare(args) => {
+            let services = Services::new(&paths)?;
+            let contest = services.resolve(&args.url)?.contest()?;
+            let directory = workspace::download(
+                &paths,
+                &Config::load(&paths)?,
+                &services,
+                ResourceRef::Contest(contest),
+            )?;
+            println!("{}", directory.display());
+        }
+        Commands::Submit(args) => {
+            let config = Config::load(&paths)?;
+            let source_path = fs::canonicalize(expand_path(&args.file)?)?;
+            let source = fs::read_to_string(&source_path)?;
+            let local = workspace::find_metadata(
+                source_path
+                    .parent()
+                    .context("Source has no parent directory")?,
+            )?;
+            if let Some((
+                directory,
+                Metadata::Problem {
+                    template_checksums, ..
+                },
+            )) = &local
+                && let Some(expected) = template_checksums.get(source_path.strip_prefix(directory)?)
+                && *expected == workspace::checksum(source.as_bytes())
+            {
+                tracing::warn!("{} is unchanged from its template", source_path.display());
+                ensure!(
+                    args.allow_submit_unchanged_solution,
+                    "Use --allow-submit-unchanged-solution to submit the unchanged template"
+                );
+            }
+            let configured_language = config.match_language(&source_path)?;
+            let prepared_source = configured_language
+                .map(|language| runner::prepare_source(language, &source_path, true, interrupted))
+                .transpose()?
+                .flatten();
+            let source = match &prepared_source {
+                Some(prepared) => fs::read_to_string(prepared.path())?,
+                None => source,
+            };
+            let services = Services::new(&paths)?;
+            let problem = match args.problem {
+                Some(url) => services.resolve(&url)?.problem()?,
+                None => match local
+                    .context("No .cpcli.toml found for the source; specify --problem URL")?
+                    .1
+                {
+                    Metadata::Problem { reference, .. } => reference,
+                    Metadata::Contest(_) => bail!("Specify a problem directory or --problem URL"),
+                },
+            };
+            let backend = services.backend(problem.service);
+            let language = match args.language {
+                Some(language) => Some(language),
+                None => configured_language
+                    .and_then(|language| language.submit.get(backend.auth_service().as_str()))
+                    .cloned(),
+            };
+            let languages = backend.languages(&problem)?;
+            let Some(language) =
+                language.filter(|id| languages.iter().any(|language| &language.id == id))
+            else {
+                tracing::error!(
+                    "Choose a submission language using --language or language.<name>.submit.{}:",
+                    backend.auth_service().as_str()
+                );
+                for language in languages {
+                    tracing::info!("{}\t{}", language.id, language.name);
+                }
+                bail!("Submission language is missing or invalid");
+            };
+            ensure!(!interrupted.load(Ordering::Relaxed), "Interrupted");
+            let submission = backend.submit(&SubmissionRequest {
+                problem: &problem,
+                language: &language,
+                source: &source,
+            })?;
+            println!("Submitted {}: {}", submission.id, submission.url);
+        }
+        Commands::Results(args) => {
+            let scope = workspace::locate(&std::env::current_dir()?)?;
+            results::run(&args, paths, scope, cli.no_color, interrupted)?;
+        }
+    }
+    Ok(true)
+}
+
 fn main() {
-    println!("Hello, world!");
+    let cli = Cli::parse();
+    log_writer::init(cli.no_color);
+    let interrupted = match runner::install_signal_handler() {
+        Ok(interrupted) => interrupted,
+        Err(error) => {
+            tracing::error!("{error:#}");
+            std::process::exit(2);
+        }
+    };
+    let result = run(cli, &interrupted);
+    if interrupted.load(Ordering::Relaxed) {
+        std::process::exit(130);
+    }
+    match result {
+        Ok(true) => (),
+        Ok(false) => std::process::exit(1),
+        Err(error) => {
+            tracing::error!("{error:#}");
+            std::process::exit(2);
+        }
+    }
 }

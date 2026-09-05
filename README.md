@@ -1,7 +1,7 @@
 # Competitive Programming CLI (cpcli)
 
 > [!WARNING]
-> This project is still in early development stage, and most of the features are not implemented yet.
+> This project is in early development. Configuration and metadata formats may change.
 
 cpcli is a command-line interface tool for competitive programming.
 
@@ -9,7 +9,10 @@ This tool can:
 
 - Download a problem from various online judges.
 - Download multiple problems from a contest.
+- Compile and test solutions, including custom and interactive judges.
+- Generate test cases and reference answers.
 - Submit solutions to judges.
+- Watch submission results.
 - List problems and contests you've downloaded.
 
 Currently supported online judges:
@@ -18,12 +21,30 @@ Currently supported online judges:
 - AtCoder Problems (Virtual Contests)
 - Yukicoder
 
+cpcli currently supports Linux. Building requires Rust 1.91 or newer.
+
 ## Features
 
 ### Configuration
 
 Configuration is stored within `$XDG_CONFIG_HOME/cpcli` (called `$config` in this document) by default.
 Overridable with `$CPCLI_CONFIG_HOME` environment variable.
+When XDG variables are unset, the configuration directory is `~/.config/cpcli`
+and the data directory is `~/.local/share/cpcli`.
+
+Set the workspace root in `$config/config.toml` before downloading or listing problems:
+
+```toml
+root = "/home/your-name/competitive-programming"
+```
+
+Language settings shown below belong in the same file. Path settings and CLI
+path arguments expand a leading `~` or `~/` to `$HOME`, including `root`, source
+files, test/generation directories, judge files, and configuration/Cookie paths.
+For example, `root = "~/competitive-programming"` and
+`cpcli test --test-dir "~/cases" "~/solutions/solve.cpp"` are supported.
+Other environment variables in TOML paths are not expanded. Arguments after
+`--` are passed directly to the command; use your shell's expansion when needed.
 
 - `$config/config.toml`: Configuration file.
 - `$config/workspace_template`: Template for workspace directory.
@@ -43,11 +64,14 @@ Overridable with `$CPCLI_CONFIG_HOME` environment variable.
 
 This tool does not provide login form itself.
 You need to prepare cookies for each online judge and save them in Netscape HTTP Cookie Format.
-For example, you can use [Export Cookies](https://addons.mozilla.org/en-US/firefox/addon/export-cookies-txt/) Firefox extension to export cookies.
+For example, you can use [cookies.txt](https://addons.mozilla.org/ja/firefox/addon/cookies-txt/) Firefox extension to export cookies.
 
 The cookies file should be saved in `$XDG_DATA_HOME/cpcli/cookies` by default.
 Overridable with `$CPCLI_COOKIES_HOME` environment variable.
-The directory will contain sensitive information, so please make sure to set the permission to `600` or `400`.
+`login` verifies the session before saving `<service>.txt` with mode `600` in a
+directory with mode `700`. An unsuccessful login leaves the previous cookies intact.
+AtCoder Problems uses the AtCoder session; both `login atcoder` and
+`login atcoder-problems` save `atcoder.txt`. Expired sessions require a fresh export.
 
 ```bash
 # Login to an online judge
@@ -71,7 +95,14 @@ The directory will contain:
 - Single problem template files.
 - Test cases (stored in `test/sample.in` and `test/sample.out`).
 
+Multiple samples are named `sample-1.in`, `sample-1.out`, `sample-2.in`, etc.
+The `.cpcli.toml` metadata records the service, problem ID, canonical URL, title,
+and original contest/internal IDs where applicable.
+
 If multiple template files contain the same file name, the last one will overwrite the previous ones.
+Existing problem or contest directories are never overwritten. Downloads are
+staged in a temporary directory and published only after all files are ready.
+Template symlinks are rejected.
 
 ```bash
 # Download a problem from AtCoder
@@ -104,7 +135,12 @@ The contest directory will contain:
 The problem directories will contain:
 
 - Problem template files.
+- Problem metadata and sample test cases.
 - (Note that this does not contain workspace template files)
+
+Contest metadata retains the ordered problem list. AtCoder Problems virtual
+contests preserve their configured order and refer back to the original AtCoder
+problems; yukicoder uses the contest's problem ID list.
 
 ```bash
 # Download contest problems from AtCoder
@@ -136,6 +172,31 @@ compile = "ruby -c {input}"
 run = "ruby {input}"
 ```
 
+Optional `language.<name>.preprocess` runs before compilation (or execution for
+interpreted languages) and before submission. `language.<name>.presubmit` runs
+only for submission, after `preprocess`. Each command receives the current
+source on stdin and as the shell-quoted `{input}` path, runs in the source
+directory, and must write the transformed UTF-8 source to stdout. A failed
+command or empty output stops the operation.
+
+For example, [ACL's expander](https://github.com/atcoder/ac-library/blob/master/expander.py)
+can expand headers before both local compilation and submission:
+
+```toml
+[language.cpp]
+extensions = ["cpp"]
+preprocess = "python3 ~/ac-library/expander.py --console --lib ~/ac-library {input}"
+compile = "g++ -std=c++23 -o {binary} {input}"
+run = "{binary}"
+```
+
+Use `presubmit` instead of `preprocess` to apply that command only when
+submitting. In a two-stage pipeline, `presubmit` receives the output of
+`preprocess`. Transformations run once per source, preserve the original file,
+and use temporary files with the same extension in the source directory so
+relative includes keep working. The template checksum check runs before both
+stages. Direct commands after `--` do not use language transformations.
+
 ```bash
 # Test a solution against the sample test cases
 cpcli test ./solution.cpp
@@ -166,6 +227,18 @@ For TLE and MLE, you can use `--time-limit` and `--memory-limit` options to spec
 # Test a solution against the sample test cases with time limit of 2000ms and memory limit of 256MB
 cpcli test --time-limit 2000 --memory-limit 256 ./solution.cpp
 ```
+
+The time limit measures wall-clock time. The memory limit is in MiB and uses
+the solution process group's resident memory, sampled from `/proc` every 10 ms.
+Short memory peaks may be missed; shared pages may be counted more than once.
+Compilation runs once before testing and is outside these limits. Limits and
+Ctrl-C terminate the process group, including children that inherit that group.
+
+Each case reports `AC`, `WA`, `RE`, `TLE`, or `MLE`, elapsed time, and peak sampled
+memory. The exit code is `0` when all cases pass, `1` when a case fails, `2` for
+configuration/command errors, and `130` after interruption. Without
+`--test-dir`, file-based tests read the source directory's `test` directory;
+direct commands read `./test`. Every `.in` requires a matching `.out`.
 
 For stripping trailing white-space in the output, you can use `--strip` option to ignore trailing white-space differences between the expected output and the actual output.
 
@@ -241,11 +314,16 @@ cpcli generate ./random.rb
 cpcli g ./random.rb
 
 # Or specify directory to save the generated test cases
-cpcli generate --output ./random ./random.rb
+cpcli generate --dir ./random ./random.rb
 
 # Or specify full command to execute
 cpcli generate -- ruby ./random.rb
 ```
+
+100 inputs are generated by default; `--count 10` generates ten inputs. The
+default directory is `./test`. Files are named `random-0001.in`, incrementing
+past existing `.in` or `.out` files. Existing cases are preserved and failed
+generator runs do not leave partial output files.
 
 After generating test cases, you can run naive solution against the generated test cases to verify the correctness of the solution.
 
@@ -256,6 +334,9 @@ cpcli generate --answer ./naive.rb
 # Or specify full command to execute
 cpcli generate --answer -- ruby ./naive.rb
 ```
+
+`--answer` processes every `.in` without a corresponding `.out`, preserving
+existing answers. It cannot be combined with `--count`.
 
 ### Submit solution
 
@@ -269,12 +350,34 @@ cpcli submit ./solution.cpp
 cpcli s ./solution.cpp
 ```
 
-The problem will be detected using `.cpcli.toml` file in the directory of the solution file.
-You can also specify the problem directory using `--problem` option.
+The problem is detected using the nearest `.cpcli.toml` in the solution file's
+directory or its ancestors.
+You can also specify the problem URL using `--problem`.
 
 ```bash
 # Submit a solution to a problem in another directory
 cpcli submit ./solution.cpp --problem https://atcoder.jp/contests/abc473/tasks/abc473_f
+```
+
+Configure the judge's language ID for each file type, or pass `--language ID`:
+
+```toml
+[language.cpp.submit]
+atcoder = "<AtCoder language ID>"
+yukicoder = "<yukicoder language ID>"
+```
+
+cpcli fetches the available languages and displays their IDs if the configured
+ID is missing or invalid. AtCoder Problems uses the `atcoder` language setting.
+A successful submission prints its ID and URL. If the judge's response is
+ambiguous, cpcli reports that the outcome is unknown; check `results` before
+submitting again.
+
+`submit` warns and stops if the source is identical to its saved template, including
+when `--problem` is specified. To intentionally submit the unchanged file:
+
+```bash
+cpcli submit ./solution.cpp --allow-submit-unchanged-solution
 ```
 
 ### List results of submissions
@@ -288,20 +391,48 @@ cpcli results
 # Or shortcut
 cpcli r
 
-# Or watch the results in real-time
-cpcli results --watch
+# Or monitor the results in an interactive terminal UI
+cpcli results --ui
 ```
 
-### List problems you've downloaded
+The nearest `.cpcli.toml` in the current directory or its ancestors selects the
+problem or contest. Results include your browser submissions as well as cpcli
+submissions. The newest 20 are shown by default; use `--limit N` to change this.
+On a terminal, both modes use aligned columns and colored status labels. URLs
+appear below each submission in the normal listing. `--no-color` or `NO_COLOR`
+disables colors.
 
-You can list all problems you've downloaded.
+When stdout is piped or redirected, both `results` and `results --ui` print a
+single snapshot in the original tab-separated format, with the same header and
+column order and no colors or terminal controls.
+
+### List downloaded directories
+
+By default, `list` shows workspace directories: contests and standalone problems.
+Choose one of the following mutually exclusive filters:
+
+| Option                  | Directories listed                                  |
+| ----------------------- | --------------------------------------------------- |
+| `--workspace` (default) | Contests and standalone problems                    |
+| `--contests`            | Contests                                            |
+| `--problems`            | Standalone problems                                 |
+| `--all-problems`        | Standalone problems and individual contest problems |
 
 ```bash
-# List problems you've downloaded
+# List workspaces you've downloaded
 cpcli list
 
-# List problems you've downloaded with full path
+# List workspaces with absolute paths
 cpcli list --path
+
+# List contest directories
+cpcli list --contests
+
+# List standalone problem directories
+cpcli list --problems
+
+# Include individual problems within contests
+cpcli list --all-problems
 ```
 
 This command is for piping the output to other commands, such as `fzf`.
@@ -309,7 +440,7 @@ For example, you can create `ccd` command which changes the current working dire
 This feature is heavily inspired by [ghq](https://github.com/x-motemen/ghq).
 
 ```bash
-gcd() {
+ccd() {
     dir="$(cpcli list --path | fzf)"
 	[ -n "$dir" ] && cd "$dir"
 }
@@ -317,7 +448,13 @@ gcd() {
 
 ## Installation
 
-You can install cpcli using cargo:
+To install the current checkout:
+
+```bash
+cargo install --path . --locked
+```
+
+After a crates.io release is published, you can install cpcli using cargo:
 
 ```bash
 # Build from source
@@ -327,7 +464,9 @@ cargo install competitive-programming-cli
 cargo binstall competitive-programming-cli
 ```
 
-Or you can download the pre-built binaries from the [releases page](https://github.com/sevenc-nanashi/competitive-programming-cli), by manually or using other package managers like `mise`.
+Tagged releases provide `cpcli-x86_64-unknown-linux-gnu.tar.gz` and a SHA-256
+checksum on the [releases page](https://github.com/sevenc-nanashi/competitive-programming-cli/releases).
+You can install those binaries manually or using package managers like `mise`.
 
 ```bash
 # Using mise

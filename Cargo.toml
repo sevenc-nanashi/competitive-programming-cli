@@ -2,10 +2,48 @@
 name = "competitive-programming-cli"
 version = "0.1.0"
 edition = "2024"
+rust-version = "1.91"
+description = "A command-line workspace and testing tool for competitive programming"
+license = "MIT"
+repository = "https://github.com/sevenc-nanashi/competitive-programming-cli"
+readme = "README.md"
+exclude = ["__gi_*", ".github"]
 
 [[bin]]
 name = "cpcli"
 path = "src/main.rs"
 
 [dependencies]
-usage = "1.4.0"
+anyhow = "1"
+colored = "3"
+console = "0.16"
+cookie = "0.18"
+crossterm = { version = "0.29", default-features = false, features = ["events"] }
+libc = "0.2"
+netscape-cookie-file-parser = "0.3"
+procfs = { version = "0.18", default-features = false }
+reqwest = { version = "0.13", default-features = false, features = ["blocking", "cookies", "form", "json", "multipart", "query", "rustls"] }
+scraper = "0.25"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+shlex = "2"
+signal-hook = "0.3"
+tempfile = "3"
+toml = "1"
+tracing = "0.1"
+tracing-log = "0.2"
+tracing-subscriber = "0.3"
+url = { version = "2", features = ["serde"] }
+usage = { package = "usage-rs", version = "6", features = ["validation"] }
+
+[features]
+mock = []
+
+[package.metadata.binstall]
+pkg-url = "{ repo }/releases/download/v{ version }/cpcli-{ target }.tar.gz"
+pkg-fmt = "tgz"
+bin-dir = "{ bin }{ binary-ext }"
+
+[profile.release]
+strip = true

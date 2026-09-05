@@ -1,0 +1,2 @@
+# Netscape HTTP Cookie File
+mock.local	FALSE	/	TRUE	0	session	mock-session

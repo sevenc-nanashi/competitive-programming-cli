@@ -1,0 +1,10 @@
+user = "mock-user"
+session = "mock-session"
+
+[[languages]]
+id = "ruby"
+name = "Ruby"
+
+[[languages]]
+id = "cpp"
+name = "C++23"

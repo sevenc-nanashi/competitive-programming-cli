@@ -1,1 +1,3 @@
 /target
+/mock_service/submissions
+!/mock_service/**/test/*.out
