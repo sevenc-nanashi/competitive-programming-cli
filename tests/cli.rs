@@ -296,6 +296,49 @@ problem_directory = "."
 }
 
 #[test]
+fn open_url_only() {
+    let directory = tempfile::tempdir().unwrap();
+    let output = run(&directory, &["open", "--url-only"], 2);
+    assert!(output.stdout.is_empty());
+    assert!(String::from_utf8_lossy(&output.stderr).contains("No .cpcli.toml"));
+
+    let contest_url = "https://atcoder.jp/contests/practice";
+    let problem_url = "https://atcoder.jp/contests/practice/tasks/practice_1";
+    fs::create_dir_all(directory.path().join("problem/src")).unwrap();
+    fs::create_dir(directory.path().join("src")).unwrap();
+    fs::write(
+        directory.path().join(".cpcli.toml"),
+        format!("kind = 'contest'\nservice = 'atcoder'\nid = 'practice'\nurl = {contest_url:?}\ntitle = 'Practice'\nproblems = []\n"),
+    )
+    .unwrap();
+    fs::write(
+        directory.path().join("problem/.cpcli.toml"),
+        format!("kind = 'problem'\nservice = 'atcoder'\nid = 'practice_1'\nurl = {problem_url:?}\ntitle = 'Welcome to AtCoder'\n"),
+    )
+    .unwrap();
+    for (cwd, alias, url) in [
+        ("", "open", contest_url),
+        ("src", "o", contest_url),
+        ("problem", "open", problem_url),
+        ("problem/src", "o", problem_url),
+    ] {
+        let output = command(&directory)
+            .current_dir(directory.path().join(cwd))
+            .env("PATH", directory.path())
+            .env_remove("BROWSER")
+            .args([alias, "--url-only"])
+            .output()
+            .unwrap();
+        assert!(output.status.success(), "{output:?}");
+        assert_eq!(
+            String::from_utf8(output.stdout).unwrap(),
+            format!("{url}\n")
+        );
+        assert!(output.stderr.is_empty());
+    }
+}
+
+#[test]
 fn cli_contract_and_local_judging() {
     let directory = tempfile::tempdir().unwrap();
     run(&directory, &["--version"], 0);

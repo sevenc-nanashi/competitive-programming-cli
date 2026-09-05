@@ -31,7 +31,7 @@ pub enum Commands {
     Prepare(Download),
     /// Open the current problem or contest in your browser.
     #[usage(alias = "o")]
-    Open,
+    Open(Open),
     /// Compile and test a solution.
     #[usage(alias = "t")]
     Test(Test),
@@ -66,6 +66,13 @@ pub struct Login {
 #[derive(Debug, usage::Args)]
 pub struct Download {
     pub url: Url,
+}
+
+#[derive(Debug, usage::Args)]
+pub struct Open {
+    /// Print the URL without opening a browser.
+    #[usage(long, short = 'n')]
+    pub url_only: bool,
 }
 
 #[derive(Debug, usage::Args)]

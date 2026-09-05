@@ -87,6 +87,14 @@ Opens the problem or contest URL from the nearest `.cpcli.toml` in your default
 browser. This also works from subdirectories. A problem directory inside a
 contest opens that problem; the contest directory opens the contest page.
 
+Use `--url-only` to print just the URL to stdout without opening a browser:
+
+```bash
+cpcli open --url-only
+# Or shortcut
+cpcli o --url-only
+```
+
 ## List workspaces
 
 You can list the workspaces you've downloaded using the `list` command.

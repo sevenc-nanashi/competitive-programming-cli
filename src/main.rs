@@ -33,16 +33,20 @@ fn run(cli: Cli, interrupted: &AtomicBool) -> Result<bool> {
             return runner::test(&Config::load(&paths)?, &args, cli.no_color, interrupted);
         }
         Commands::Generate(args) => runner::generate(&Config::load(&paths)?, &args, interrupted)?,
-        Commands::Open => {
+        Commands::Open(args) => {
             let url = match workspace::locate(&std::env::current_dir()?)? {
                 Metadata::Problem { reference, .. } => reference.url,
                 Metadata::Contest(contest) => contest.reference.url,
             };
             ServiceId::from_url(&url)?;
             ensure!(!interrupted.load(Ordering::Relaxed), "Interrupted");
-            tracing::info!("Opening {url} in your browser...");
-            open_browser(&url)?;
-            tracing::info!("Opened {url}");
+            if args.url_only {
+                println!("{url}");
+            } else {
+                tracing::info!("Opening {url} in your browser...");
+                open_browser(&url)?;
+                tracing::info!("Opened {url}");
+            }
         }
         Commands::List(args) => {
             let config = Config::load(&paths)?;
