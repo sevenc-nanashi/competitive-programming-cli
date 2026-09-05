@@ -664,18 +664,19 @@ pub fn test(
                 .into_owned(),
             None => "interactive".into(),
         };
-        let is_placeholder_output = if judge.is_some()
-            && let Some(path) = &mut expected
+        let _empty_expected = if let Some(path) = &mut expected
             && !path.try_exists()?
         {
-            let file = tempfile::NamedTempFile::new()?;
-            *path = file.path().to_owned();
-            if options.judge.is_none() {
+            if judge.is_some() {
+                let file = tempfile::NamedTempFile::new()?;
+                *path = file.path().to_owned();
+                Some(file)
+            } else {
                 tracing::warn!(
-                    "Missing expected output for {name}; the only exit code will be checked"
+                    "Missing expected output for {name}; only the exit code will be checked"
                 );
+                None
             }
-            Some(file)
         } else {
             None
         };
@@ -716,11 +717,10 @@ pub fn test(
                     )?
                     .verdict
                         == Verdict::Ac
-                } else if is_placeholder_output.is_some() {
-                    true
                 } else {
                     let expected = expected.as_ref().expect("regular case");
-                    matches(&fs::read(expected)?, &fs::read(actual.path())?, options)
+                    !expected.try_exists()?
+                        || matches(&fs::read(expected)?, &fs::read(actual.path())?, options)
                 };
                 if !correct {
                     result.verdict = Verdict::Wa;

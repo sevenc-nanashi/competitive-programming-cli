@@ -439,11 +439,11 @@ fn cli_contract_and_local_judging() {
         ],
         0,
     );
-    assert!(String::from_utf8_lossy(&output.stdout).contains("1/1 accepted"));
+    assert!(String::from_utf8_lossy(&output.stderr).contains("All 1 test case(s) passed"));
     fs::write(directory.path().join("test/second.in"), "").unwrap();
     fs::write(directory.path().join("test/second.out"), "wrong").unwrap();
     let output = run(&directory, &["test", "--fast-fail", "--", "true"], 1);
-    assert!(String::from_utf8_lossy(&output.stdout).contains("0/1 accepted"));
+    assert!(String::from_utf8_lossy(&output.stderr).contains("0 of 1 test case(s) passed"));
 }
 
 #[test]
@@ -483,7 +483,12 @@ fn show_io() {
             ] {
                 assert_eq!(stdout.contains(&details), shown, "{args:?}\n{stdout}");
             }
-            assert!(stdout.contains(&format!("{}/1 accepted", usize::from(verdict == "AC"))));
+            let summary = if verdict == "AC" {
+                "All 1 test case(s) passed"
+            } else {
+                "0 of 1 test case(s) passed"
+            };
+            assert!(String::from_utf8_lossy(&output.stderr).contains(summary));
         }
     }
 
@@ -518,7 +523,12 @@ fn show_io() {
                 assert_eq!(stdout.contains(text), shown, "{args:?}\n{stdout}");
                 assert!(!stderr.contains(text), "{args:?}\n{stderr}");
             }
-            assert!(stdout.contains(&format!("{}/1 accepted", 1 - code)));
+            let summary = if code == 0 {
+                "All 1 test case(s) passed"
+            } else {
+                "0 of 1 test case(s) passed"
+            };
+            assert!(stderr.contains(summary));
         }
     }
 }
@@ -567,6 +577,9 @@ fn missing_expected_outputs() {
     fs::remove_file(&expected).unwrap();
     let output = run(&directory, &["test", "--", "cat"], 0);
     assert!(String::from_utf8_lossy(&output.stdout).contains("sample-1: AC ("));
+    assert!(
+        String::from_utf8_lossy(&output.stderr).contains("Missing expected output for sample-1")
+    );
     let output = run(&directory, &["test", "--", "false"], 1);
     assert!(String::from_utf8_lossy(&output.stdout).contains("sample-1: RE ("));
     assert!(!expected.exists());
@@ -625,7 +638,7 @@ fn missing_expected_outputs() {
     let output = run(&directory, &["test", "--", "cat"], 1);
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(stdout.contains("sample-1: AC (") && stdout.contains("second: WA ("));
-    assert!(stdout.contains("1/2 accepted"));
+    assert!(String::from_utf8_lossy(&output.stderr).contains("1 of 2 test case(s) passed"));
 
     fs::create_dir(&expected).unwrap();
     run(&directory, &["test", "--", "cat"], 2);
@@ -1058,22 +1071,22 @@ mock = "ruby"
         "contest"
     );
     assert_eq!(
-        fs::read_to_string(contest.join("01_sum/marker")).unwrap(),
+        fs::read_to_string(contest.join("1_sum/marker")).unwrap(),
         "problem"
     );
-    assert!(!contest.join("01_sum/workspace.txt").exists());
-    assert!(contest.join("01_sum/test/sample-2.out").is_file());
-    assert!(contest.join("02_echo/.cpcli.toml").is_file());
+    assert!(!contest.join("1_sum/workspace.txt").exists());
+    assert!(contest.join("1_sum/test/sample-2.out").is_file());
+    assert!(contest.join("2_echo/.cpcli.toml").is_file());
     assert_eq!(
-        fs::read(contest.join("02_echo/test/sample-1.in")).unwrap(),
+        fs::read(contest.join("2_echo/test/sample-1.in")).unwrap(),
         b"hello\n"
     );
     assert_eq!(
-        fs::read(contest.join("02_echo/test/sample-1.out")).unwrap(),
+        fs::read(contest.join("2_echo/test/sample-1.out")).unwrap(),
         b"hello\n"
     );
     assert_eq!(
-        fs::read_dir(contest.join("02_echo/test")).unwrap().count(),
+        fs::read_dir(contest.join("2_echo/test")).unwrap().count(),
         2
     );
     let browser_bin = directory.path().join("browser-bin");
@@ -1099,7 +1112,7 @@ mock = "ruby"
     for (cwd, alias) in [
         (echo.clone(), "open"),
         (echo.join("src"), "o"),
-        (contest.join("01_sum/src"), "open"),
+        (contest.join("1_sum/src"), "open"),
         (contest.clone(), "o"),
     ] {
         let output = open_command(&cwd, alias).output().unwrap();
@@ -1139,8 +1152,8 @@ mock = "ruby"
         (
             Some("--all-problems"),
             vec![
-                "mock/contests/practice/01_sum",
-                "mock/contests/practice/02_echo",
+                "mock/contests/practice/1_sum",
+                "mock/contests/practice/2_echo",
                 "mock/problems/echo",
             ],
         ),
