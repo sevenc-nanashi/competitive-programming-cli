@@ -123,7 +123,12 @@ fn table(submissions: &[Submission], color: bool) -> Vec<String> {
             row.iter()
                 .enumerate()
                 .map(|(column, text)| {
-                    let padded = pad_str(text, widths[column], Alignment::Left, None);
+                    let alignment = if column < 2 {
+                        Alignment::Left
+                    } else {
+                        Alignment::Right
+                    };
+                    let padded = pad_str(text, widths[column], alignment, None);
                     match (index, column) {
                         (0, _) => Style::new()
                             .bold()
@@ -377,14 +382,15 @@ mod tests {
             assert_eq!(console::strip_ansi_codes(colored), plain.as_str());
             assert!(!plain.chars().any(char::is_control));
         }
-        let columns: Vec<_> = plain
+        let column_ends: Vec<_> = plain
             .iter()
-            .map(|line| {
-                let column = line.find("RUNTIME").or_else(|| line.find("1 ms")).unwrap();
-                measure_text_width(&line[..column])
+            .zip(["RUNTIME", "1 ms", "1 ms"])
+            .map(|(line, cell)| {
+                let end = line.find(cell).unwrap() + cell.len();
+                measure_text_width(&line[..end])
             })
             .collect();
-        assert_eq!(columns, vec![columns[0]; 3]);
+        assert_eq!(column_ends, vec![column_ends[0]; 3]);
         assert_eq!(table(&[], false).len(), 1);
     }
 }
