@@ -5,6 +5,9 @@ on:
     branches: [main]
     paths:
       - "docs/**"
+      - "src/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
       - "README.md"
       - "mise.toml"
       - "mise.lock"
@@ -12,6 +15,9 @@ on:
   pull_request:
     paths:
       - "docs/**"
+      - "src/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
       - "README.md"
       - "mise.toml"
       - "mise.lock"
@@ -32,6 +38,7 @@ jobs:
         with:
           persist-credentials: false
       - uses: jdx/mise-action@v4
+      - uses: dtolnay/rust-toolchain@stable
       - run: aube ci
       - run: aube run fmt --check
       - run: aube run build

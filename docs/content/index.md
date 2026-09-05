@@ -34,5 +34,7 @@ cpcli currently supports Linux. Building requires Rust 1.91 or newer.
 4. [Test your solution](./testing.md) and [generate extra test cases](./generating.md).
 5. [Submit your solution and watch the results](./submissions.md).
 
+See the [command reference](./command-reference.md) for all commands and flags.
+
 See the [project README](https://github.com/sevenc-nanashi/competitive-programming-cli#acknowledgements)
 for acknowledgements and third-party license notices.

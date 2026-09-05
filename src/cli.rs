@@ -84,14 +84,17 @@ pub enum ConfigField {
 
 #[derive(Debug, usage::Args)]
 pub struct Login {
+    /// Online judge whose session should be imported and verified.
     #[usage(value_enum)]
     pub service: ServiceId,
+    /// Netscape-format cookie file to import.
     #[usage(long)]
     pub cookie_file: PathBuf,
 }
 
 #[derive(Debug, usage::Args)]
 pub struct Download {
+    /// Problem or contest URL to download.
     pub url: Url,
 }
 
@@ -117,16 +120,22 @@ pub struct ProgramArgs {
 
 #[derive(Debug, Clone, Copy, Default, usage::ValueEnum)]
 pub enum FloatErrorType {
+    /// Accept when either absolute or relative error is within the tolerance.
     #[default]
     Both,
+    /// Compare the absolute difference between expected and actual values.
     Absolute,
+    /// Compare relative to the expected value; an expected zero requires zero.
     Relative,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, usage::ValueEnum)]
 pub enum ShowIo {
+    /// Show I/O for every test case.
     Always,
+    /// Show I/O only for failed test cases.
     Failure,
+    /// Hide test case I/O.
     Never,
 }
 
@@ -137,6 +146,9 @@ pub struct Test {
     /// Show case input, expected output, and actual output (or interactive transcript).
     #[usage(long, value_enum, default = "failure")]
     pub show_io: ShowIo,
+    /// Directory containing .in and .out test files.
+    ///
+    /// Defaults to the source directory's test subdirectory, or ./test for a direct command.
     #[usage(long, short = 'd')]
     pub test_dir: Option<PathBuf>,
     /// Wall-clock limit per case, in milliseconds.
@@ -145,8 +157,10 @@ pub struct Test {
     /// Sampled process-group RSS limit, in MiB.
     #[usage(long, short = 'm')]
     pub memory_limit: Option<NonZeroU64>,
+    /// Ignore trailing spaces and tabs on each line and whitespace at the end of output.
     #[usage(long, short = 's', default = "false")]
     pub strip: bool,
+    /// Treat CRLF and LF line endings as equal; disable with --no-ignore-line-ending.
     #[usage(
         long,
         default = "true",
@@ -154,8 +168,12 @@ pub struct Test {
         short = 'l'
     )]
     pub ignore_line_ending: bool,
+    /// Stop testing after the first failed case.
     #[usage(long, short = 'f')]
     pub fast_fail: bool,
+    /// Allow this nonnegative error when comparing numeric output tokens.
+    ///
+    /// Nonnumeric tokens must still match exactly. Select the error comparison with --float-error-type.
     #[usage(
         long,
         short = 'e',
@@ -163,11 +181,13 @@ pub struct Test {
         validate_error = "must be finite and nonnegative"
     )]
     pub float_error: Option<f64>,
+    /// Error comparison used with --float-error; both accepts either absolute or relative error.
     #[usage(long, value_enum, default = "both")]
     pub float_error_type: FloatErrorType,
     /// Judge source file or shell command.
     #[usage(long, short = 'j')]
     pub judge: Option<String>,
+    /// Connect the solution and judge through stdin/stdout for interactive testing; requires --judge.
     #[usage(long, requires("--judge"))]
     pub interactive: bool,
 }
@@ -182,13 +202,16 @@ pub struct Generate {
     /// Generate missing .out files using a reference solution.
     #[usage(long, conflicts("--count"), short = 'a')]
     pub answer: bool,
+    /// Number of new test inputs to generate; cannot be combined with --answer.
     #[usage(long, default = "100", short = 'c')]
     pub count: NonZeroUsize,
 }
 
 #[derive(Debug, usage::Args)]
 pub struct Submit {
+    /// Solution source file to submit.
     pub file: PathBuf,
+    /// Submit to this problem URL instead of detecting it from the source's .cpcli.toml.
     #[usage(long)]
     pub problem: Option<Url>,
     /// Server language ID, overriding the language configuration.
@@ -204,6 +227,7 @@ pub struct Results {
     /// Monitor submissions in an interactive terminal UI.
     #[usage(long, short = 'i')]
     pub ui: bool,
+    /// Maximum number of recent submissions to display.
     #[usage(long, default = "20", short = 'n')]
     pub limit: NonZeroUsize,
 }

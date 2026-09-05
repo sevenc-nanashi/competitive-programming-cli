@@ -1,5 +1,7 @@
 /target
 /docs/node_modules
 /docs/dist
+/docs/content/command-reference.md
+/docs/cpcli.usage.kdl
 /mock_service/submissions
 !/mock_service/**/test/*.out

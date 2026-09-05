@@ -1,3 +1,4 @@
 [tools]
 aube = "latest"
 node = "24"
+usage = "latest"

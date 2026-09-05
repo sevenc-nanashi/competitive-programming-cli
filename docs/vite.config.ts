@@ -25,6 +25,7 @@ export default defineConfig({
             { text: "Testing solutions", link: "/testing.md" },
             { text: "Generating test cases", link: "/generating.md" },
             { text: "Submissions and results", link: "/submissions.md" },
+            { text: "Command reference", link: "/command-reference.md" },
           ],
           socialLinks: {
             github: "https://github.com/sevenc-nanashi/competitive-programming-cli",
