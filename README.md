@@ -141,6 +141,9 @@ run = "ruby {input}"
 cpcli test ./solution.cpp
 # -> g++ -std=c++23 -Wall -Wextra -o solution ./solution.cpp && ./solution < ./test/sample.in
 
+# Or shortcut
+cpcli t ./solution.cpp
+
 # Or specify the test case directory
 cpcli test --test-dir ./random ./solution.cpp
 # -> g++ -std=c++23 -Wall -Wextra -o solution ./solution.cpp && ./solution < ./random/sample.in
@@ -234,6 +237,9 @@ You can randomly generate test cases using a generator script.
 # Specify generator
 cpcli generate ./random.rb
 
+# Or shortcut
+cpcli g ./random.rb
+
 # Or specify directory to save the generated test cases
 cpcli generate --output ./random ./random.rb
 
@@ -258,6 +264,9 @@ You can submit a solution to a problem.
 ```bash
 # Submit a solution to a problem
 cpcli submit ./solution.cpp
+
+# Or shortcut
+cpcli s ./solution.cpp
 ```
 
 The problem will be detected using `.cpcli.toml` file in the directory of the solution file.
@@ -275,6 +284,9 @@ You can list the results of your submissions.
 ```bash
 # List results of submissions
 cpcli results
+
+# Or shortcut
+cpcli r
 
 # Or watch the results in real-time
 cpcli results --watch
