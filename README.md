@@ -114,6 +114,68 @@ cpcli prepare https://atcoder.jp/contests/abc473
 cpcli p https://atcoder.jp/contests/abc473
 ```
 
+### Test a solution
+
+You can test a solution against the sample test cases.
+This command will execute the command specified in the configuration file for the language of the solution file if single argument is given:
+
+```toml
+# Example configuration for C++
+[language.cpp]
+extensions = ["cpp"]
+compile = "g++ -std=c++23 -Wall -Wextra -o {binary} {input}"
+run = "./{binary} < {test_input}"
+
+[language.cpp.profile.fast]
+compile = "g++ -std=c++23 -O2 -Wall -Wextra -o {binary} {input}"
+```
+
+```bash
+# Test a solution against the sample test cases
+cpcli test ./solution.cpp
+# -> g++ -std=c++23 -Wall -Wextra -o solution ./solution.cpp && ./solution < ./test/sample.in
+
+# Or specify the test case directory
+cpcli test --test-dir ./random ./solution.cpp
+# -> g++ -std=c++23 -Wall -Wextra -o solution ./solution.cpp && ./solution < ./random/sample.in
+
+# Or specify the profile to use for compilation
+cpcli test --profile fast ./solution.cpp
+# -> g++ -std=c++23 -O2 -Wall -Wextra -o solution ./solution.cpp && ./solution < ./test/sample.in
+```
+
+Or you can specify the command to execute directly after `--`:
+
+```bash
+# Test a solution against the sample test cases with custom command
+cpcli test -- ruby ./solution.rb
+```
+
+### Randomly generate test cases
+
+You can randomly generate test cases using a generator script.
+
+```bash
+# Specify generator
+cpcli generate ./random.rb
+
+# Or specify directory to save the generated test cases
+cpcli generate --output ./random ./random.rb
+
+# Or specify full command to execute
+cpcli generate -- ruby ./random.rb
+```
+
+After generating test cases, you can run naive solution against the generated test cases to verify the correctness of the solution.
+
+```bash
+# Run naive solution against the generated test cases
+cpcli generate --answer ./naive.rb
+
+# Or specify full command to execute
+cpcli generate --answer -- ruby ./naive.rb
+```
+
 ### Submit solution
 
 You can submit a solution to a problem.
