@@ -336,7 +336,11 @@ fn cli_contract_and_local_judging() {
         &["test", "--no-color", "--", "/definitely/missing"],
         2,
     );
-    assert!(String::from_utf8_lossy(&output.stderr).starts_with("x) [cpcli] "));
+    assert!(
+        String::from_utf8_lossy(&output.stderr)
+            .lines()
+            .any(|line| line.starts_with("x) [cpcli] "))
+    );
     assert!(!output.stderr.contains(&0x1b));
     case(&directory, b"hello  \n\n", b"hello\n");
     run(&directory, &["test", "--strip", "--", "cat"], 0);
@@ -680,10 +684,11 @@ fn limits_interactive_and_cleanup() {
         .stdout(Stdio::null())
         .spawn()
         .unwrap();
-    let mut stderr = BufReader::new(child.stderr.take().unwrap());
-    let mut line = String::new();
-    stderr.read_line(&mut line).unwrap();
-    assert!(line.contains("ready"));
+    assert!(
+        BufReader::new(child.stderr.take().unwrap())
+            .lines()
+            .any(|line| line.unwrap() == "ready")
+    );
     unsafe {
         libc::kill(child.id() as i32, libc::SIGINT);
     }
@@ -1034,7 +1039,11 @@ mock = "ruby"
         ],
         0,
     );
-    assert!(String::from_utf8_lossy(&output.stderr).contains("unchanged from its template"));
+    let logs = String::from_utf8_lossy(&output.stderr);
+    assert!(logs.contains("unchanged from its template"));
+    assert!(logs.contains("Submission target: https://mock.local/problems/echo"));
+    assert!(logs.contains("Submitting with language ID ruby (Ruby, 16 bytes)..."));
+    assert!(String::from_utf8_lossy(&output.stdout).starts_with("Submitted "));
     let stored_path = fs::read_dir(mock.join("submissions"))
         .unwrap()
         .next()

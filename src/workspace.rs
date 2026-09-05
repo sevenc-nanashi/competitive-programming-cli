@@ -148,6 +148,12 @@ fn write_problem(paths: &Paths, destination: &Path, problem: Problem, single: bo
             &sample.output,
         )?;
     }
+    tracing::info!(
+        "Saved {} sample case(s) for {} ({})",
+        problem.samples.len(),
+        problem.reference.id,
+        problem.title
+    );
     write_metadata(
         destination,
         &Metadata::Problem {
@@ -182,20 +188,29 @@ pub fn download(
         .prefix(".cpcli-")
         .tempdir_in(&parent)?;
     match resource {
-        ResourceRef::Problem(p) => write_problem(
-            paths,
-            staging.path(),
-            services.backend(p.service).fetch_problem(&p)?,
-            true,
-        )?,
+        ResourceRef::Problem(p) => {
+            tracing::info!("Downloading problem {}...", p.url);
+            write_problem(
+                paths,
+                staging.path(),
+                services.backend(p.service).fetch_problem(&p)?,
+                true,
+            )?;
+        }
         ResourceRef::Contest(c) => {
+            tracing::info!("Fetching contest {}...", c.url);
             let contest = services.backend(c.service).fetch_contest(&c)?;
+            tracing::info!(
+                "Preparing {} problem(s) from {}...",
+                contest.problems.len(),
+                contest.title
+            );
             template(paths, "workspace_template", staging.path())?;
             template(paths, "contest_template", staging.path())?;
             for (i, p) in contest.problems.iter().enumerate() {
                 tracing::info!(
-                    "Downloading {} ({}/{})",
-                    p.id,
+                    "Downloading {} ({}/{})...",
+                    p.url,
                     i + 1,
                     contest.problems.len()
                 );
@@ -227,6 +242,7 @@ pub fn download(
     if result != 0 {
         return Err(std::io::Error::last_os_error()).context("Cannot publish downloaded directory");
     }
+    tracing::info!("Created workspace: {}", destination.display());
     Ok(destination)
 }
 

@@ -83,7 +83,9 @@ impl Program {
                     .replace("{binary}", &quote(binary.as_os_str())?))
             };
             if let Some(compile) = compile {
-                let program = Self::shell(expand(compile)?, cwd.clone());
+                let command = expand(compile)?;
+                tracing::info!("Compiling {}: {command}", file.display());
+                let program = Self::shell(command, cwd.clone());
                 let result = execute(
                     &program,
                     Stdio::null(),
@@ -621,6 +623,11 @@ pub fn test(config: &Config, options: &Test, interrupted: &AtomicBool) -> Result
     } else {
         cases.into_iter().map(Some).collect()
     };
+    tracing::info!(
+        "Running {} test case(s) from {}...",
+        cases.len(),
+        directory.display()
+    );
     let mut accepted = 0;
     let mut total = 0;
     for input in cases {
@@ -729,6 +736,7 @@ pub fn generate(config: &Config, options: &Generate, interrupted: &AtomicBool) -
         Ok(())
     };
     if options.answer {
+        tracing::info!("Generating missing answers in {}...", directory.display());
         for input in inputs(&directory)? {
             let output = input.with_extension("out");
             if !output.try_exists()? {
@@ -736,6 +744,11 @@ pub fn generate(config: &Config, options: &Generate, interrupted: &AtomicBool) -
             }
         }
     } else {
+        tracing::info!(
+            "Generating {} test case(s) in {}...",
+            options.count,
+            directory.display()
+        );
         let mut index = 1usize;
         for _ in 0..options.count.get() {
             let output = loop {
@@ -748,7 +761,7 @@ pub fn generate(config: &Config, options: &Generate, interrupted: &AtomicBool) -
             save(None, output)?;
         }
     }
-    tracing::info!("Generated {count} file(s)");
+    tracing::info!("Generated {count} file(s) in {}", directory.display());
     Ok(())
 }
 

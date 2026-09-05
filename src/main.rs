@@ -38,6 +38,7 @@ fn run(cli: Cli, interrupted: &AtomicBool) -> Result<bool> {
             };
             ServiceId::from_url(&url)?;
             ensure!(!interrupted.load(Ordering::Relaxed), "Interrupted");
+            tracing::info!("Opening {url} in your browser...");
             open_browser(&url)?;
             tracing::info!("Opened {url}");
         }
@@ -107,6 +108,7 @@ fn run(cli: Cli, interrupted: &AtomicBool) -> Result<bool> {
                 );
             }
             let configured_language = config.match_language(&source_path)?;
+            tracing::info!("Preparing {} for submission...", source_path.display());
             let prepared_source = configured_language
                 .map(|language| runner::prepare_source(language, &source_path, true, interrupted))
                 .transpose()?
@@ -127,15 +129,20 @@ fn run(cli: Cli, interrupted: &AtomicBool) -> Result<bool> {
                 },
             };
             let backend = services.backend(problem.service);
+            tracing::info!("Submission target: {}", problem.url);
             let language = match args.language {
                 Some(language) => Some(language),
                 None => configured_language
                     .and_then(|language| language.submit.get(backend.auth_service().as_str()))
                     .cloned(),
             };
+            tracing::info!(
+                "Fetching submission languages from {}...",
+                backend.auth_service().as_str()
+            );
             let languages = backend.languages(&problem)?;
             let Some(language) =
-                language.filter(|id| languages.iter().any(|language| &language.id == id))
+                language.and_then(|id| languages.iter().find(|language| language.id == id))
             else {
                 tracing::error!(
                     "Choose a submission language using --language or language.<name>.submit.{}:",
@@ -147,9 +154,15 @@ fn run(cli: Cli, interrupted: &AtomicBool) -> Result<bool> {
                 bail!("Submission language is missing or invalid");
             };
             ensure!(!interrupted.load(Ordering::Relaxed), "Interrupted");
+            tracing::info!(
+                "Submitting with language ID {} ({}, {} bytes)...",
+                language.id,
+                language.name,
+                source.len()
+            );
             let submission = backend.submit(&SubmissionRequest {
                 problem: &problem,
-                language: &language,
+                language: &language.id,
                 source: &source,
             })?;
             println!("Submitted {}: {}", submission.id, submission.url);

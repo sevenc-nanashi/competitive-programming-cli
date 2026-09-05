@@ -82,7 +82,9 @@ impl Services {
     }
 
     pub fn resolve(&self, url: &Url) -> Result<ResourceRef> {
-        self.backend(ServiceId::from_url(url)?).resolve_url(url)
+        let backend = self.backend(ServiceId::from_url(url)?);
+        tracing::info!("Resolving {url}...");
+        backend.resolve_url(url)
     }
 
     pub fn login(paths: &Paths, service: ServiceId, source: &Path) -> Result<()> {
@@ -92,6 +94,11 @@ impl Services {
             ServiceId::AtcoderProblems => ServiceId::Atcoder,
             s => s,
         };
+        tracing::info!(
+            "Checking authentication for {} using {}...",
+            auth_service.as_str(),
+            source.display()
+        );
         match auth_service {
             ServiceId::Atcoder => AtCoderBackend {
                 http: Http::from_cookies(&raw, auth_service)?,

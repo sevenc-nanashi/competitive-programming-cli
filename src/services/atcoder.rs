@@ -415,7 +415,7 @@ mod tests {
         );
         assert!(parse_submissions(&Html::parse_document("<h2>Sign In</h2>"), &page).is_err());
         let document = Html::parse_document(
-            "<form action='/contests/abc100/submit'><input type=hidden name=csrf_token value='test-token'><select name='data.LanguageId'><option value='1'>Ruby</option></select></form>",
+            "<form action='/contests/abc100/submit'><input type=hidden name=csrf_token value='test-token'><div data-name='data.LanguageId'><select><option value='1'>Ruby</option></select></div></form>",
         );
         let form = AtCoderBackend::submission_form(&document).unwrap();
         assert_eq!(

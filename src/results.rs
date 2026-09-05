@@ -39,10 +39,16 @@ pub fn run(
         return monitor(paths, scope, args.limit.get(), color, interrupted);
     }
     ensure!(!interrupted.load(Ordering::Relaxed), "Interrupted");
+    let url = match &scope {
+        Metadata::Problem { reference, .. } => &reference.url,
+        Metadata::Contest(contest) => &contest.reference.url,
+    };
+    tracing::info!("Fetching up to {} submissions for {url}...", args.limit);
     let services = Services::new(&paths)?;
     let submissions = services
         .backend(scope.service())
         .submissions(&scope, args.limit.get())?;
+    tracing::info!("Fetched {} submission(s)", submissions.len());
     let mut output = io::stdout().lock();
     if terminal {
         for (index, line) in table(&submissions, color).iter().enumerate() {
