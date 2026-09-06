@@ -162,6 +162,12 @@ pub struct Test {
     /// Ignore trailing spaces and tabs on each line and whitespace at the end of output.
     #[usage(long, short = 's', default = "false")]
     pub strip: bool,
+    /// Ignore trailing CR and LF bytes when comparing outputs, preserving spaces and tabs.
+    #[usage(long, short = 'S', default = "false")]
+    pub strip_trailing_newline: bool,
+    /// Maximum number of test cases to run concurrently.
+    #[usage(long, short = 'j', default = "1")]
+    pub jobs: NonZeroUsize,
     /// Treat CRLF and LF line endings as equal; disable with --no-ignore-line-ending.
     #[usage(
         long,
@@ -170,7 +176,7 @@ pub struct Test {
         short = 'l'
     )]
     pub ignore_line_ending: bool,
-    /// Stop testing after the first failed case.
+    /// Stop starting new cases after the first failure; running cases finish.
     #[usage(long, short = 'f')]
     pub fast_fail: bool,
     /// Allow this nonnegative error when comparing numeric output tokens.
@@ -187,7 +193,7 @@ pub struct Test {
     #[usage(long, value_enum, default = "both")]
     pub float_error_type: FloatErrorType,
     /// Judge source file, executable file, or shell command.
-    #[usage(long, short = 'j')]
+    #[usage(long, short = 'J')]
     pub judge: Option<String>,
     /// Connect the solution and judge through stdin/stdout for interactive testing; requires --judge.
     #[usage(long, requires("--judge"))]
@@ -207,6 +213,9 @@ pub struct Generate {
     /// Number of new test inputs to generate; cannot be combined with --answer.
     #[usage(long, default = "100", short = 'c')]
     pub count: NonZeroUsize,
+    /// Maximum number of generator or reference-solution processes to run concurrently.
+    #[usage(long, short = 'j', default = "1")]
+    pub jobs: NonZeroUsize,
 }
 
 #[derive(Debug, usage::Args)]

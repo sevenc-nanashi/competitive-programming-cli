@@ -35,3 +35,14 @@ cpg generate --answer -- ruby ./naive.rb
 
 `--answer` processes every `.in` without a corresponding `.out`, preserving
 existing answers. It cannot be combined with `--count`.
+
+Use `--jobs N` (`-j N`) to run up to N generator or reference-solution processes
+concurrently. The default is `1`; compilation and preprocessing run once.
+Output paths are assigned before execution and printed as each job finishes.
+On failure, new jobs stop starting and running jobs finish; completed files are
+kept. Ctrl-C stops all running jobs and removes their unfinished temporary files.
+
+```bash
+cpg generate -j 4 --count 100 ./random.rb
+cpg generate --answer -j 4 ./naive.rb
+```

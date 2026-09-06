@@ -457,6 +457,8 @@ fn cli_contract_and_local_judging() {
     for options in [
         vec!["--time-limit", "0"],
         vec!["--memory-limit", "0"],
+        vec!["--jobs", "0"],
+        vec!["-j", "invalid"],
         vec!["--float-error", "NaN"],
         vec!["--float-error", "inf"],
         vec!["--float-error", "-1"],
@@ -547,6 +549,238 @@ fn cli_contract_and_local_judging() {
     fs::write(directory.path().join("test/second.out"), "wrong").unwrap();
     let output = run(&directory, &["test", "--fast-fail", "--", "true"], 1);
     assert!(String::from_utf8_lossy(&output.stderr).contains("0 of 1 test case(s) passed"));
+}
+
+#[test]
+fn strip_trailing_newline() {
+    let directory = tempfile::tempdir().unwrap();
+    case(&directory, b"answer\n", b"answer");
+    run(&directory, &["test", "--", "cat"], 1);
+    for flag in ["--strip-trailing-newline", "-S"] {
+        for (actual, expected, code) in [
+            ("answer\n", "answer", 0),
+            ("answer\r\n\r\n", "answer", 0),
+            ("\r\n", "", 0),
+            ("answer \n", "answer", 1),
+            ("answer\t\n", "answer", 1),
+            ("a\nb\n", "ab", 1),
+        ] {
+            case(&directory, actual.as_bytes(), expected.as_bytes());
+            run(&directory, &["test", flag, "--", "cat"], code);
+        }
+    }
+    case(&directory, b"a\r\nb\r\n", b"a\nb");
+    run(&directory, &["test", "-S", "--", "cat"], 0);
+    run(
+        &directory,
+        &["test", "-S", "--no-ignore-line-ending", "--", "cat"],
+        1,
+    );
+    case(&directory, b"answer \n\n", b"answer");
+    run(&directory, &["test", "-s", "-S", "--", "cat"], 0);
+}
+
+#[test]
+fn parallel_jobs() {
+    let directory = tempfile::tempdir().unwrap();
+    let state = directory.path().join("state");
+    fs::write(
+        directory.path().join("worker.rb"),
+        r##"
+def update(delta)
+  File.open('state', 'r+') do |file|
+    file.flock(File::LOCK_EX)
+    active, peak, started = file.read.split.map(&:to_i)
+    active += delta
+    peak = [peak, active].max
+    started += 1 if delta > 0
+    file.rewind
+    file.truncate(0)
+    file.write("#{active} #{peak} #{started}")
+    started
+  end
+end
+data = STDIN.read
+update(1)
+deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + 5
+until update(0) >= Integer(ARGV.fetch(0))
+  abort 'jobs did not overlap' if Process.clock_gettime(Process::CLOCK_MONOTONIC) >= deadline
+  sleep 0.01
+end
+print(data.empty? ? "generated\n" : data)
+update(-1)
+"##,
+    )
+    .unwrap();
+    fs::create_dir(directory.path().join("test")).unwrap();
+    for n in 1..=4 {
+        for extension in ["in", "out"] {
+            fs::write(
+                directory.path().join(format!("test/{n}.{extension}")),
+                format!("case-{n}\n"),
+            )
+            .unwrap();
+        }
+    }
+    for (flags, concurrency) in [
+        (vec![], "1"),
+        (vec!["--jobs", "2"], "2"),
+        (vec!["-j", "2"], "2"),
+    ] {
+        fs::write(&state, "0 0 0").unwrap();
+        let mut args = vec!["test", "--show-io", "always"];
+        args.extend(flags);
+        args.extend(["--", "ruby", "worker.rb", concurrency]);
+        let output = run(&directory, &args, 0);
+        assert_eq!(
+            fs::read_to_string(&state).unwrap(),
+            format!("0 {concurrency} 4")
+        );
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        for n in 1..=4 {
+            assert!(
+                stdout.contains(&format!(
+                    "Input:\ncase-{n}\n\nExpected output:\ncase-{n}\n\nActual output:\ncase-{n}\n\n"
+                )),
+                "{stdout}"
+            );
+        }
+    }
+    run(
+        &directory,
+        &[
+            "test",
+            "-j",
+            "2",
+            "-J",
+            "cmp {solution_output} {test_output}",
+            "--",
+            "cat",
+        ],
+        0,
+    );
+    run(
+        &directory,
+        &[
+            "test",
+            "-j",
+            "2",
+            "--interactive",
+            "-J",
+            "test -f {test_input}; printf 'question\\n'; read answer; test \"$answer\" = answer",
+            "--",
+            "sh",
+            "-c",
+            "read question; printf 'answer\\n'",
+        ],
+        0,
+    );
+    for n in 1..=4 {
+        fs::write(directory.path().join(format!("test/{n}.out")), "wrong").unwrap();
+    }
+    fs::write(&state, "0 0 0").unwrap();
+    let output = run(
+        &directory,
+        &[
+            "test",
+            "-j",
+            "2",
+            "--fast-fail",
+            "--",
+            "ruby",
+            "worker.rb",
+            "2",
+        ],
+        1,
+    );
+    assert_eq!(fs::read_to_string(&state).unwrap(), "0 2 2");
+    assert!(String::from_utf8_lossy(&output.stderr).contains("0 of 2 test case(s) passed"));
+
+    run(&directory, &["generate", "-j", "0", "--", "true"], 2);
+    let generated = directory.path().join("random");
+    fs::create_dir(&generated).unwrap();
+    fs::write(generated.join("random-0001.in"), "keep").unwrap();
+    fs::write(generated.join("random-0002.out"), "keep orphan answer").unwrap();
+    fs::write(&state, "0 0 0").unwrap();
+    run(
+        &directory,
+        &[
+            "generate",
+            "-j",
+            "2",
+            "--count",
+            "4",
+            "--",
+            "ruby",
+            "worker.rb",
+            "2",
+        ],
+        0,
+    );
+    assert_eq!(fs::read_to_string(&state).unwrap(), "0 2 4");
+    for n in 3..=6 {
+        assert_eq!(
+            fs::read_to_string(generated.join(format!("random-{n:04}.in"))).unwrap(),
+            "generated\n"
+        );
+    }
+    fs::write(&state, "0 0 0").unwrap();
+    run(
+        &directory,
+        &[
+            "generate",
+            "--jobs",
+            "2",
+            "--answer",
+            "--",
+            "ruby",
+            "worker.rb",
+            "2",
+        ],
+        0,
+    );
+    assert_eq!(fs::read_to_string(&state).unwrap(), "0 2 5");
+    assert_eq!(
+        fs::read_to_string(generated.join("random-0001.in")).unwrap(),
+        "keep"
+    );
+    assert_eq!(
+        fs::read_to_string(generated.join("random-0001.out")).unwrap(),
+        "keep"
+    );
+    assert_eq!(
+        fs::read_to_string(generated.join("random-0002.out")).unwrap(),
+        "keep orphan answer"
+    );
+    for n in 3..=6 {
+        assert_eq!(
+            fs::read_to_string(generated.join(format!("random-{n:04}.out"))).unwrap(),
+            "generated\n"
+        );
+    }
+    run(
+        &directory,
+        &[
+            "generate",
+            "--jobs",
+            "2",
+            "--count",
+            "4",
+            "--dir",
+            "failed",
+            "--",
+            "sh",
+            "-c",
+            "printf partial; exit 1",
+        ],
+        2,
+    );
+    assert_eq!(
+        fs::read_dir(directory.path().join("failed"))
+            .unwrap()
+            .count(),
+        0
+    );
 }
 
 #[test]
@@ -958,7 +1192,7 @@ run = "{binary}"
     case(&directory, b"7\n", b"7\n");
     fs::write(directory.path().join("test/second.in"), "7\n").unwrap();
     fs::write(directory.path().join("test/second.out"), "7\n").unwrap();
-    run(&directory, &["test", "solution.cpp"], 0);
+    run(&directory, &["test", "-j", "2", "solution.cpp"], 0);
     assert_eq!(
         fs::read_to_string(directory.path().join("calls")).unwrap(),
         "preprocess\n"
@@ -1103,32 +1337,73 @@ fn limits_interactive_and_cleanup() {
     let temporary = fs::read_to_string(directory.path().join("expected-path")).unwrap();
     assert!(!std::path::Path::new(&temporary).exists());
     assert!(!directory.path().join("test/sample-1.out").exists());
-    let mut child = command(&directory)
-        .args(["test", "--", "sh", "-c", "echo ready >&2; sleep 10"])
-        .stderr(Stdio::piped())
-        .stdout(Stdio::null())
-        .spawn()
-        .unwrap();
-    assert!(
-        BufReader::new(child.stderr.take().unwrap())
-            .lines()
-            .any(|line| line.unwrap() == "ready")
-    );
-    unsafe {
-        libc::kill(child.id() as i32, libc::SIGINT);
-    }
-    let started = Instant::now();
-    loop {
-        if let Some(status) = child.try_wait().unwrap() {
-            assert_eq!(status.code(), Some(130));
-            break;
-        }
-        assert!(
-            started.elapsed() < Duration::from_secs(5),
-            "cpg ignored SIGINT"
+    fs::write(directory.path().join("test/second.in"), "").unwrap();
+    for mut args in [
+        vec!["test", "-j", "2"],
+        vec![
+            "generate",
+            "-j",
+            "2",
+            "--count",
+            "4",
+            "--dir",
+            "interrupted",
+        ],
+    ] {
+        fs::write(directory.path().join("children.pid"), "").unwrap();
+        args.extend([
+            "--",
+            "sh",
+            "-c",
+            "sleep 10 & echo $! >> children.pid; echo ready >&2; wait",
+        ]);
+        let mut child = command(&directory)
+            .args(args)
+            .stderr(Stdio::piped())
+            .stdout(Stdio::null())
+            .spawn()
+            .unwrap();
+        assert_eq!(
+            BufReader::new(child.stderr.take().unwrap())
+                .lines()
+                .filter(|line| line.as_ref().unwrap() == "ready")
+                .take(2)
+                .count(),
+            2
         );
-        thread::sleep(Duration::from_millis(10));
+        unsafe {
+            libc::kill(child.id() as i32, libc::SIGINT);
+        }
+        let started = Instant::now();
+        loop {
+            if let Some(status) = child.try_wait().unwrap() {
+                assert_eq!(status.code(), Some(130));
+                break;
+            }
+            assert!(
+                started.elapsed() < Duration::from_secs(5),
+                "cpg ignored SIGINT"
+            );
+            thread::sleep(Duration::from_millis(10));
+        }
+        let pids = fs::read_to_string(directory.path().join("children.pid")).unwrap();
+        assert_eq!(pids.lines().count(), 2);
+        for pid in pids.lines() {
+            let pid: i32 = pid.parse().unwrap();
+            let stopped = match procfs::process::Process::new(pid).and_then(|p| p.stat()) {
+                Ok(stat) => stat.state == 'Z',
+                Err(procfs::ProcError::NotFound(_)) => true,
+                Err(error) => panic!("{error}"),
+            };
+            assert!(stopped, "child {pid} is still running");
+        }
     }
+    assert_eq!(
+        fs::read_dir(directory.path().join("interrupted"))
+            .unwrap()
+            .count(),
+        0
+    );
 }
 
 #[cfg(feature = "mock")]

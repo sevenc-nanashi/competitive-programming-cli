@@ -536,7 +536,7 @@ fn inputs(directory: &Path) -> Result<Vec<PathBuf>> {
 }
 
 fn normalize(bytes: &[u8], options: &Test) -> Vec<u8> {
-    let normalized = if options.ignore_line_ending {
+    let mut normalized: Vec<u8> = if options.ignore_line_ending {
         bytes
             .split_inclusive(|b| *b == b'\n')
             .flat_map(|line| match line.strip_suffix(b"\r\n") {
@@ -547,6 +547,14 @@ fn normalize(bytes: &[u8], options: &Test) -> Vec<u8> {
     } else {
         bytes.to_vec()
     };
+    if options.strip_trailing_newline {
+        while normalized
+            .last()
+            .is_some_and(|b| matches!(b, b'\r' | b'\n'))
+        {
+            normalized.pop();
+        }
+    }
     if !options.strip {
         return normalized;
     }
@@ -627,6 +635,169 @@ fn print_io(label: &str, path: &Path, style: Style) -> Result<()> {
     Ok(())
 }
 
+fn run_jobs<T: Send>(
+    tasks: Vec<T>,
+    jobs: usize,
+    fast_fail: bool,
+    interrupted: &AtomicBool,
+    run: impl Fn(T) -> Result<bool> + Sync,
+) -> Result<(usize, usize)> {
+    let workers = jobs.min(tasks.len());
+    let tasks = Mutex::new(tasks.into_iter());
+    let stopped = AtomicBool::new(false);
+    thread::scope(|scope| {
+        let workers: Vec<_> = (0..workers)
+            .map(|_| {
+                scope.spawn(|| -> Result<(usize, usize)> {
+                    let mut accepted = 0;
+                    let mut total = 0;
+                    loop {
+                        let task = {
+                            let mut tasks = tasks.lock().expect("task queue poisoned");
+                            if stopped.load(Ordering::Relaxed)
+                                || interrupted.load(Ordering::Relaxed)
+                            {
+                                break;
+                            }
+                            let Some(task) = tasks.next() else { break };
+                            task
+                        };
+                        let passed =
+                            run(task).inspect_err(|_| stopped.store(true, Ordering::Relaxed))?;
+                        total += 1;
+                        accepted += usize::from(passed);
+                        if fast_fail && !passed {
+                            stopped.store(true, Ordering::Relaxed);
+                        }
+                    }
+                    Ok((accepted, total))
+                })
+            })
+            .collect();
+        let mut accepted = 0;
+        let mut total = 0;
+        for worker in workers {
+            let (passed, finished) = worker
+                .join()
+                .map_err(|_| anyhow::anyhow!("Worker panicked"))??;
+            accepted += passed;
+            total += finished;
+        }
+        ensure!(!interrupted.load(Ordering::Relaxed), "Interrupted");
+        Ok((accepted, total))
+    })
+}
+
+fn test_case(
+    input: Option<PathBuf>,
+    program: &Program,
+    judge: Option<&Judge>,
+    options: &Test,
+    limits: Limits,
+    interrupted: &AtomicBool,
+) -> Result<bool> {
+    let mut expected = input.as_ref().map(|p| p.with_extension("out"));
+    let name = match &input {
+        Some(p) => p
+            .file_stem()
+            .context("Invalid case name")?
+            .to_string_lossy()
+            .into_owned(),
+        None => "interactive".into(),
+    };
+    let _empty_expected = if let Some(path) = &mut expected
+        && !path.try_exists()?
+    {
+        if judge.is_some() {
+            let file = tempfile::NamedTempFile::new()?;
+            *path = file.path().to_owned();
+            Some(file)
+        } else {
+            tracing::warn!(
+                "Missing expected output for {name}; only the exit code will be checked"
+            );
+            None
+        }
+    } else {
+        None
+    };
+    tracing::info!("Running test case {name}...");
+    let actual = tempfile::NamedTempFile::new()?;
+    let result = if options.interactive {
+        let judge = judge
+            .as_ref()
+            .context("Interactive tests require --judge")?
+            .command(input.as_deref(), expected.as_deref(), None)?;
+        let transcript = if options.show_io == ShowIo::Never {
+            None
+        } else {
+            Some(actual.reopen()?)
+        };
+        interactive(program, &judge, limits, interrupted, transcript)?
+    } else {
+        let mut result = execute(
+            program,
+            File::open(input.as_ref().expect("regular case"))?.into(),
+            actual.reopen()?.into(),
+            limits,
+            interrupted,
+        )?;
+        if result.verdict == Verdict::Ac {
+            let correct = if let Some(judge) = &judge {
+                let command =
+                    judge.command(input.as_deref(), expected.as_deref(), Some(actual.path()))?;
+                execute(
+                    &command,
+                    Stdio::null(),
+                    Stdio::inherit(),
+                    limits,
+                    interrupted,
+                )?
+                .verdict
+                    == Verdict::Ac
+            } else {
+                let expected = expected.as_ref().expect("regular case");
+                !expected.try_exists()?
+                    || matches(&fs::read(expected)?, &fs::read(actual.path())?, options)
+            };
+            if !correct {
+                result.verdict = Verdict::Wa;
+            }
+        }
+        result
+    };
+    let _output = io::stdout().lock();
+    println!(
+        "{}: {} ({} ms, {} KiB)",
+        name,
+        crate::results::color_status(&result.verdict.to_string()),
+        result.elapsed.as_millis(),
+        result.memory / 1024
+    );
+    if match options.show_io {
+        ShowIo::Always => true,
+        ShowIo::Failure => result.verdict != Verdict::Ac,
+        ShowIo::Never => false,
+    } {
+        let style = Style::new().bold();
+        if let Some(input) = &input {
+            print_io("Input", input, style.clone())?;
+        }
+        if let Some(expected) = &expected
+            && expected.try_exists()?
+        {
+            print_io("Expected output", expected, style.clone().green())?;
+        }
+        let (label, style) = if options.interactive {
+            ("Interaction", style)
+        } else {
+            ("Actual output", style.yellow())
+        };
+        print_io(label, actual.path(), style)?;
+    }
+    Ok(result.verdict == Verdict::Ac)
+}
+
 pub fn test(config: &Config, options: &Test, interrupted: &AtomicBool) -> Result<bool> {
     let program = Program::prepare(config, &options.program, interrupted)?;
     let directory = match &options.test_dir {
@@ -665,118 +836,22 @@ pub fn test(config: &Config, options: &Test, interrupted: &AtomicBool) -> Result
         cases.len(),
         directory.display()
     );
-    let mut accepted = 0;
-    let mut total = 0;
-    for input in cases {
-        let mut expected = input.as_ref().map(|p| p.with_extension("out"));
-        let name = match &input {
-            Some(p) => p
-                .file_stem()
-                .context("Invalid case name")?
-                .to_string_lossy()
-                .into_owned(),
-            None => "interactive".into(),
-        };
-        let _empty_expected = if let Some(path) = &mut expected
-            && !path.try_exists()?
-        {
-            if judge.is_some() {
-                let file = tempfile::NamedTempFile::new()?;
-                *path = file.path().to_owned();
-                Some(file)
-            } else {
-                tracing::warn!(
-                    "Missing expected output for {name}; only the exit code will be checked"
-                );
-                None
-            }
-        } else {
-            None
-        };
-        tracing::info!("Running test case {name}...");
-        let actual = tempfile::NamedTempFile::new()?;
-        let result = if options.interactive {
-            let judge = judge
-                .as_ref()
-                .context("Interactive tests require --judge")?
-                .command(input.as_deref(), expected.as_deref(), None)?;
-            let transcript = if options.show_io == ShowIo::Never {
-                None
-            } else {
-                Some(actual.reopen()?)
-            };
-            interactive(&program, &judge, limits, interrupted, transcript)?
-        } else {
-            let mut result = execute(
+    let (accepted, total) = run_jobs(
+        cases,
+        options.jobs.get(),
+        options.fast_fail,
+        interrupted,
+        |input| {
+            test_case(
+                input,
                 &program,
-                File::open(input.as_ref().expect("regular case"))?.into(),
-                actual.reopen()?.into(),
+                judge.as_ref(),
+                options,
                 limits,
                 interrupted,
-            )?;
-            if result.verdict == Verdict::Ac {
-                let correct = if let Some(judge) = &judge {
-                    let command = judge.command(
-                        input.as_deref(),
-                        expected.as_deref(),
-                        Some(actual.path()),
-                    )?;
-                    execute(
-                        &command,
-                        Stdio::null(),
-                        Stdio::inherit(),
-                        limits,
-                        interrupted,
-                    )?
-                    .verdict
-                        == Verdict::Ac
-                } else {
-                    let expected = expected.as_ref().expect("regular case");
-                    !expected.try_exists()?
-                        || matches(&fs::read(expected)?, &fs::read(actual.path())?, options)
-                };
-                if !correct {
-                    result.verdict = Verdict::Wa;
-                }
-            }
-            result
-        };
-        total += 1;
-        if result.verdict == Verdict::Ac {
-            accepted += 1;
-        }
-        println!(
-            "{}: {} ({} ms, {} KiB)",
-            name,
-            crate::results::color_status(&result.verdict.to_string()),
-            result.elapsed.as_millis(),
-            result.memory / 1024
-        );
-        if match options.show_io {
-            ShowIo::Always => true,
-            ShowIo::Failure => result.verdict != Verdict::Ac,
-            ShowIo::Never => false,
-        } {
-            let style = Style::new().bold();
-            if let Some(input) = &input {
-                print_io("Input", input, style.clone())?;
-            }
-            if let Some(expected) = &expected
-                && expected.try_exists()?
-            {
-                print_io("Expected output", expected, style.clone().green())?;
-            }
-            let (label, style) = if options.interactive {
-                ("Interaction", style)
-            } else {
-                ("Actual output", style.yellow())
-            };
-            print_io(label, actual.path(), style)?;
-        }
-        if result.verdict != Verdict::Ac && options.fast_fail {
-            break;
-        }
-    }
+            )
+        },
+    )?;
     if total == 0 {
         tracing::warn!("No test cases were run");
     } else if accepted == total {
@@ -791,40 +866,14 @@ pub fn generate(config: &Config, options: &Generate, interrupted: &AtomicBool) -
     let program = Program::prepare(config, &options.program, interrupted)?;
     let directory = std::path::absolute(expand_path(&options.dir)?)?;
     fs::create_dir_all(&directory)?;
-    let mut count = 0;
-    let mut save = |input: Option<&Path>, output: PathBuf| -> Result<()> {
-        let staging = tempfile::Builder::new()
-            .prefix(".cpg-")
-            .tempfile_in(&directory)?;
-        let stdin = match input {
-            Some(p) => File::open(p)?.into(),
-            None => Stdio::null(),
-        };
-        let result = execute(
-            &program,
-            stdin,
-            staging.reopen()?.into(),
-            Limits::default(),
-            interrupted,
-        )?;
-        ensure!(
-            result.verdict == Verdict::Ac,
-            "Generator/reference solution failed ({})",
-            result.verdict
-        );
-        staging
-            .persist_noclobber(&output)
-            .with_context(|| format!("Cannot save {}", output.display()))?;
-        println!("{}", output.display());
-        count += 1;
-        Ok(())
-    };
+    let mut tasks = Vec::new();
     if options.answer {
         tracing::info!("Generating missing answers in {}...", directory.display());
         for input in inputs(&directory)? {
+            ensure!(!interrupted.load(Ordering::Relaxed), "Interrupted");
             let output = input.with_extension("out");
             if !output.try_exists()? {
-                save(Some(&input), output)?;
+                tasks.push((Some(input), output));
             }
         }
     } else {
@@ -836,15 +885,48 @@ pub fn generate(config: &Config, options: &Generate, interrupted: &AtomicBool) -
         let mut index = 1usize;
         for _ in 0..options.count.get() {
             let output = loop {
+                ensure!(!interrupted.load(Ordering::Relaxed), "Interrupted");
                 let path = directory.join(format!("random-{index:04}.in"));
                 index += 1;
                 if !path.try_exists()? && !path.with_extension("out").try_exists()? {
                     break path;
                 }
             };
-            save(None, output)?;
+            tasks.push((None, output));
         }
     }
+    let (_, count) = run_jobs(
+        tasks,
+        options.jobs.get(),
+        false,
+        interrupted,
+        |(input, output)| {
+            let staging = tempfile::Builder::new()
+                .prefix(".cpg-")
+                .tempfile_in(&directory)?;
+            let stdin = match input.as_deref() {
+                Some(p) => File::open(p)?.into(),
+                None => Stdio::null(),
+            };
+            let result = execute(
+                &program,
+                stdin,
+                staging.reopen()?.into(),
+                Limits::default(),
+                interrupted,
+            )?;
+            ensure!(
+                result.verdict == Verdict::Ac,
+                "Generator/reference solution failed ({})",
+                result.verdict
+            );
+            staging
+                .persist_noclobber(&output)
+                .with_context(|| format!("Cannot save {}", output.display()))?;
+            println!("{}", output.display());
+            Ok(true)
+        },
+    )?;
     tracing::info!("Generated {count} file(s) in {}", directory.display());
     Ok(())
 }

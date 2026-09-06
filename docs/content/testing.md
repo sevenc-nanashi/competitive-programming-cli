@@ -106,6 +106,16 @@ Short memory peaks may be missed; shared pages may be counted more than once.
 Compilation runs once before testing and is outside these limits. Limits and
 Ctrl-C terminate the process group, including children that inherit that group.
 
+Use `--jobs N` (`-j N`) to run up to N cases concurrently; the default is `1`.
+Compilation and preprocessing still run once before testing. This also applies
+to custom and interactive judges, with limits measured separately for each case.
+Results appear as cases finish, with each verdict and its I/O displayed together.
+Live output from child processes can interleave. Ctrl-C stops all running cases.
+
+```bash
+cpg test -j 4 ./solution.cpp
+```
+
 Each case reports `AC`, `WA`, `RE`, `TLE`, or `MLE`, elapsed time, and peak sampled
 memory. The exit code is `0` when all cases pass, `1` when a case fails, `2` for
 configuration/command errors, and `130` after interruption. Without
@@ -137,6 +147,15 @@ For stripping trailing white-space in the output, you can use `--strip` option t
 cpg test --strip ./solution.cpp
 ```
 
+Use `--strip-trailing-newline` (`-S`) to ignore only trailing CR and LF bytes
+in expected and actual output. Spaces, tabs, and internal newlines are preserved.
+This is disabled by default and does not change the displayed I/O or files passed
+to a custom judge. It can be combined with `--strip` and `--ignore-line-ending`.
+
+```bash
+cpg test -S ./solution.cpp
+```
+
 For CRLF/LF insensitive comparison, you can use `--ignore-line-ending` option to ignore line ending differences between the expected output and the actual output.
 This is enabled by default, but you can disable it with `--no-ignore-line-ending` option.
 
@@ -145,7 +164,8 @@ This is enabled by default, but you can disable it with `--no-ignore-line-ending
 cpg test --ignore-line-ending ./solution.cpp
 ```
 
-For fast failure, you can use `--fast-fail` option to stop testing after the first failed test case.
+Use `--fast-fail` (`-f`) to stop starting new cases after the first failure.
+With parallel jobs, cases already running finish and are included in the summary.
 
 ```bash
 # Test a solution against the sample test cases with fast failure
@@ -166,7 +186,7 @@ cpg test --float-error 1e-6 --float-error-type absolute ./solution.cpp
 cpg test --float-error 1e-6 --float-error-type relative ./solution.cpp
 ```
 
-For custom judges, you can specify the command to execute for each test case:
+For custom judges, use `--judge` (`-J`) to specify the command to execute for each test case:
 The judge will receive three arguments in the same order as oj: the test input file (`{test_input}`), the actual output file from the solution (`{solution_output}`), and the expected output file (`{test_output}`).
 `{test_output}` is the corresponding `.out` path. If it is missing, cpg passes
 an empty temporary file instead and deletes it after the case finishes.

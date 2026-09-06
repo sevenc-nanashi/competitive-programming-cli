@@ -61,8 +61,8 @@ and `cpg test --help` when adapting scripts:
   memory, so its measurements need not match oj's `--mle` in MB.
 - **Short flags:** oj's `-s` suppresses output details, while cpg's `-s` means
   `--strip`. Use `--show-io never` to hide cpg's I/O details, `always` to show
-  every case, or `failure` (the default) to show failed cases. oj's `-j` selects
-  parallel jobs; cpg's `-j` selects a judge, and cases run sequentially.
+  every case, or `failure` (the default) to show failed cases. cpg's `-S` strips
+  trailing newlines; oj's `-S` ignores spaces.
 
 Custom judges receive input, actual output, then expected output in both tools.
 You can reuse an oj judge directly:
