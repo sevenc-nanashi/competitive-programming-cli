@@ -1893,7 +1893,6 @@ mock = "ruby"
         fs::create_dir(&path).unwrap();
         fs::write(path.join("marker"), marker).unwrap();
         fs::write(path.join(format!("{marker}.txt")), marker).unwrap();
-        fs::write(path.join(".cpg.toml"), "id = 'stale-template-metadata'\n").unwrap();
         fs::write(
             path.join("setup.rb"),
             "File.open('setup.log', 'a') { |file| file.puts File.read('marker') }\nFile.write(\"metadata-#{File.read('marker')}.toml\", File.read('.cpg.toml'))\nFile.write('generated.rb', 'abc')\nputs 'setup stdout'\nwarn 'setup stderr'\n",
