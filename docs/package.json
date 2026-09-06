@@ -3,11 +3,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node generate-reference.mjs && vite",
-    "build": "node generate-reference.mjs && vite build",
-    "reference": "node generate-reference.mjs",
+    "dev": "node generate-reference.ts && vite",
+    "build": "node generate-reference.ts && vite build",
+    "reference": "node generate-reference.ts",
     "preview": "vite preview",
-    "fmt": "cd .. && docs/node_modules/.bin/oxfmt README.md docs/content docs/package.json docs/index.html docs/vite.config.ts docs/generate-reference.mjs .github/workflows/docs.yml"
+    "fmt": "cd .. && docs/node_modules/.bin/oxfmt README.md docs/content docs/components docs/package.json docs/index.html docs/vite.config.ts docs/generate-reference.ts .github/workflows/docs.yml"
   },
   "devDependencies": {
     "@ox-content/vite-plugin": "^3.0.0-alpha.18",

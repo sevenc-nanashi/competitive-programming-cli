@@ -4,7 +4,12 @@ session = "mock-session"
 [[languages]]
 id = "ruby"
 name = "Ruby"
+extension = "rb"
+run = "ruby {input}"
 
 [[languages]]
 id = "cpp"
 name = "C++23"
+extension = "cpp"
+compile = "g++ -std=c++23 -O2 -o {binary} {input}"
+run = "{binary}"

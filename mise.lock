@@ -37,6 +37,44 @@ checksum = "sha256:924c879cc92782e3ae8eb0a941b1c5d8d4d8e2bed87822fe6ebe628d40b1f
 url = "https://github.com/jdx/aube/releases/download/v1.25.1/aube-v1.25.1-x86_64-pc-windows-msvc.zip"
 url_api = "https://api.github.com/repos/jdx/aube/releases/assets/458178696"
 
+[[tools."github:asciinema/asciinema"]]
+version = "3.2.1"
+backend = "github:asciinema/asciinema"
+specifiers = [
+    "3.2.1",
+    "latest",
+]
+
+[tools."github:asciinema/asciinema"."platforms.linux-arm64"]
+checksum = "sha256:b516a6d896844c0ffbc96e0a55afe4cbcc79216abde0fc64fdda4e39bee421ea"
+url = "https://github.com/asciinema/asciinema/releases/download/v3.2.1/asciinema-aarch64-unknown-linux-gnu"
+url_api = "https://api.github.com/repos/asciinema/asciinema/releases/assets/449290064"
+
+[tools."github:asciinema/asciinema"."platforms.linux-arm64-musl"]
+checksum = "sha256:b516a6d896844c0ffbc96e0a55afe4cbcc79216abde0fc64fdda4e39bee421ea"
+url = "https://github.com/asciinema/asciinema/releases/download/v3.2.1/asciinema-aarch64-unknown-linux-gnu"
+url_api = "https://api.github.com/repos/asciinema/asciinema/releases/assets/449290064"
+
+[tools."github:asciinema/asciinema"."platforms.linux-x64"]
+checksum = "sha256:1b405bbda565b33c3c4718de67fedc3535580603c0694b1ff3fb04f363430a20"
+url = "https://github.com/asciinema/asciinema/releases/download/v3.2.1/asciinema-x86_64-unknown-linux-gnu"
+url_api = "https://api.github.com/repos/asciinema/asciinema/releases/assets/449289226"
+
+[tools."github:asciinema/asciinema"."platforms.linux-x64-musl"]
+checksum = "sha256:bec9781bc8f297a9d3d74ff60205599507f2abba1183578b8b2f22be4c999214"
+url = "https://github.com/asciinema/asciinema/releases/download/v3.2.1/asciinema-x86_64-unknown-linux-musl"
+url_api = "https://api.github.com/repos/asciinema/asciinema/releases/assets/449289811"
+
+[tools."github:asciinema/asciinema"."platforms.macos-arm64"]
+checksum = "sha256:1f0c76da7855601df93e5dccdf69b7c683b81beff1411e38b3802de1f5fc7a1c"
+url = "https://github.com/asciinema/asciinema/releases/download/v3.2.1/asciinema-aarch64-apple-darwin"
+url_api = "https://api.github.com/repos/asciinema/asciinema/releases/assets/449290357"
+
+[tools."github:asciinema/asciinema"."platforms.macos-x64"]
+checksum = "sha256:1b388af0e1566ab19deea663b0ce64730ad46ade2825fadd43cc88f0bd28140a"
+url = "https://github.com/asciinema/asciinema/releases/download/v3.2.1/asciinema-x86_64-apple-darwin"
+url_api = "https://api.github.com/repos/asciinema/asciinema/releases/assets/449290107"
+
 [[tools.node]]
 version = "24.20.0"
 backend = "core:node"
@@ -69,6 +107,32 @@ url = "https://nodejs.org/dist/v24.20.0/node-v24.20.0-darwin-x64.tar.gz"
 [tools.node."platforms.windows-x64"]
 checksum = "sha256:6cac9ffbca8f6a47091e4b5c772e0606049c3871cb67d900c0cedde630e545ba"
 url = "https://nodejs.org/dist/v24.20.0/node-v24.20.0-win-x64.zip"
+
+[[tools.ttyd]]
+version = "1.7.7"
+backend = "aqua:tsl0922/ttyd"
+specifiers = ["latest"]
+
+[tools.ttyd."platforms.linux-arm64"]
+url = "https://github.com/tsl0922/ttyd/releases/download/1.7.7/ttyd.aarch64"
+url_api = "https://api.github.com/repos/tsl0922/ttyd/releases/assets/159377644"
+
+[tools.ttyd."platforms.linux-arm64-musl"]
+url = "https://github.com/tsl0922/ttyd/releases/download/1.7.7/ttyd.aarch64"
+url_api = "https://api.github.com/repos/tsl0922/ttyd/releases/assets/159377644"
+
+[tools.ttyd."platforms.linux-x64"]
+checksum = "blake3:6ed0d916345e111411cdc7f7d649bcb984ec1ee603d470b2151ac0a31b9585a4"
+url = "https://github.com/tsl0922/ttyd/releases/download/1.7.7/ttyd.x86_64"
+url_api = "https://api.github.com/repos/tsl0922/ttyd/releases/assets/159377628"
+
+[tools.ttyd."platforms.linux-x64-musl"]
+url = "https://github.com/tsl0922/ttyd/releases/download/1.7.7/ttyd.x86_64"
+url_api = "https://api.github.com/repos/tsl0922/ttyd/releases/assets/159377628"
+
+[tools.ttyd."platforms.windows-x64"]
+url = "https://github.com/tsl0922/ttyd/releases/download/1.7.7/ttyd.win32.exe"
+url_api = "https://api.github.com/repos/tsl0922/ttyd/releases/assets/159377630"
 
 [[tools.usage]]
 version = "6.6.1"
@@ -109,3 +173,43 @@ url_api = "https://api.github.com/repos/jdx/usage/releases/assets/539847849"
 checksum = "sha256:ecfbf6c425e473fe6bf42e14cbf8ff9e0a87b5dce87f40754cea41ddbfabdd29"
 url = "https://github.com/jdx/usage/releases/download/v6.6.1/usage-x86_64-pc-windows-msvc.zip"
 url_api = "https://api.github.com/repos/jdx/usage/releases/assets/539826464"
+
+[[tools.vhs]]
+version = "0.10.0"
+backend = "aqua:charmbracelet/vhs"
+specifiers = ["0.10.0"]
+
+[tools.vhs."platforms.linux-arm64"]
+checksum = "sha256:6d7300028d4641b9dc004a05cf411d40f1e12e560cc6fca985dd90504b6652a7"
+url = "https://github.com/charmbracelet/vhs/releases/download/v0.10.0/vhs_0.10.0_Linux_arm64.tar.gz"
+url_api = "https://api.github.com/repos/charmbracelet/vhs/releases/assets/264847395"
+
+[tools.vhs."platforms.linux-arm64-musl"]
+checksum = "sha256:6d7300028d4641b9dc004a05cf411d40f1e12e560cc6fca985dd90504b6652a7"
+url = "https://github.com/charmbracelet/vhs/releases/download/v0.10.0/vhs_0.10.0_Linux_arm64.tar.gz"
+url_api = "https://api.github.com/repos/charmbracelet/vhs/releases/assets/264847395"
+
+[tools.vhs."platforms.linux-x64"]
+checksum = "sha256:b552c3870aca101dcafe533cfef32dceb7b783400ad32642e728775c9f125407"
+url = "https://github.com/charmbracelet/vhs/releases/download/v0.10.0/vhs_0.10.0_Linux_x86_64.tar.gz"
+url_api = "https://api.github.com/repos/charmbracelet/vhs/releases/assets/264847388"
+
+[tools.vhs."platforms.linux-x64-musl"]
+checksum = "sha256:b552c3870aca101dcafe533cfef32dceb7b783400ad32642e728775c9f125407"
+url = "https://github.com/charmbracelet/vhs/releases/download/v0.10.0/vhs_0.10.0_Linux_x86_64.tar.gz"
+url_api = "https://api.github.com/repos/charmbracelet/vhs/releases/assets/264847388"
+
+[tools.vhs."platforms.macos-arm64"]
+checksum = "sha256:dc256c403305ac8ba623563d0ef3241a38024f35b27c705f79d523e9da618012"
+url = "https://github.com/charmbracelet/vhs/releases/download/v0.10.0/vhs_0.10.0_Darwin_arm64.tar.gz"
+url_api = "https://api.github.com/repos/charmbracelet/vhs/releases/assets/264847398"
+
+[tools.vhs."platforms.macos-x64"]
+checksum = "sha256:0ef1ae1f399dc837204aa737d375a44cddb0a605be3c32eaa659d4e6a5ad0b70"
+url = "https://github.com/charmbracelet/vhs/releases/download/v0.10.0/vhs_0.10.0_Darwin_x86_64.tar.gz"
+url_api = "https://api.github.com/repos/charmbracelet/vhs/releases/assets/264847396"
+
+[tools.vhs."platforms.windows-x64"]
+checksum = "sha256:7f5cffbbd01fe4229af0540856ddc0da933af0c16c05b1fbe62e0ef2097038a8"
+url = "https://github.com/charmbracelet/vhs/releases/download/v0.10.0/vhs_0.10.0_Windows_x86_64.zip"
+url_api = "https://api.github.com/repos/charmbracelet/vhs/releases/assets/264847397"

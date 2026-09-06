@@ -1658,6 +1658,147 @@ fn setup_failures_and_cleanup() {
 
 #[cfg(feature = "mock")]
 #[test]
+fn mock_submission_judging() {
+    use cookie::time::{OffsetDateTime, format_description};
+    let directory = tempfile::tempdir().unwrap();
+    let mock = directory.path().join("mock_service");
+    let fixture = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("mock_service");
+    fs::create_dir(&mock).unwrap();
+    fs::copy(fixture.join("service.toml"), mock.join("service.toml")).unwrap();
+    std::os::unix::fs::symlink(fixture.join("problems"), mock.join("problems")).unwrap();
+    fs::create_dir(directory.path().join("config")).unwrap();
+    fs::write(
+        directory.path().join("config/config.toml"),
+        "root = '~/workspace'\n",
+    )
+    .unwrap();
+    fs::create_dir(directory.path().join("cookies")).unwrap();
+    fs::copy(
+        fixture.join("cookies.txt"),
+        directory.path().join("cookies/mock.txt"),
+    )
+    .unwrap();
+    run(
+        &directory,
+        &["download", "https://mock.local/problems/sum"],
+        0,
+    );
+    let problem = directory.path().join("workspace/mock/problems/sum");
+    let calls = directory.path().join("judge-calls");
+    let accepted = format!(
+        "File.open({:?}, 'a') {{ |f| f.puts 'run' }}; warn 'judge stderr'; puts STDIN.read.split.map(&:to_i).sum",
+        calls.to_str().unwrap()
+    );
+    let mut submissions = Vec::new();
+    for (language, source, verdict) in [
+        ("ruby", accepted.as_str(), "AC"),
+        ("ruby", "puts STDIN.read.include?('-') ? 0 : 3", "WA"),
+        ("ruby", "abort 'runtime error'", "RE"),
+        ("ruby", "sleep 30", "TLE"),
+        (
+            "cpp",
+            "#include <iostream>\nint main() { int a,b; std::cin >> a >> b; std::cout << a+b << '\\n'; }",
+            "AC",
+        ),
+        ("cpp", "this is not C++", "CE"),
+    ] {
+        fs::write(problem.join("solution"), source).unwrap();
+        let output = run(
+            &directory,
+            &[
+                "submit",
+                problem.join("solution").to_str().unwrap(),
+                "--language",
+                language,
+            ],
+            0,
+        );
+        let stdout = String::from_utf8(output.stdout).unwrap();
+        let id = stdout
+            .split_whitespace()
+            .nth(1)
+            .unwrap()
+            .trim_end_matches(':');
+        let path = mock.join("submissions").join(format!("{id}.toml"));
+        let stored: toml::Value = toml::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
+        assert_eq!(stored["status"].as_str().unwrap(), "WJ");
+        let timestamp = OffsetDateTime::parse(stored["submitted_at"].as_str().unwrap(), &format_description::parse_borrowed::<2>(
+            "[year]-[month]-[day] [hour]:[minute]:[second] [offset_hour sign:mandatory]:[offset_minute]"
+        ).unwrap()).unwrap();
+        assert_eq!(
+            timestamp.unix_timestamp() as i128,
+            id.parse::<i128>().unwrap() / 1_000_000_000
+        );
+        submissions.push((path, verdict));
+    }
+    assert!(
+        !calls.exists(),
+        "Submissions were judged before fetching results"
+    );
+    thread::sleep(Duration::from_millis(5100));
+    // Concurrent fetches must share the persisted results instead of judging twice.
+    let fetch = || {
+        command(&directory)
+            .current_dir(&problem)
+            .arg("results")
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .unwrap()
+    };
+    let first = fetch();
+    let second = fetch();
+    let first = first.wait_with_output().unwrap();
+    let second = second.wait_with_output().unwrap();
+    for output in [&first, &second] {
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert!(!String::from_utf8_lossy(&output.stderr).contains("judge stderr"));
+        assert_eq!(String::from_utf8_lossy(&output.stdout).lines().count(), 7);
+    }
+    assert_eq!(first.stdout, second.stdout);
+    assert!(
+        calls.exists(),
+        "{}\n{}",
+        String::from_utf8_lossy(&first.stdout),
+        String::from_utf8_lossy(&first.stderr)
+    );
+    assert_eq!(fs::read_to_string(&calls).unwrap(), "run\nrun\n");
+    let mut cached = Vec::new();
+    for (path, verdict) in submissions {
+        let contents = fs::read_to_string(&path).unwrap();
+        let stored: toml::Value = toml::from_str(&contents).unwrap();
+        assert_eq!(stored["status"].as_str().unwrap(), verdict);
+        let milliseconds: u128 = stored["time"]
+            .as_str()
+            .unwrap()
+            .strip_suffix(" ms")
+            .unwrap()
+            .parse()
+            .unwrap();
+        if verdict == "TLE" {
+            assert!(milliseconds >= 2000);
+        }
+        cached.push((path, contents));
+    }
+    let output = command(&directory)
+        .current_dir(&problem)
+        .arg("results")
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    assert_eq!(first.stdout, output.stdout);
+    assert_eq!(fs::read_to_string(&calls).unwrap(), "run\nrun\n");
+    for (path, contents) in cached {
+        assert_eq!(fs::read_to_string(path).unwrap(), contents);
+    }
+}
+
+#[cfg(feature = "mock")]
+#[test]
 fn mock_service_workflow() {
     use std::{
         os::unix::fs::{PermissionsExt, symlink},
@@ -2156,7 +2297,7 @@ mock = "ruby"
     fs::write(&solution, "print STDIN.read").unwrap();
     run(&directory, &["s", source], 2);
     assert!(!echo.join("order").exists());
-    run(
+    let output = run(
         &directory,
         &["s", source, "--allow-submit-unchanged-solution"],
         0,
@@ -2166,18 +2307,13 @@ mock = "ruby"
         "preprocess\npresubmit\n"
     );
     assert_eq!(fs::read_to_string(&solution).unwrap(), "print STDIN.read");
-    let latest = fs::read_dir(mock.join("submissions"))
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    let id = stdout
+        .split_whitespace()
+        .nth(1)
         .unwrap()
-        .map(|entry| entry.unwrap().path())
-        .max_by_key(|path| {
-            path.file_stem()
-                .unwrap()
-                .to_str()
-                .unwrap()
-                .parse::<u128>()
-                .unwrap()
-        })
-        .unwrap();
+        .trim_end_matches(':');
+    let latest = mock.join("submissions").join(format!("{id}.toml"));
     let submitted: toml::Value = toml::from_str(&fs::read_to_string(latest).unwrap()).unwrap();
     assert_eq!(
         submitted["source"].as_str().unwrap(),

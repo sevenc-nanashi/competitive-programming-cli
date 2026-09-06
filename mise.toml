@@ -1,4 +1,11 @@
 [tools]
 aube = "latest"
+"github:asciinema/asciinema" = "latest"
 node = "24"
+ttyd = "latest"
 usage = "latest"
+vhs = "0.10.0"
+
+[tasks.demo]
+description = "Record the demo GIF and asciinema cast"
+run = "ruby demo/record.rb"

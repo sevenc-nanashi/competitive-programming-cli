@@ -30,6 +30,7 @@ pub struct Program {
     invocation: Invocation,
     pub cwd: PathBuf,
     prepared_source: Option<Arc<tempfile::NamedTempFile>>,
+    quiet: bool,
 }
 
 impl Program {
@@ -38,6 +39,7 @@ impl Program {
             invocation: Invocation::Shell(command),
             cwd,
             prepared_source: None,
+            quiet: false,
         }
     }
 
@@ -113,6 +115,7 @@ impl Program {
                 invocation: Invocation::Direct(args.command.clone()),
                 cwd: std::env::current_dir()?,
                 prepared_source: None,
+                quiet: false,
             })
         }
     }
@@ -232,7 +235,11 @@ impl ManagedChild {
             .current_dir(&program.cwd)
             .stdin(stdin)
             .stdout(stdout)
-            .stderr(Stdio::inherit())
+            .stderr(if program.quiet {
+                Stdio::null()
+            } else {
+                Stdio::inherit()
+            })
             .process_group(0)
             .spawn()
             .with_context(|| format!("Cannot start {}", executable.to_string_lossy()))?;
@@ -367,6 +374,70 @@ fn execute(
     monitor(&mut [&mut child], limits, interrupted)
 }
 
+#[cfg(feature = "mock")]
+pub fn judge_samples(
+    source: &Path,
+    compile: Option<&str>,
+    run: &str,
+    samples: &[crate::model::Sample],
+) -> Result<(String, Duration)> {
+    ensure!(!samples.is_empty(), "No sample test cases to judge");
+    let directory = source.parent().context("Source file has no parent")?;
+    let binary = source.with_extension("");
+    let program = |command: &str| -> Result<Program> {
+        let command = command
+            .replace("{input}", &quote(source.as_os_str())?)
+            .replace("{binary}", &quote(binary.as_os_str())?);
+        let mut program = Program::shell(command, directory.to_owned());
+        program.quiet = true;
+        Ok(program)
+    };
+    let interrupted = AtomicBool::new(false);
+    if let Some(compile) = compile {
+        let result = execute(
+            &program(compile)?,
+            Stdio::null(),
+            Stdio::null(),
+            Limits {
+                time: Some(Duration::from_secs(30)),
+                memory: None,
+            },
+            &interrupted,
+        )?;
+        if result.verdict != Verdict::Ac {
+            return Ok(("CE".into(), Duration::ZERO));
+        }
+    }
+    let program = program(run)?;
+    let input = directory.join("sample.in");
+    let actual = directory.join("sample.out");
+    let mut elapsed = Duration::ZERO;
+    for sample in samples {
+        fs::write(&input, &sample.input)?;
+        let result = execute(
+            &program,
+            File::open(&input)?.into(),
+            File::create(&actual)?.into(),
+            Limits {
+                time: Some(Duration::from_secs(2)),
+                memory: None,
+            },
+            &interrupted,
+        )?;
+        elapsed = elapsed.max(result.elapsed);
+        let verdict =
+            if result.verdict == Verdict::Ac && fs::read(&actual)? != sample.output.as_bytes() {
+                Verdict::Wa
+            } else {
+                result.verdict
+            };
+        if verdict != Verdict::Ac {
+            return Ok((verdict.to_string(), elapsed));
+        }
+    }
+    Ok((Verdict::Ac.to_string(), elapsed))
+}
+
 pub fn setup(command: &str, directory: &Path, interrupted: &AtomicBool) -> Result<()> {
     let program = Program::shell(command.to_owned(), directory.to_owned());
     let result = execute(
@@ -484,6 +555,7 @@ impl Judge {
                 invocation: Invocation::Direct(vec![path.into()]),
                 cwd: std::env::current_dir()?,
                 prepared_source: None,
+                quiet: false,
             }));
         }
         Ok(Self::Shell(command.to_owned(), std::env::current_dir()?))

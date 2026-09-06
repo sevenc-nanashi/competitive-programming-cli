@@ -28,6 +28,10 @@ cpg currently supports Linux. Building requires Rust 1.91 or newer.
 
 Refer the [Documentation](https://sevenc7c.com/competitive-programming-cli/installation/index.html) for installation.
 
+## Demo
+
+![cpg preparing a contest, testing a solution, and monitoring a submission](docs/public/demo.gif)
+
 ## Acknowledgements
 
 This tools is heavily inspired by following tools:
