@@ -27,4 +27,36 @@ You can install those binaries manually or using package managers like `mise`.
 mise use -g github:sevenc-nanashi/competitive-programming-cli
 ```
 
+## Shell completion
+
+`cpg completion <shell>` prints a completion script generated from cpg's command
+definitions. It completes commands, aliases, flags, value choices, and file or
+directory paths. The script calls cpg itself, so the `usage` executable is not
+required.
+
+For Bash, add this to `~/.bashrc`:
+
+```bash
+source <(cpg completion bash)
+```
+
+For Zsh, add this to `~/.zshrc` after enabling completion:
+
+```zsh
+autoload -Uz compinit
+compinit
+source <(cpg completion zsh)
+```
+
+For Fish, save the script in its completion directory:
+
+```fish
+mkdir -p ~/.config/fish/completions
+cpg completion fish > ~/.config/fish/completions/cpg.fish
+```
+
+`elvish`, `nu` (Nushell), and `powershell` are also supported. Save their generated
+scripts and load them from your shell configuration. Reopen the shell or source
+its configuration to enable completion.
+
 Next, [configure your workspace and log in](./configuration.md).

@@ -36,7 +36,7 @@ tracing = "0.1"
 tracing-log = "0.2"
 tracing-subscriber = "0.3"
 url = { version = "2", features = ["serde"] }
-usage = { package = "usage-rs", version = "6", features = ["validation"] }
+usage = { package = "usage-rs", version = "6", features = ["validation", "completions"] }
 
 [features]
 mock = []

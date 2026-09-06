@@ -8,7 +8,7 @@ use url::Url;
 
 /// Download, test, and submit competitive programming solutions.
 #[derive(Debug, usage::Cli)]
-#[usage(bin = "cpg", version)]
+#[usage(bin = "cpg", version, completion)]
 pub struct Cli {
     /// Disable colored output.
     #[usage(long, global)]
@@ -19,6 +19,8 @@ pub struct Cli {
 
 #[derive(Debug, usage::Subcommands)]
 pub enum Commands {
+    /// Print a shell completion script to source or save in your shell configuration.
+    Completion(Completion),
     /// Initialize configuration and template directories interactively.
     Init(Init),
     /// Show the workspace root and configuration, cookies, and template directories.
@@ -51,9 +53,16 @@ pub enum Commands {
 }
 
 #[derive(Debug, usage::Args)]
+pub struct Completion {
+    /// Shell to generate completions for.
+    #[usage(choices("bash", "elvish", "fish", "nu", "powershell", "zsh"))]
+    pub shell: String,
+}
+
+#[derive(Debug, usage::Args)]
 pub struct Init {
     /// Import [templates] from an oj-prepare configuration file.
-    #[usage(long)]
+    #[usage(long, value_hint = usage::ValueHint::FilePath)]
     pub from_oj: Option<PathBuf>,
 }
 
@@ -88,13 +97,14 @@ pub struct Login {
     #[usage(value_enum)]
     pub service: ServiceId,
     /// Netscape-format cookie file to import.
-    #[usage(long)]
+    #[usage(long, value_hint = usage::ValueHint::FilePath)]
     pub cookie_file: PathBuf,
 }
 
 #[derive(Debug, usage::Args)]
 pub struct Download {
     /// Problem or contest URL to download.
+    #[usage(value_hint = usage::ValueHint::Url)]
     pub url: Url,
 }
 
@@ -110,7 +120,11 @@ pub struct ProgramArgs {
     /// Source or executable file to compile/run using language configuration.
     ///
     /// Executable files without a matching extension use the executable language.
-    #[usage(conflicts("command"), required_unless("command"))]
+    #[usage(
+        conflicts("command"),
+        required_unless("command"),
+        value_hint = usage::ValueHint::FilePath
+    )]
     pub file: Option<PathBuf>,
     /// Command and arguments after --, passed through unchanged.
     #[usage(double_dash = "required", conflicts("file"), required_unless("file"))]
@@ -151,7 +165,7 @@ pub struct Test {
     /// Directory containing .in and .out test files.
     ///
     /// Defaults to the source directory's test subdirectory, or ./test for a direct command.
-    #[usage(long, short = 'd')]
+    #[usage(long, short = 'd', value_hint = usage::ValueHint::DirPath)]
     pub test_dir: Option<PathBuf>,
     /// Wall-clock limit per case, in milliseconds.
     #[usage(long, short = 't')]
@@ -205,7 +219,7 @@ pub struct Generate {
     #[usage(flatten)]
     pub program: ProgramArgs,
     /// Directory containing generated inputs and answers.
-    #[usage(long, default = "random", short = 'd')]
+    #[usage(long, default = "random", short = 'd', value_hint = usage::ValueHint::DirPath)]
     pub dir: PathBuf,
     /// Generate missing .out files using a reference solution.
     #[usage(long, conflicts("--count"), short = 'a')]
@@ -221,9 +235,10 @@ pub struct Generate {
 #[derive(Debug, usage::Args)]
 pub struct Submit {
     /// Solution source file to submit.
+    #[usage(value_hint = usage::ValueHint::FilePath)]
     pub file: PathBuf,
     /// Submit to this problem URL instead of detecting it from the source's .cpg.toml.
-    #[usage(long)]
+    #[usage(long, value_hint = usage::ValueHint::Url)]
     pub problem: Option<Url>,
     /// Server language ID, overriding the language configuration.
     #[usage(long, short = 'l')]

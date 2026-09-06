@@ -442,6 +442,92 @@ fn open_url_only() {
 }
 
 #[test]
+fn shell_completion() {
+    let directory = tempfile::tempdir().unwrap();
+    for shell in ["bash", "elvish", "fish", "nu", "powershell", "zsh"] {
+        let output = run(&directory, &["completion", shell], 0);
+        let script = String::from_utf8_lossy(&output.stdout);
+        assert!(script.contains(&format!("cpg __complete_word__ --shell {shell}")));
+        assert!(output.stderr.is_empty());
+        if shell == "bash" {
+            fs::write(directory.path().join("completion.bash"), &output.stdout).unwrap();
+        }
+    }
+    run(&directory, &["completion"], 2);
+    run(&directory, &["completion", "invalid"], 2);
+    for (line, expected) in [
+        ("cpg co", vec!["completion", "config"]),
+        ("cpg t --sho", vec!["--show-io"]),
+        ("cpg test --show-io ", vec!["always", "failure", "never"]),
+        ("cpg test --show-io=f", vec!["--show-io=failure"]),
+        ("cpg test --no-ig", vec!["--no-ignore-line-ending"]),
+        ("cpg login a", vec!["atcoder", "atcoder-problems"]),
+        ("cpg config --co", vec!["--config-dir", "--cookies-dir"]),
+        ("cpg test --test-dir ", vec!["\u{1}dirs"]),
+        ("cpg generate --dir ", vec!["\u{1}dirs"]),
+        ("cpg login atcoder --cookie-file ", vec!["\u{1}files"]),
+        ("cpg submit sol", vec!["\u{1}files"]),
+        ("cpg download https:", vec![]),
+    ] {
+        let output = command(&directory)
+            .env("CPG_CONFIG_HOME", "")
+            .env("CPG_COOKIES_HOME", "")
+            .args(["__complete_word__", "--shell", "bash", "--line", line])
+            .output()
+            .unwrap();
+        assert!(output.status.success(), "{line}: {output:?}");
+        assert!(output.stderr.is_empty(), "{line}: {output:?}");
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        if expected.is_empty() {
+            assert!(stdout.is_empty(), "{line}: {stdout}");
+        }
+        for candidate in expected {
+            assert!(
+                stdout.lines().any(|line| line == candidate),
+                "{line}: {stdout}"
+            );
+        }
+    }
+    std::os::unix::fs::symlink(env!("CARGO_BIN_EXE_cpg"), directory.path().join("cpg")).unwrap();
+    fs::write(directory.path().join("solution file.cpp"), "").unwrap();
+    fs::write(directory.path().join("case.txt"), "").unwrap();
+    fs::create_dir(directory.path().join("cases")).unwrap();
+    let output = Command::new("/bin/bash")
+        .current_dir(directory.path())
+        .env("PATH", directory.path())
+        .args([
+            "--noprofile",
+            "--norc",
+            "-c",
+            r#"
+source ./completion.bash
+COMP_LINE='cpg test sol'
+COMP_POINT=${#COMP_LINE}
+COMP_WORDS=(cpg test sol)
+COMP_CWORD=2
+_usage_complete_cpg
+[[ ${COMPREPLY[*]} == 'solution file.cpp' ]] || exit 1
+COMP_LINE='cpg test --test-dir ca'
+COMP_POINT=${#COMP_LINE}
+COMP_WORDS=(cpg test --test-dir ca)
+COMP_CWORD=3
+_usage_complete_cpg
+[[ ${COMPREPLY[*]} == cases ]] || exit 1
+COMP_LINE='cpg test --show-io f'
+COMP_POINT=${#COMP_LINE}
+COMP_WORDS=(cpg test --show-io f)
+_usage_complete_cpg
+[[ ${COMPREPLY[*]} == failure ]]
+"#,
+        ])
+        .output()
+        .unwrap();
+    assert!(output.status.success(), "{output:?}");
+    assert!(!directory.path().join("config").exists());
+    assert!(!directory.path().join("cookies").exists());
+}
+
+#[test]
 fn missing_cookies_warning() {
     for (url, service, host) in [
         ("https://atcoder.jp/invalid", "atcoder", "atcoder.jp"),
@@ -481,8 +567,25 @@ fn cli_contract_and_local_judging() {
     let directory = tempfile::tempdir().unwrap();
     run(&directory, &["--version"], 0);
     for name in [
-        "init", "login", "download", "d", "prepare", "p", "test", "t", "generate", "g", "submit",
-        "s", "results", "r", "list", "open", "o", "config",
+        "init",
+        "login",
+        "download",
+        "d",
+        "prepare",
+        "p",
+        "test",
+        "t",
+        "generate",
+        "g",
+        "submit",
+        "s",
+        "results",
+        "r",
+        "list",
+        "open",
+        "o",
+        "config",
+        "completion",
     ] {
         run(&directory, &[name, "--help"], 0);
     }

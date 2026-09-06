@@ -27,6 +27,11 @@ fn open_browser(url: &url::Url) -> Result<()> {
 fn run(cli: Cli, interrupted: &AtomicBool) -> Result<bool> {
     let paths = Paths::discover()?;
     match cli.command {
+        Commands::Completion(args) => {
+            let shell = usage::complete::Shell::from_name(&args.shell)
+                .context("Unsupported completion shell")?;
+            print!("{}", Cli::completion_script(shell));
+        }
         Commands::Init(args) => config::init(&paths, &args, interrupted)?,
         Commands::Config(args) => {
             let config_dir = std::path::absolute(&paths.config)?;
