@@ -1576,7 +1576,11 @@ fn setup_failures_and_cleanup() {
     let config_path = directory.path().join("config/config.toml");
     let root = directory.path().join("workspace with spaces");
     let base = format!("root = {root:?}\n");
-    fs::write(&config_path, format!("{base}[setup]\nproblem = 'exit 7'\n")).unwrap();
+    fs::write(
+        &config_path,
+        format!("{base}[setup]\nproblem = ['exit 7', 'echo should-not-run']\n"),
+    )
+    .unwrap();
     for (command, url, category) in [
         ("download", "https://mock.local/problems/sum", "problems"),
         (
@@ -1588,6 +1592,7 @@ fn setup_failures_and_cleanup() {
         let output = run(&directory, &[command, url], 2);
         assert!(output.stdout.is_empty());
         assert!(String::from_utf8_lossy(&output.stderr).contains("[setup.problem] failed"));
+        assert!(!String::from_utf8_lossy(&output.stderr).contains("should-not-run"));
         assert_eq!(
             fs::read_dir(root.join("mock").join(category))
                 .unwrap()
@@ -1595,18 +1600,23 @@ fn setup_failures_and_cleanup() {
             0
         );
     }
-    fs::write(&config_path, format!("{base}[setup]\nunknown = 'true'\n")).unwrap();
-    let output = run(
-        &directory,
-        &["download", "https://mock.local/problems/sum"],
-        2,
-    );
-    assert!(String::from_utf8_lossy(&output.stderr).contains("unknown field"));
+    for (setup, error) in [
+        ("unknown = 'true'", "unknown field"),
+        ("problem = ['true', 42]", "Invalid configuration"),
+    ] {
+        fs::write(&config_path, format!("{base}[setup]\n{setup}\n")).unwrap();
+        let output = run(
+            &directory,
+            &["download", "https://mock.local/problems/sum"],
+            2,
+        );
+        assert!(String::from_utf8_lossy(&output.stderr).contains(error));
+    }
 
     // A setup-only configuration also works without template directories.
     fs::write(
         &config_path,
-        format!("{base}[setup]\nproblem = 'printf initialized > generated.txt'\n"),
+        format!("{base}[setup]\nworkspace = ['printf workspace > order', 'printf second >> order']\nproblem = ['printf initialized > generated.txt', 'printf problem >> order']\nsingle_problem = ['printf single >> order']\ncontest = []\n"),
     )
     .unwrap();
     run(
@@ -1618,11 +1628,15 @@ fn setup_failures_and_cleanup() {
         fs::read(root.join("mock/problems/sum/generated.txt")).unwrap(),
         b"initialized"
     );
+    assert_eq!(
+        fs::read(root.join("mock/problems/sum/order")).unwrap(),
+        b"workspacesecondproblemsingle"
+    );
 
     let script = "ruby -e 'STDOUT.sync = true; puts \"setup ready\"; sleep 30'";
     fs::write(
         &config_path,
-        format!("{base}[setup]\nworkspace = {script:?}\n"),
+        format!("{base}[setup]\nworkspace = [{script:?}, 'echo should-not-run']\n"),
     )
     .unwrap();
     let mut child = command(&directory)

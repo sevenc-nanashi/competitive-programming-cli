@@ -319,12 +319,31 @@ pub struct Config {
 }
 
 #[derive(Debug, Default, Deserialize)]
-#[serde(deny_unknown_fields)]
+#[serde(default, deny_unknown_fields)]
 pub struct Setup {
-    pub workspace: Option<String>,
-    pub problem: Option<String>,
-    pub contest: Option<String>,
-    pub single_problem: Option<String>,
+    #[serde(deserialize_with = "setup_commands")]
+    pub workspace: Vec<String>,
+    #[serde(deserialize_with = "setup_commands")]
+    pub problem: Vec<String>,
+    #[serde(deserialize_with = "setup_commands")]
+    pub contest: Vec<String>,
+    #[serde(deserialize_with = "setup_commands")]
+    pub single_problem: Vec<String>,
+}
+
+fn setup_commands<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Vec<String>, D::Error> {
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum Commands {
+        Single(String),
+        Multiple(Vec<String>),
+    }
+    Ok(match Commands::deserialize(deserializer)? {
+        Commands::Single(command) => vec![command],
+        Commands::Multiple(commands) => commands,
+    })
 }
 
 #[derive(Debug, Deserialize)]

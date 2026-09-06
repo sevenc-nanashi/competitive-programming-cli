@@ -80,7 +80,7 @@ fn template(
     paths: &Paths,
     name: &str,
     destination: &Path,
-    setup: Option<&str>,
+    setup: &[String],
     interrupted: &AtomicBool,
 ) -> Result<()> {
     ensure!(!interrupted.load(Ordering::Relaxed), "Interrupted");
@@ -90,7 +90,7 @@ fn template(
         Err(e) if e.kind() == ErrorKind::NotFound => (),
         Err(e) => return Err(e.into()),
     }
-    if let Some(command) = setup {
+    for command in setup {
         tracing::info!("Running [setup.{name}]: {command}");
         runner::setup(command, destination, interrupted)
             .with_context(|| format!("[setup.{name}] failed in {}", destination.display()))?;
@@ -151,7 +151,7 @@ fn write_problem(
             paths,
             "workspace",
             destination,
-            config.setup.workspace.as_deref(),
+            &config.setup.workspace,
             interrupted,
         )?;
     }
@@ -159,7 +159,7 @@ fn write_problem(
         paths,
         "problem",
         destination,
-        config.setup.problem.as_deref(),
+        &config.setup.problem,
         interrupted,
     )?;
     if single {
@@ -167,7 +167,7 @@ fn write_problem(
             paths,
             "single_problem",
             destination,
-            config.setup.single_problem.as_deref(),
+            &config.setup.single_problem,
             interrupted,
         )?;
     }
@@ -249,14 +249,14 @@ pub fn download(
                 paths,
                 "workspace",
                 staging.path(),
-                config.setup.workspace.as_deref(),
+                &config.setup.workspace,
                 interrupted,
             )?;
             template(
                 paths,
                 "contest",
                 staging.path(),
-                config.setup.contest.as_deref(),
+                &config.setup.contest,
                 interrupted,
             )?;
             let zfill_length = contest.problems.len().to_string().len();

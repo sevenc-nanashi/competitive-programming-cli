@@ -81,19 +81,22 @@ Other environment variables in TOML paths are not expanded. Arguments after
 
 ## Commands after copying templates
 
-Add `[setup]` to `$config/config.toml` to run a shell command immediately after
+Add `[setup]` to `$config/config.toml` to run shell commands immediately after
 each corresponding template is copied:
 
 ```toml
 [setup]
-workspace = "git init"
+workspace = ["git init", "bundle install"]
 problem = "ruby setup_problem.rb"
 contest = "ruby setup_contest.rb"
 single_problem = "ruby setup_single_problem.rb"
 ```
 
-Each key is optional. Put scripts in the corresponding template directory so
-they are available when the command runs. Commands also run when that template
+Each key accepts a single command string or an array of command strings, which
+run in order. Omit a key or use `[]` to run no commands. Each command runs in a
+separate shell, so changes from `cd` or `export` do not carry over to the next
+command. Put scripts in the corresponding template directory so
+they are available when the commands run. Commands also run when that template
 directory is absent, allowing setup entirely through commands.
 
 | Key              | Template                  | Working directory                  |
@@ -114,7 +117,8 @@ Commands run through `sh -c` in the temporary directory being prepared, which is
 renamed to the final workspace path on success. Use relative paths in generated
 files rather than embedding the temporary absolute path. Standard input is
 closed; command stdout and stderr go to cpg's stderr so stdout contains only the
-completed workspace path. A failed command stops the download with exit code 2.
+completed workspace path. A failed command skips the remaining commands and
+stops the download with exit code 2.
 Ctrl-C stops the command and its process group with exit code 130. Both cases
 remove the temporary workspace.
 
