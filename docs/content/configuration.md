@@ -114,8 +114,11 @@ For `cpg download`, the order is `workspace`, `problem`, then `single_problem`.
 For `cpg prepare`, `workspace` and `contest` run first at the contest root, then
 `problem` runs for each problem. Each command finishes before the next template
 is copied, so later templates can overwrite files created by earlier commands.
-Samples and `.cpg.toml` are written after the problem's setup commands. Files
-created or changed by setup are included in the unchanged-template check.
+After each template is copied, `.cpg.toml` is written before its setup commands
+run, so scripts can read the problem or contest metadata from their working
+directory. Samples and template checksums are written after the problem's setup
+commands. Files created or changed by setup are included in the
+unchanged-template check.
 
 Commands run through `sh -c` in the temporary directory being prepared, which is
 renamed to the final workspace path on success. Use relative paths in generated

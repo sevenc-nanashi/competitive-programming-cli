@@ -81,6 +81,7 @@ fn template(
     name: &str,
     destination: &Path,
     setup: &[String],
+    metadata: &Metadata,
     interrupted: &AtomicBool,
 ) -> Result<()> {
     ensure!(!interrupted.load(Ordering::Relaxed), "Interrupted");
@@ -90,6 +91,7 @@ fn template(
         Err(e) if e.kind() == ErrorKind::NotFound => (),
         Err(e) => return Err(e.into()),
     }
+    write_metadata(destination, metadata)?;
     for command in setup {
         tracing::info!("Running [setup.{name}]: {command}");
         runner::setup(command, destination, interrupted)
@@ -146,12 +148,18 @@ fn write_problem(
     interrupted: &AtomicBool,
 ) -> Result<()> {
     fs::create_dir_all(destination)?;
+    let metadata = Metadata::Problem {
+        reference: problem.reference.clone(),
+        title: problem.title.clone(),
+        template_checksums: BTreeMap::new(),
+    };
     if single {
         template(
             paths,
             "workspace",
             destination,
             &config.setup.workspace,
+            &metadata,
             interrupted,
         )?;
     }
@@ -160,6 +168,7 @@ fn write_problem(
         "problem",
         destination,
         &config.setup.problem,
+        &metadata,
         interrupted,
     )?;
     if single {
@@ -168,6 +177,7 @@ fn write_problem(
             "single_problem",
             destination,
             &config.setup.single_problem,
+            &metadata,
             interrupted,
         )?;
     }
@@ -245,11 +255,13 @@ pub fn download(
                 contest.problems.len(),
                 contest.title
             );
+            let metadata = Metadata::Contest(contest.clone());
             template(
                 paths,
                 "workspace",
                 staging.path(),
                 &config.setup.workspace,
+                &metadata,
                 interrupted,
             )?;
             template(
@@ -257,6 +269,7 @@ pub fn download(
                 "contest",
                 staging.path(),
                 &config.setup.contest,
+                &metadata,
                 interrupted,
             )?;
             let zfill_length = contest.problems.len().to_string().len();

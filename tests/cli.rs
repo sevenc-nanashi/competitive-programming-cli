@@ -1893,9 +1893,10 @@ mock = "ruby"
         fs::create_dir(&path).unwrap();
         fs::write(path.join("marker"), marker).unwrap();
         fs::write(path.join(format!("{marker}.txt")), marker).unwrap();
+        fs::write(path.join(".cpg.toml"), "id = 'stale-template-metadata'\n").unwrap();
         fs::write(
             path.join("setup.rb"),
-            "File.open('setup.log', 'a') { |file| file.puts File.read('marker') }\nFile.write('generated.rb', 'abc')\nputs 'setup stdout'\nwarn 'setup stderr'\n",
+            "File.open('setup.log', 'a') { |file| file.puts File.read('marker') }\nFile.write(\"metadata-#{File.read('marker')}.toml\", File.read('.cpg.toml'))\nFile.write('generated.rb', 'abc')\nputs 'setup stdout'\nwarn 'setup stderr'\n",
         )
         .unwrap();
     }
@@ -1959,6 +1960,7 @@ mock = "ruby"
             .get("test/sample-1.in")
             .is_none()
     );
+    assert!(metadata["template_checksums"].get(".cpg.toml").is_none());
     run(
         &directory,
         &["test", echo.join("solution.rb").to_str().unwrap()],
@@ -1985,6 +1987,25 @@ mock = "ruby"
             fs::read_to_string(contest.join(problem).join("setup.log")).unwrap(),
             "problem\n"
         );
+    }
+    for (path, setups) in [
+        (echo.clone(), &["workspace", "problem", "single"][..]),
+        (contest.clone(), &["workspace", "contest"][..]),
+        (contest.join("1_sum"), &["problem"][..]),
+        (contest.join("2_echo"), &["problem"][..]),
+    ] {
+        let mut metadata: toml::Value =
+            toml::from_str(&fs::read_to_string(path.join(".cpg.toml")).unwrap()).unwrap();
+        metadata
+            .as_table_mut()
+            .unwrap()
+            .remove("template_checksums");
+        for setup in setups {
+            let snapshot = path.join(format!("metadata-{setup}.toml"));
+            let during_setup: toml::Value =
+                toml::from_str(&fs::read_to_string(&snapshot).unwrap()).unwrap();
+            assert_eq!(during_setup, metadata, "{}", snapshot.display());
+        }
     }
     assert_eq!(
         fs::read_to_string(contest.join("marker")).unwrap(),
