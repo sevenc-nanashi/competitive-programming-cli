@@ -13,7 +13,7 @@ compile = "g++ -std=c++23 -Wall -Wextra -o {binary} {input}"
 run = "{binary}"
 
 [language.cpp.profile.fast]
-compile = "g++ -std=c++23 -O2 -Wall -Wextra -o {binary} {input}"
+compile = "g++ -std=c++23 -O2 -Wall -Wextra -DONLINE_JUDGE -o {binary} {input}"
 
 # Example configuration for Ruby
 [language.ruby]
