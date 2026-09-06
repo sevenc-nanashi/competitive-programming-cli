@@ -1,3 +1,4 @@
+# frozen_string_literal: true
 # Invoked by the Rust mock workflow with its isolated workspace and cookies.
 require 'pty'
 require 'io/console'
@@ -5,6 +6,9 @@ require 'timeout'
 require 'tempfile'
 require 'tmpdir'
 require 'rbconfig'
+
+# Detach from the invoking terminal so crossterm reads the test PTY's size.
+Process.setsid
 
 def check(condition, message)
   raise message unless condition
