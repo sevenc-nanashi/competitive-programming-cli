@@ -15,6 +15,8 @@ aube run build
 Edit the command definitions and help in `src/cli.rs`; the generated
 `docs/cpg.usage.kdl` and `docs/content/command-reference.md` are ignored by Git.
 Run `aube run reference` inside `docs` to regenerate only the reference.
+Releases generate `command-reference.md` from the release binary's usage spec
+and include it in the binary archive and as a separate download.
 
 To update the demo GIF and asciinema recording, run `mise run demo` from the
 repository root. Recording requires Ruby, FFmpeg, and the tools in `mise.toml`.

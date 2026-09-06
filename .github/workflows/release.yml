@@ -41,6 +41,9 @@ jobs:
       - uses: taiki-e/install-action@v2
         with:
           tool: cargo-edit,cargo-about@0.7.1
+      - uses: jdx/mise-action@v4
+        with:
+          install_args: usage
       - name: Prepare version
         id: version
         run: |
@@ -58,14 +61,18 @@ jobs:
           fi
       - run: cargo publish --locked --dry-run
       - run: cargo build --locked --release --target x86_64-unknown-linux-gnu
+      - name: Generate command reference
+        run: |
+          target/x86_64-unknown-linux-gnu/release/cpg __usage_spec__ > target/cpg.usage.kdl
+          usage generate markdown --file target/cpg.usage.kdl --out-file target/command-reference.md
       - name: Generate third-party notices
         run: cargo about generate --locked --fail about.hbs --output-file target/notice.md
       - name: Package
         run: |
           mkdir "$RUNNER_TEMP/dist"
-          cp target/x86_64-unknown-linux-gnu/release/cpg README.md LICENSE target/notice.md "$RUNNER_TEMP/dist/"
+          cp target/x86_64-unknown-linux-gnu/release/cpg README.md LICENSE target/notice.md target/command-reference.md "$RUNNER_TEMP/dist/"
           cd "$RUNNER_TEMP"
-          tar -C dist -czf cpg-x86_64-unknown-linux-gnu.tar.gz cpg README.md LICENSE notice.md
+          tar -C dist -czf cpg-x86_64-unknown-linux-gnu.tar.gz cpg README.md LICENSE notice.md command-reference.md
       - name: Authenticate to crates.io
         uses: rust-lang/crates-io-auth-action@v1
         id: crates-io-auth
@@ -86,3 +93,4 @@ jobs:
           files: |
             ${{ runner.temp }}/cpg-x86_64-unknown-linux-gnu.tar.gz
             ${{ runner.temp }}/dist/notice.md
+            ${{ runner.temp }}/dist/command-reference.md
