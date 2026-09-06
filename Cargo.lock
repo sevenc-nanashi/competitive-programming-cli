@@ -144,7 +144,7 @@ dependencies = [
 
 [[package]]
 name = "competitive-programming-cli"
-version = "0.0.0"
+version = "0.1.0-preview.0"
 dependencies = [
  "anyhow",
  "colored",

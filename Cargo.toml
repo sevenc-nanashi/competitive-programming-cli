@@ -1,6 +1,6 @@
 [package]
 name = "competitive-programming-cli"
-version = "0.0.0"
+version = "0.1.0-preview.0"
 edition = "2024"
 rust-version = "1.91"
 description = "A command-line workspace and testing tool for competitive programming"
