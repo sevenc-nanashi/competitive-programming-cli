@@ -21,6 +21,8 @@ cargo binstall competitive-programming-cli
 Tagged releases provide `cpg-x86_64-unknown-linux-gnu.tar.gz` and a SHA-256
 checksum on the [releases page](https://github.com/sevenc-nanashi/competitive-programming-cli/releases).
 You can install those binaries manually or using package managers like `mise`.
+Each archive includes `notice.md` with dependency licenses, also available as a
+separate release download.
 
 ```bash
 # Using mise

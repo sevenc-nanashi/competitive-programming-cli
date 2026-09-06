@@ -34,3 +34,9 @@ MDX pages can embed it with the globally registered component in
 ```mdx
 <Asciinema src="/competitive-programming-cli/demo.cast" poster="npt:11" />
 ```
+
+Run `mise run notice` from the repository root to generate `target/notice.md`
+with cargo-about. `about.toml` selects the release target and accepted licenses;
+`about.hbs` controls the Markdown output. CI checks generation, and releases
+include the generated notice both inside the binary archive and as a separate
+download.

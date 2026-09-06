@@ -1,0 +1,19 @@
+# Third-party notices
+
+This file lists the Rust dependencies used by cpg and their license texts.
+Generated with cargo-about from Cargo.lock.
+
+{{#each licenses}}
+## {{{name}}} ({{{id}}})
+
+Used by:
+
+{{#each used_by}}
+- [{{{crate.name}}} {{{crate.version}}}](https://crates.io/crates/{{{crate.name}}}/{{{crate.version}}})
+{{/each}}
+
+````text
+{{{text}}}
+````
+
+{{/each}}

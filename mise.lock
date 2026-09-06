@@ -102,6 +102,21 @@ checksum = "sha256:bbef561f5cfc8e778649b65e69c9c6e4c836c0fbe83ee3d0a5128091d797e
 url = "https://github.com/eza-community/eza/releases/download/v0.23.5/eza.exe_x86_64-pc-windows-gnu.tar.gz"
 url_api = "https://api.github.com/repos/eza-community/eza/releases/assets/471228877"
 
+[[tools."github:EmbarkStudios/cargo-about"]]
+version = "0.7.1"
+backend = "github:EmbarkStudios/cargo-about"
+specifiers = ["0.7.1"]
+
+[tools."github:EmbarkStudios/cargo-about"."platforms.linux-arm64"]
+checksum = "sha256:865ad7dbf0ada7d908544ecd54d7e894fd327eca61256b10ef0d1203978e4050"
+url = "https://github.com/EmbarkStudios/cargo-about/releases/download/0.7.1/cargo-about-0.7.1-aarch64-unknown-linux-musl.tar.gz"
+url_api = "https://api.github.com/repos/EmbarkStudios/cargo-about/releases/assets/239197301"
+
+[tools."github:EmbarkStudios/cargo-about"."platforms.linux-x64"]
+checksum = "sha256:395cde37f70a77f2bdb0eeaded96e294b0338482b937b0e813f61d1221f06642"
+url = "https://github.com/EmbarkStudios/cargo-about/releases/download/0.7.1/cargo-about-0.7.1-x86_64-unknown-linux-musl.tar.gz"
+url_api = "https://api.github.com/repos/EmbarkStudios/cargo-about/releases/assets/239197223"
+
 [[tools."github:asciinema/agg"]]
 version = "1.9.0"
 backend = "github:asciinema/agg"

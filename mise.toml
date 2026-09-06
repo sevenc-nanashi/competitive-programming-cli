@@ -2,6 +2,7 @@
 aube = "latest"
 bat = "latest"
 eza = "latest"
+"github:EmbarkStudios/cargo-about" = "0.7.1"
 "github:asciinema/agg" = "latest"
 "github:asciinema/asciinema" = "latest"
 node = "24"
@@ -12,3 +13,7 @@ vhs = "0.10.0"
 [tasks.demo]
 description = "Record the demo GIF and asciinema cast"
 run = "ruby demo/record.rb"
+
+[tasks.notice]
+description = "Generate third-party license notices for the release binary"
+run = "mkdir -p target && cargo about generate --locked --fail about.hbs --output-file target/notice.md"

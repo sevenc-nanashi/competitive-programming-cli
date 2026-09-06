@@ -268,8 +268,13 @@ fn monitor(
         line(
             height.saturating_sub(1),
             &format!(
-                "{indicator} {state:<10} | p: pause/resume  r: refresh  ↑/↓: scroll  1–0: open  q: quit | {} submissions {message}",
-                submissions.len()
+                "{indicator} {state:<10} | p: pause/resume  r: refresh  ↑/↓: scroll  1–0: open  q: quit | {} submissions {}",
+                submissions.len(),
+                if message.is_empty() {
+                    String::new()
+                } else {
+                    format!("| {message}")
+                }
             ),
         )?;
         if frame != previous_frame {

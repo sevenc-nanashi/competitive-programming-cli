@@ -24,4 +24,8 @@ jobs:
       - run: cargo clippy --locked --all-targets --all-features -- -D warnings
       - run: cargo test --locked
       - run: cargo test --locked --all-features
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-about@0.7.1
+      - run: cargo about generate --locked --fail about.hbs --output-file target/notice.md
       - run: cargo package --locked
