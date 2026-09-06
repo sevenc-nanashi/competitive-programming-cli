@@ -37,6 +37,111 @@ checksum = "sha256:924c879cc92782e3ae8eb0a941b1c5d8d4d8e2bed87822fe6ebe628d40b1f
 url = "https://github.com/jdx/aube/releases/download/v1.25.1/aube-v1.25.1-x86_64-pc-windows-msvc.zip"
 url_api = "https://api.github.com/repos/jdx/aube/releases/assets/458178696"
 
+[[tools.bat]]
+version = "0.26.1"
+backend = "aqua:sharkdp/bat"
+specifiers = ["latest"]
+
+[tools.bat."platforms.linux-arm64"]
+checksum = "sha256:422eb73e11c854fddd99f5ca8461c2f1d6e6dce0a2a8c3d5daade5ffcb6564aa"
+url = "https://github.com/sharkdp/bat/releases/download/v0.26.1/bat-v0.26.1-aarch64-unknown-linux-gnu.tar.gz"
+url_api = "https://api.github.com/repos/sharkdp/bat/releases/assets/323548647"
+
+[tools.bat."platforms.linux-arm64-musl"]
+checksum = "sha256:6369242c584065f195fb20cb36fbd7cb63ae690605bbe89868a7596b596c2c23"
+url = "https://github.com/sharkdp/bat/releases/download/v0.26.1/bat-v0.26.1-aarch64-unknown-linux-musl.tar.gz"
+url_api = "https://api.github.com/repos/sharkdp/bat/releases/assets/323548153"
+
+[tools.bat."platforms.linux-x64"]
+checksum = "sha256:726f04c8f576a7fd18b7634f1bbf2f915c43494c1c0f013baa3287edb0d5a2a3"
+url = "https://github.com/sharkdp/bat/releases/download/v0.26.1/bat-v0.26.1-x86_64-unknown-linux-gnu.tar.gz"
+url_api = "https://api.github.com/repos/sharkdp/bat/releases/assets/323549181"
+
+[tools.bat."platforms.linux-x64-musl"]
+checksum = "sha256:0dcd8ac79732c0d5b136f11f4ee00e581440e16a44eab5b3105b611bbf2cf191"
+url = "https://github.com/sharkdp/bat/releases/download/v0.26.1/bat-v0.26.1-x86_64-unknown-linux-musl.tar.gz"
+url_api = "https://api.github.com/repos/sharkdp/bat/releases/assets/323549429"
+
+[tools.bat."platforms.macos-arm64"]
+checksum = "sha256:e30beff26779c9bf60bb541e1d79046250cb74378f2757f8eb250afddb19e114"
+url = "https://github.com/sharkdp/bat/releases/download/v0.26.1/bat-v0.26.1-aarch64-apple-darwin.tar.gz"
+url_api = "https://api.github.com/repos/sharkdp/bat/releases/assets/323548442"
+
+[tools.bat."platforms.macos-x64"]
+checksum = "sha256:830d63b0bba1fa040542ec569e3cf77f60d3356b9de75116a344b061e0894245"
+url = "https://github.com/sharkdp/bat/releases/download/v0.26.1/bat-v0.26.1-x86_64-apple-darwin.tar.gz"
+url_api = "https://api.github.com/repos/sharkdp/bat/releases/assets/323549786"
+
+[tools.bat."platforms.windows-x64"]
+checksum = "sha256:0f729b4b6f5f28d395c641eacc2e9ff68d0096b85aa0eec344aa62425144b69b"
+url = "https://github.com/sharkdp/bat/releases/download/v0.26.1/bat-v0.26.1-x86_64-pc-windows-msvc.zip"
+url_api = "https://api.github.com/repos/sharkdp/bat/releases/assets/323549116"
+
+[[tools.eza]]
+version = "0.23.5"
+backend = "aqua:eza-community/eza"
+specifiers = ["latest"]
+
+[tools.eza."platforms.linux-arm64"]
+checksum = "sha256:40b87ae8628aa2ff0f0d2dc24ab52f689631366385c3da630bae745671fd71ec"
+url = "https://github.com/eza-community/eza/releases/download/v0.23.5/eza_aarch64-unknown-linux-gnu.tar.gz"
+url_api = "https://api.github.com/repos/eza-community/eza/releases/assets/471228867"
+
+[tools.eza."platforms.linux-x64"]
+checksum = "sha256:35c70c5c43c29108075e58b893234c67ef585f0b53a7eaf8e9e7d4eec9f339b4"
+url = "https://github.com/eza-community/eza/releases/download/v0.23.5/eza_x86_64-unknown-linux-gnu.tar.gz"
+url_api = "https://api.github.com/repos/eza-community/eza/releases/assets/471228887"
+
+[tools.eza."platforms.linux-x64-musl"]
+checksum = "sha256:e06eebab74b73d6b7d51a796a353824b001bea82df077706382e100815d28904"
+url = "https://github.com/eza-community/eza/releases/download/v0.23.5/eza_x86_64-unknown-linux-musl.tar.gz"
+url_api = "https://api.github.com/repos/eza-community/eza/releases/assets/471228890"
+
+[tools.eza."platforms.windows-x64"]
+checksum = "sha256:bbef561f5cfc8e778649b65e69c9c6e4c836c0fbe83ee3d0a5128091d797ed8a"
+url = "https://github.com/eza-community/eza/releases/download/v0.23.5/eza.exe_x86_64-pc-windows-gnu.tar.gz"
+url_api = "https://api.github.com/repos/eza-community/eza/releases/assets/471228877"
+
+[[tools."github:asciinema/agg"]]
+version = "1.9.0"
+backend = "github:asciinema/agg"
+specifiers = ["latest"]
+
+[tools."github:asciinema/agg"."platforms.linux-arm64"]
+checksum = "sha256:2b4be407b97e00e1c313a41d154ced8fa3d02c560c8f47a0db4950a2576444c9"
+url = "https://github.com/asciinema/agg/releases/download/v1.9.0/agg-aarch64-unknown-linux-gnu"
+url_api = "https://api.github.com/repos/asciinema/agg/releases/assets/433215396"
+
+[tools."github:asciinema/agg"."platforms.linux-arm64-musl"]
+checksum = "sha256:2b4be407b97e00e1c313a41d154ced8fa3d02c560c8f47a0db4950a2576444c9"
+url = "https://github.com/asciinema/agg/releases/download/v1.9.0/agg-aarch64-unknown-linux-gnu"
+url_api = "https://api.github.com/repos/asciinema/agg/releases/assets/433215396"
+
+[tools."github:asciinema/agg"."platforms.linux-x64"]
+checksum = "sha256:f111e315cd71056b116302342553dd765b7297579ed511f111d0cedb442aeda6"
+url = "https://github.com/asciinema/agg/releases/download/v1.9.0/agg-x86_64-unknown-linux-gnu"
+url_api = "https://api.github.com/repos/asciinema/agg/releases/assets/433215010"
+
+[tools."github:asciinema/agg"."platforms.linux-x64-musl"]
+checksum = "sha256:ddcbf6ca044c8ac3a434dcb9ee89fb9e3be87209982b7c2adb55f782e8f0f390"
+url = "https://github.com/asciinema/agg/releases/download/v1.9.0/agg-x86_64-unknown-linux-musl"
+url_api = "https://api.github.com/repos/asciinema/agg/releases/assets/433215075"
+
+[tools."github:asciinema/agg"."platforms.macos-arm64"]
+checksum = "sha256:742b2b6230529b72f310acb835e9479496000f2eabc97b0993cabe1d7fe70171"
+url = "https://github.com/asciinema/agg/releases/download/v1.9.0/agg-aarch64-apple-darwin"
+url_api = "https://api.github.com/repos/asciinema/agg/releases/assets/433215107"
+
+[tools."github:asciinema/agg"."platforms.macos-x64"]
+checksum = "sha256:1462150b611d231d2950d10a676303eaeb1019ff330735882aaae09b52e2e1c1"
+url = "https://github.com/asciinema/agg/releases/download/v1.9.0/agg-x86_64-apple-darwin"
+url_api = "https://api.github.com/repos/asciinema/agg/releases/assets/433215207"
+
+[tools."github:asciinema/agg"."platforms.windows-x64"]
+checksum = "sha256:810baf5506e74ca65d8ed85be3db58791086c8b7b0a17c9018d7fede473f0055"
+url = "https://github.com/asciinema/agg/releases/download/v1.9.0/agg-x86_64-pc-windows-msvc.exe"
+url_api = "https://api.github.com/repos/asciinema/agg/releases/assets/433216272"
+
 [[tools."github:asciinema/asciinema"]]
 version = "3.2.1"
 backend = "github:asciinema/asciinema"

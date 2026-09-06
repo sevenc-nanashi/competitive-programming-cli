@@ -15,10 +15,27 @@ Set Theme "Catppuccin Mocha"
 Set TypingSpeed 40ms
 
 Hide
-Type@1ms `export PS1='$ '; cd "$CPG_DEMO_WORKSPACE"; asciinema rec --quiet --overwrite --return --output-format asciicast-v2 --title 'cpg demo' --command 'bash --noprofile --norc' "$CPG_DEMO_CAST"`
+Type@1ms `export PS1='$ '; cd "$CPG_DEMO_WORKSPACE"; asciinema rec --quiet --overwrite --return --output-format asciicast-v3 --title 'cpg demo' --command 'bash --noprofile --norc' "$CPG_DEMO_CAST"`
 Enter
 Wait+Line /\$$/
 Show
+
+Type "eza -T $CPG_CONFIG_HOME"
+Enter
+Wait+Line /\$$/
+Sleep 1s
+
+Type "bat $CPG_CONFIG_HOME/config.toml"
+Enter
+Wait+Line /\$$/
+Sleep 1s
+
+Type "bat $CPG_CONFIG_HOME/problem_template/solution.rb"
+Enter
+Wait+Line /\$$/
+Sleep 1s
+
+Ctrl+L
 
 Type "cpg prepare https://mock.local/contests/practice"
 Enter
@@ -31,13 +48,13 @@ Enter
 Wait+Line /\$$/
 Sleep 1s
 
-Type "pwd"
+Type "eza -T ."
 Enter
 Wait+Line /\$$/
 Sleep 1s
 
 Ctrl+L
-Type "cat solution.rb"
+Type "bat solution.rb"
 Enter
 Wait+Line /\$$/
 Sleep 1s

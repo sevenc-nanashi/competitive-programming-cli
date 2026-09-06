@@ -1,5 +1,8 @@
 [tools]
 aube = "latest"
+bat = "latest"
+eza = "latest"
+"github:asciinema/agg" = "latest"
 "github:asciinema/asciinema" = "latest"
 node = "24"
 ttyd = "latest"
