@@ -48,6 +48,33 @@ Edit the command definitions and help in `src/cli.rs`; the generated
 `docs/cpg.usage.kdl` and `docs/content/command-reference.md` are ignored by Git.
 Run `aube run reference` inside `docs` to regenerate only the reference.
 
+## Releasing
+
+For a new crate, publish its first version manually before configuring Trusted
+Publishing.
+
+Create the GitHub Actions environment `publish` and configure a
+[crates.io Trusted Publisher](https://crates.io/docs/trusted-publishing) for
+`competitive-programming-cli` with these settings:
+
+| Setting           | Value                         |
+| ----------------- | ----------------------------- |
+| Repository owner  | `sevenc-nanashi`              |
+| Repository name   | `competitive-programming-cli` |
+| Workflow filename | `release.yml`                 |
+| Environment       | `publish`                     |
+
+Run the **Release** workflow manually from the branch to release, supplying a
+version without the `v` prefix (for example, `0.1.0` or `0.1.0-rc.1`). The
+environment's deployment rules must allow that branch.
+
+After CI passes, the workflow updates `Cargo.toml` and `Cargo.lock` in a release
+commit, verifies the package, builds the Linux binary, and publishes to crates.io
+using a short-lived OIDC token. It then pushes the `v<version>` tag and creates a
+GitHub release containing the binary archive.
+Prerelease versions are marked as prereleases on GitHub. The version commit is
+only pushed as a tag; the source branch keeps its existing version.
+
 ## Acknowledgements
 
 This tools is heavily inspired by following tools:

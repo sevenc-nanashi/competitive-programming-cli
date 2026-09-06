@@ -1,13 +1,13 @@
 [package]
 name = "competitive-programming-cli"
-version = "0.1.0"
+version = "0.0.0"
 edition = "2024"
 rust-version = "1.91"
 description = "A command-line workspace and testing tool for competitive programming"
 license = "MIT"
 repository = "https://github.com/sevenc-nanashi/competitive-programming-cli"
 readme = "README.md"
-exclude = ["__gi_*", ".github", "docs"]
+exclude = [".github", "docs"]
 
 [[bin]]
 name = "cpg"

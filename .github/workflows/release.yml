@@ -1,8 +1,20 @@
 name: Release
 
 on:
-  push:
-    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release (without the v prefix)"
+        required: true
+        type: string
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
 
 permissions:
   contents: read
@@ -13,31 +25,59 @@ jobs:
   release:
     needs: check
     runs-on: ubuntu-24.04
+    environment: publish
     permissions:
       contents: write
+      id-token: write
+    env:
+      RELEASE_VERSION: ${{ inputs.version }}
     steps:
       - uses: actions/checkout@v7
         with:
-          persist-credentials: false
+          fetch-depth: 0
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: x86_64-unknown-linux-gnu
-      - name: Check version
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-edit
+      - name: Prepare version
+        id: version
         run: |
-          version=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[0].version')
-          test "$GITHUB_REF_NAME" = "v$version"
+          cargo set-version "$RELEASE_VERSION"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Cargo.toml Cargo.lock
+          git commit -m "chore: release v$RELEASE_VERSION"
+          git tag "v$RELEASE_VERSION"
+          version_without_metadata="${RELEASE_VERSION%%+*}"
+          if [[ "$version_without_metadata" == *-* ]]; then
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
+      - run: cargo publish --locked --dry-run
       - run: cargo build --locked --release --target x86_64-unknown-linux-gnu
       - name: Package
         run: |
-          mkdir dist
-          cp target/x86_64-unknown-linux-gnu/release/cpg dist/
-          cp README.md LICENSE dist/
+          mkdir "$RUNNER_TEMP/dist"
+          cp target/x86_64-unknown-linux-gnu/release/cpg README.md LICENSE "$RUNNER_TEMP/dist/"
+          cd "$RUNNER_TEMP"
           tar -C dist -czf cpg-x86_64-unknown-linux-gnu.tar.gz cpg README.md LICENSE
-          sha256sum cpg-x86_64-unknown-linux-gnu.tar.gz > cpg-x86_64-unknown-linux-gnu.tar.gz.sha256
+      - name: Authenticate to crates.io
+        uses: rust-lang/crates-io-auth-action@v1
+        id: crates-io-auth
+      - name: Publish to crates.io
+        run: cargo publish --locked
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ steps.crates-io-auth.outputs.token }}
+      - name: Push release tag
+        run: git push origin "refs/tags/v$RELEASE_VERSION"
       - uses: softprops/action-gh-release@v3
         with:
+          tag_name: v${{ inputs.version }}
+          prerelease: ${{ steps.version.outputs.prerelease }}
           fail_on_unmatched_files: true
           generate_release_notes: true
           files: |
-            cpg-x86_64-unknown-linux-gnu.tar.gz
-            cpg-x86_64-unknown-linux-gnu.tar.gz.sha256
+            ${{ runner.temp }}/cpg-x86_64-unknown-linux-gnu.tar.gz
