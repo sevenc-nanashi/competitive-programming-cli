@@ -634,6 +634,19 @@ fn show_io() {
             assert!(stderr.contains(summary));
         }
     }
+
+    for (contents, displayed) in [("", "(empty)"), (" \n", " \n")] {
+        case(&directory, contents.as_bytes(), contents.as_bytes());
+        let output = run(&directory, &["test", "--show-io", "always", "--", "cat"], 0);
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        for label in ["Input", "Expected output", "Actual output"] {
+            assert!(
+                stdout.contains(&format!("{label}:\n{displayed}\n")),
+                "{stdout}"
+            );
+        }
+        assert!(!stdout.contains('\u{1b}'));
+    }
 }
 
 #[test]

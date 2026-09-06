@@ -617,11 +617,13 @@ fn matches(expected: &[u8], actual: &[u8], options: &Test) -> bool {
 }
 
 fn print_io(label: &str, path: &Path, style: Style) -> Result<()> {
-    println!(
-        "{}\n{}",
-        style.apply_to(format!("{label}:")),
-        String::from_utf8_lossy(&fs::read(path)?)
-    );
+    let contents = fs::read(path)?;
+    println!("{}", style.apply_to(format!("{label}:")));
+    if contents.is_empty() {
+        println!("{}", Style::new().dim().apply_to("(empty)"));
+    } else {
+        println!("{}", String::from_utf8_lossy(&contents));
+    }
     Ok(())
 }
 
