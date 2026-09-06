@@ -2,6 +2,7 @@ use crate::{
     cli::ListMode,
     config::{Config, Paths},
     model::{Metadata, Problem, ResourceRef},
+    runner,
     services::Services,
 };
 use anyhow::{Context, Result, ensure};
@@ -13,6 +14,7 @@ use std::{
     io::ErrorKind,
     os::unix::ffi::OsStrExt,
     path::{Component, Path, PathBuf},
+    sync::atomic::{AtomicBool, Ordering},
 };
 
 const METADATA: &str = ".cpg.toml";
@@ -74,13 +76,26 @@ fn write_metadata(directory: &Path, metadata: &Metadata) -> Result<()> {
     Ok(())
 }
 
-fn template(paths: &Paths, name: &str, destination: &Path) -> Result<()> {
-    let source = paths.config.join(name);
+fn template(
+    paths: &Paths,
+    name: &str,
+    destination: &Path,
+    setup: Option<&str>,
+    interrupted: &AtomicBool,
+) -> Result<()> {
+    ensure!(!interrupted.load(Ordering::Relaxed), "Interrupted");
+    let source = paths.config.join(format!("{name}_template"));
     match fs::metadata(&source) {
-        Ok(_) => copy_tree(&source, destination),
-        Err(e) if e.kind() == ErrorKind::NotFound => Ok(()),
-        Err(e) => Err(e.into()),
+        Ok(_) => copy_tree(&source, destination)?,
+        Err(e) if e.kind() == ErrorKind::NotFound => (),
+        Err(e) => return Err(e.into()),
     }
+    if let Some(command) = setup {
+        tracing::info!("Running [setup.{name}]: {command}");
+        runner::setup(command, destination, interrupted)
+            .with_context(|| format!("[setup.{name}] failed in {}", destination.display()))?;
+    }
+    Ok(())
 }
 
 fn copy_tree(source: &Path, destination: &Path) -> Result<()> {
@@ -122,14 +137,39 @@ pub(crate) fn safe_id(id: &str) -> Result<&str> {
     Ok(id)
 }
 
-fn write_problem(paths: &Paths, destination: &Path, problem: Problem, single: bool) -> Result<()> {
+fn write_problem(
+    paths: &Paths,
+    config: &Config,
+    destination: &Path,
+    problem: Problem,
+    single: bool,
+    interrupted: &AtomicBool,
+) -> Result<()> {
     fs::create_dir_all(destination)?;
     if single {
-        template(paths, "workspace_template", destination)?;
+        template(
+            paths,
+            "workspace",
+            destination,
+            config.setup.workspace.as_deref(),
+            interrupted,
+        )?;
     }
-    template(paths, "problem_template", destination)?;
+    template(
+        paths,
+        "problem",
+        destination,
+        config.setup.problem.as_deref(),
+        interrupted,
+    )?;
     if single {
-        template(paths, "single_problem_template", destination)?;
+        template(
+            paths,
+            "single_problem",
+            destination,
+            config.setup.single_problem.as_deref(),
+            interrupted,
+        )?;
     }
     let template_checksums = template_checksums(destination)?;
     fs::create_dir_all(destination.join("test"))?;
@@ -165,7 +205,9 @@ pub fn download(
     config: &Config,
     services: &Services,
     resource: ResourceRef,
+    interrupted: &AtomicBool,
 ) -> Result<PathBuf> {
+    ensure!(!interrupted.load(Ordering::Relaxed), "Interrupted");
     let root = config.root()?;
     let (service, category, id) = match &resource {
         ResourceRef::Problem(p) => (p.service, "problems", &p.id),
@@ -188,9 +230,11 @@ pub fn download(
             tracing::info!("Downloading problem {}...", p.url);
             write_problem(
                 paths,
+                config,
                 staging.path(),
                 services.backend(p.service).fetch_problem(&p)?,
                 true,
+                interrupted,
             )?;
         }
         ResourceRef::Contest(c) => {
@@ -201,8 +245,20 @@ pub fn download(
                 contest.problems.len(),
                 contest.title
             );
-            template(paths, "workspace_template", staging.path())?;
-            template(paths, "contest_template", staging.path())?;
+            template(
+                paths,
+                "workspace",
+                staging.path(),
+                config.setup.workspace.as_deref(),
+                interrupted,
+            )?;
+            template(
+                paths,
+                "contest",
+                staging.path(),
+                config.setup.contest.as_deref(),
+                interrupted,
+            )?;
             let zfill_length = contest.problems.len().to_string().len();
             for (i, p) in contest.problems.iter().enumerate() {
                 tracing::info!(
@@ -219,14 +275,17 @@ pub fn download(
                 ));
                 write_problem(
                     paths,
+                    config,
                     &destination,
                     services.backend(p.service).fetch_problem(p)?,
                     false,
+                    interrupted,
                 )?;
             }
             write_metadata(staging.path(), &Metadata::Contest(contest))?;
         }
     }
+    ensure!(!interrupted.load(Ordering::Relaxed), "Interrupted");
     let from = CString::new(staging.path().as_os_str().as_bytes())?;
     let to = CString::new(destination.as_os_str().as_bytes())?;
     // RENAME_NOREPLACE also protects a destination created while the download was running.

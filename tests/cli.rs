@@ -323,7 +323,7 @@ fn configuration_paths() {
     let config_path = directory.path().join("config/config.toml");
     let root = directory.path().join("workspace with spaces");
     for configured_root in ["~/workspace with spaces", "workspace with spaces"] {
-        let contents = format!("root = {configured_root:?}\n");
+        let contents = format!("root = {configured_root:?}\n[setup]\nworkspace = 'exit 99'\n");
         fs::write(&config_path, &contents).unwrap();
         let output = run(&directory, &["config"], 0);
         assert_eq!(
@@ -1059,6 +1059,99 @@ fn limits_interactive_and_cleanup() {
 
 #[cfg(feature = "mock")]
 #[test]
+fn setup_failures_and_cleanup() {
+    let directory = tempfile::tempdir().unwrap();
+    std::os::unix::fs::symlink(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("mock_service"),
+        directory.path().join("mock_service"),
+    )
+    .unwrap();
+    fs::create_dir(directory.path().join("config")).unwrap();
+    let config_path = directory.path().join("config/config.toml");
+    let root = directory.path().join("workspace with spaces");
+    let base = format!("root = {root:?}\n");
+    fs::write(&config_path, format!("{base}[setup]\nproblem = 'exit 7'\n")).unwrap();
+    for (command, url, category) in [
+        ("download", "https://mock.local/problems/sum", "problems"),
+        (
+            "prepare",
+            "https://mock.local/contests/practice",
+            "contests",
+        ),
+    ] {
+        let output = run(&directory, &[command, url], 2);
+        assert!(output.stdout.is_empty());
+        assert!(String::from_utf8_lossy(&output.stderr).contains("[setup.problem] failed"));
+        assert_eq!(
+            fs::read_dir(root.join("mock").join(category))
+                .unwrap()
+                .count(),
+            0
+        );
+    }
+    fs::write(&config_path, format!("{base}[setup]\nunknown = 'true'\n")).unwrap();
+    let output = run(
+        &directory,
+        &["download", "https://mock.local/problems/sum"],
+        2,
+    );
+    assert!(String::from_utf8_lossy(&output.stderr).contains("unknown field"));
+
+    // A setup-only configuration also works without template directories.
+    fs::write(
+        &config_path,
+        format!("{base}[setup]\nproblem = 'printf initialized > generated.txt'\n"),
+    )
+    .unwrap();
+    run(
+        &directory,
+        &["download", "https://mock.local/problems/sum"],
+        0,
+    );
+    assert_eq!(
+        fs::read(root.join("mock/problems/sum/generated.txt")).unwrap(),
+        b"initialized"
+    );
+
+    let script = "ruby -e 'STDOUT.sync = true; puts \"setup ready\"; sleep 30'";
+    fs::write(
+        &config_path,
+        format!("{base}[setup]\nworkspace = {script:?}\n"),
+    )
+    .unwrap();
+    let mut child = command(&directory)
+        .args(["download", "https://mock.local/problems/echo"])
+        .stdout(Stdio::null())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    assert!(
+        BufReader::new(child.stderr.take().unwrap())
+            .lines()
+            .any(|line| line.unwrap() == "setup ready")
+    );
+    unsafe {
+        libc::kill(child.id() as i32, libc::SIGINT);
+    }
+    let started = Instant::now();
+    loop {
+        if let Some(status) = child.try_wait().unwrap() {
+            assert_eq!(status.code(), Some(130));
+            break;
+        }
+        if started.elapsed() > Duration::from_secs(5) {
+            child.kill().unwrap();
+            child.wait().unwrap();
+            panic!("Setup ignored SIGINT");
+        }
+        thread::sleep(Duration::from_millis(10));
+    }
+    assert!(!root.join("mock/problems/echo").exists());
+    assert_eq!(fs::read_dir(root.join("mock/problems")).unwrap().count(), 1);
+}
+
+#[cfg(feature = "mock")]
+#[test]
 fn mock_service_workflow() {
     use std::{
         os::unix::fs::{PermissionsExt, symlink},
@@ -1089,6 +1182,11 @@ fn mock_service_workflow() {
         format!(
             r#"
 root = {:?}
+[setup]
+workspace = "ruby setup.rb"
+problem = "ruby setup.rb"
+contest = "ruby setup.rb"
+single_problem = "ruby setup.rb"
 [language.ruby]
 extensions = ["rb"]
 run = "ruby {{input}}"
@@ -1109,6 +1207,11 @@ mock = "ruby"
         fs::create_dir(&path).unwrap();
         fs::write(path.join("marker"), marker).unwrap();
         fs::write(path.join(format!("{marker}.txt")), marker).unwrap();
+        fs::write(
+            path.join("setup.rb"),
+            "File.open('setup.log', 'a') { |file| file.puts File.read('marker') }\nFile.write('generated.rb', 'abc')\nputs 'setup stdout'\nwarn 'setup stderr'\n",
+        )
+        .unwrap();
     }
     fs::write(
         directory.path().join("config/problem_template/solution.rb"),
@@ -1130,8 +1233,19 @@ mock = "ruby"
         "abc",
     )
     .unwrap();
-    run(&directory, &["d", "https://mock.local/problems/echo"], 0);
+    let output = run(&directory, &["d", "https://mock.local/problems/echo"], 0);
     let echo = root.join("mock/problems/echo");
+    assert_eq!(
+        String::from_utf8(output.stdout).unwrap(),
+        format!("{}\n", echo.display())
+    );
+    let logs = String::from_utf8_lossy(&output.stderr);
+    assert!(logs.contains("setup stdout"));
+    assert!(logs.contains("setup stderr"));
+    assert_eq!(
+        fs::read_to_string(echo.join("setup.log")).unwrap(),
+        "workspace\nproblem\nsingle\n"
+    );
     assert_eq!(fs::read_to_string(echo.join("marker")).unwrap(), "single");
     assert_eq!(fs::read(echo.join("test/sample-1.in")).unwrap(), b"hello\n");
     assert_eq!(
@@ -1142,6 +1256,10 @@ mock = "ruby"
     assert!(echo.join("workspace.txt").is_file());
     let metadata: toml::Value =
         toml::from_str(&fs::read_to_string(echo.join(".cpg.toml")).unwrap()).unwrap();
+    assert_eq!(
+        metadata["template_checksums"]["generated.rb"],
+        metadata["template_checksums"]["src/nested.rb"]
+    );
     assert_eq!(
         metadata["template_checksums"]["src/nested.rb"]
             .as_str()
@@ -1169,6 +1287,16 @@ mock = "ruby"
     assert!(logs.contains("i) [cpg::workspace] <download{"));
     assert!(!logs.contains('\u{1b}'));
     let contest = root.join("mock/contests/practice");
+    assert_eq!(
+        fs::read_to_string(contest.join("setup.log")).unwrap(),
+        "workspace\ncontest\n"
+    );
+    for problem in ["1_sum", "2_echo"] {
+        assert_eq!(
+            fs::read_to_string(contest.join(problem).join("setup.log")).unwrap(),
+            "problem\n"
+        );
+    }
     assert_eq!(
         fs::read_to_string(contest.join("marker")).unwrap(),
         "contest"

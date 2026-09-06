@@ -298,7 +298,18 @@ fn read_oj_templates(config_path: &Path) -> Result<Vec<OjTemplate>> {
 pub struct Config {
     pub root: Option<PathBuf>,
     #[serde(default)]
+    pub setup: Setup,
+    #[serde(default)]
     pub language: BTreeMap<String, Language>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Setup {
+    pub workspace: Option<String>,
+    pub problem: Option<String>,
+    pub contest: Option<String>,
+    pub single_problem: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]

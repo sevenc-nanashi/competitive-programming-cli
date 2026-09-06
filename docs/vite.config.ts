@@ -18,7 +18,7 @@ export default defineConfig({
         theme: defineTheme({
           sidebar: [
             { text: "Introduction", link: "/index.md" },
-            { text: "cpg vs oj", link: "/cpg-vs-oj.md" },
+            { text: "cpg vs oj + oj-prepare", link: "/cpg-vs-oj.md" },
             { text: "Installation", link: "/installation.md" },
             { text: "Configuration and login", link: "/configuration.md" },
             { text: "Workspaces", link: "/workspaces.md" },

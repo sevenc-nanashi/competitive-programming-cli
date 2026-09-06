@@ -106,6 +106,7 @@ fn run(cli: Cli, interrupted: &AtomicBool) -> Result<bool> {
                 &Config::load(&paths)?,
                 &services,
                 ResourceRef::Problem(problem),
+                interrupted,
             )?;
             println!("{}", directory.display());
         }
@@ -117,6 +118,7 @@ fn run(cli: Cli, interrupted: &AtomicBool) -> Result<bool> {
                 &Config::load(&paths)?,
                 &services,
                 ResourceRef::Contest(contest),
+                interrupted,
             )?;
             println!("{}", directory.display());
         }

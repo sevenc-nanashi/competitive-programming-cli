@@ -367,6 +367,23 @@ fn execute(
     monitor(&mut [&mut child], limits, interrupted)
 }
 
+pub fn setup(command: &str, directory: &Path, interrupted: &AtomicBool) -> Result<()> {
+    let program = Program::shell(command.to_owned(), directory.to_owned());
+    let result = execute(
+        &program,
+        Stdio::null(),
+        io::stderr().into(),
+        Limits::default(),
+        interrupted,
+    )?;
+    ensure!(
+        result.verdict == Verdict::Ac,
+        "Command failed ({})",
+        result.verdict
+    );
+    Ok(())
+}
+
 fn relay(
     mut input: impl Read,
     mut output: impl Write,

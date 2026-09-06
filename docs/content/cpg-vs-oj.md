@@ -24,7 +24,8 @@ needed for the problem count.
 `workspace_template` supplies shared files at the root of each contest or
 standalone problem, while `problem_template` supplies files for every problem.
 `contest_template` and `single_problem_template` add files or overrides for those
-workspace types. See [Workspaces](./workspaces.md) for the layout and template order.
+workspace types. Optional [`[setup]` commands](./configuration.md#commands-after-copying-templates)
+run after each template is copied. See [Workspaces](./workspaces.md) for the layout and template order.
 
 ## Command equivalents
 
