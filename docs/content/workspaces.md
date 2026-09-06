@@ -39,6 +39,10 @@ cpg download https://atcoder.jp/contests/abc473/tasks/abc473_f
 cpg d https://atcoder.jp/contests/abc473/tasks/abc473_f
 ```
 
+There are no template engines or variable substitutions. The templates are copied as-is.
+Use the `[setup]` section in the configuration file to run commands after copying templates,
+like replacing `package.name` in `Cargo.toml` with the problem ID, or creating a `Makefile` from a template.
+
 ## Download contest problems
 
 You can download all problems from a contest.
