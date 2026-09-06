@@ -3,7 +3,7 @@ use super::{
 };
 use crate::model::*;
 use anyhow::{Context, Result, bail, ensure};
-use scraper::Html;
+use scraper::{ElementRef, Html};
 use serde::Deserialize;
 use url::Url;
 
@@ -33,6 +33,14 @@ struct ApiLanguage {
     id: String,
     name: String,
     status: String,
+}
+
+fn sample_text(element: ElementRef<'_>) -> String {
+    let mut text = pre_text(element);
+    if !text.is_empty() && !text.ends_with('\n') {
+        text.push('\n');
+    }
+    text
 }
 
 impl YukicoderBackend {
@@ -177,8 +185,8 @@ impl ServiceBackend for YukicoderBackend {
                 .next()
                 .context("yukicoder sample output is missing")?;
             samples.push(Sample {
-                input: pre_text(input),
-                output: pre_text(output),
+                input: sample_text(input),
+                output: sample_text(output),
             });
         }
         Ok(Problem {
@@ -286,6 +294,21 @@ impl ServiceBackend for YukicoderBackend {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn sample_text_adds_missing_newline() {
+        for (html, expected) in [
+            ("<pre>1 2</pre>", "1 2\n"),
+            ("<pre>1 &lt; 2<br><span>3</span></pre>", "1 < 2\n3\n"),
+            ("<pre>1 2\n</pre>", "1 2\n"),
+            ("<pre>1 2\n\n</pre>", "1 2\n\n"),
+            ("<pre> 1 2 </pre>", " 1 2 \n"),
+            ("<pre></pre>", ""),
+        ] {
+            let document = Html::parse_document(html);
+            assert_eq!(sample_text(required(&document, "pre").unwrap()), expected);
+        }
+    }
 
     #[test]
     fn problem_numbers_and_submission_pages() {
