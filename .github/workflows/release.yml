@@ -72,7 +72,9 @@ jobs:
         env:
           CARGO_REGISTRY_TOKEN: ${{ steps.crates-io-auth.outputs.token }}
       - name: Push release tag
-        run: git push origin "refs/tags/v$RELEASE_VERSION"
+        run: |
+          git push origin "HEAD:refs/heads/main"
+          git push origin "refs/tags/v$RELEASE_VERSION"
       - uses: softprops/action-gh-release@v3
         with:
           tag_name: v${{ inputs.version }}
