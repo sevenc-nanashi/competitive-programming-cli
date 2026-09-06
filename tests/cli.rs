@@ -856,12 +856,12 @@ fn show_io() {
             let stdout = String::from_utf8_lossy(&output.stdout);
             let stderr = String::from_utf8_lossy(&output.stderr);
             let shown = mode != Some("never") && (mode == Some("always") || code != 0);
-            for text in ["Interaction:", "? question", "! answer"] {
+            for text in ["Interaction:", "< question", "> answer"] {
                 assert_eq!(stdout.contains(text), shown, "{args:?}\n{stdout}");
                 assert!(!stderr.contains(text), "{args:?}\n{stderr}");
             }
             assert_eq!(
-                stdout.contains("Interaction:\n? question\n! answer\n\n"),
+                stdout.contains("Interaction:\n< question\n> answer\n\n"),
                 shown,
                 "{args:?}\n{stdout}"
             );
@@ -1317,7 +1317,7 @@ fn limits_interactive_and_cleanup() {
     );
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(
-        stdout.contains("Interaction:\n? 7! 8 (no eol)\n"),
+        stdout.contains("Interaction:\n< 7> 8 (no eol)\n"),
         "{stdout}"
     );
     case(&directory, b"", b"");
