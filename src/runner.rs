@@ -388,6 +388,7 @@ fn relay(
     mut input: impl Read,
     mut output: impl Write,
     prefix: &str,
+    style: Style,
     transcript: Option<Arc<Mutex<File>>>,
 ) -> io::Result<()> {
     let mut buffer = [0; 4096];
@@ -397,11 +398,10 @@ fn relay(
             return Ok(());
         }
         if let Some(transcript) = &transcript {
-            writeln!(
+            write!(
                 transcript.lock().expect("transcript lock poisoned"),
-                "{}{}",
-                prefix,
-                String::from_utf8_lossy(&buffer[..n])
+                "{}",
+                style.apply_to(format!("{prefix}{}", String::from_utf8_lossy(&buffer[..n])))
             )?;
         }
         if let Err(error) = output.write_all(&buffer[..n]).and_then(|()| output.flush()) {
@@ -428,8 +428,24 @@ fn interactive(
     let solution_in = solution.child.stdin.take().expect("piped stdin");
     let transcript = transcript.map(|file| Arc::new(Mutex::new(file)));
     let forward_transcript = transcript.clone();
-    let forward = thread::spawn(move || relay(solution_out, judge_in, "! ", forward_transcript));
-    let backward = thread::spawn(move || relay(judge_out, solution_in, "? ", transcript));
+    let forward = thread::spawn(move || {
+        relay(
+            solution_out,
+            judge_in,
+            "> ",
+            Style::new().yellow(),
+            forward_transcript,
+        )
+    });
+    let backward = thread::spawn(move || {
+        relay(
+            judge_out,
+            solution_in,
+            "< ",
+            Style::new().green(),
+            transcript,
+        )
+    });
     let result = monitor(&mut [&mut solution, &mut judge], limits, interrupted);
     drop(solution);
     drop(judge);
@@ -630,8 +646,9 @@ fn print_io(label: &str, path: &Path, style: Style) -> Result<()> {
     if contents.is_empty() {
         println!("{}", Style::new().dim().apply_to("(empty)"));
     } else {
-        print!("{}", String::from_utf8_lossy(&contents));
-        if !contents.ends_with(b"\n") {
+        let contents = String::from_utf8_lossy(&contents);
+        print!("{contents}");
+        if !console::strip_ansi_codes(&contents).ends_with('\n') {
             print!(" {}", Style::new().dim().apply_to("(no eol)"));
         }
         println!();

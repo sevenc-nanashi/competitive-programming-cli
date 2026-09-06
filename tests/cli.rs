@@ -860,6 +860,11 @@ fn show_io() {
                 assert_eq!(stdout.contains(text), shown, "{args:?}\n{stdout}");
                 assert!(!stderr.contains(text), "{args:?}\n{stderr}");
             }
+            assert_eq!(
+                stdout.contains("Interaction:\n? question\n! answer\n\n"),
+                shown,
+                "{args:?}\n{stdout}"
+            );
             let summary = if code == 0 {
                 "All 1 test case(s) passed"
             } else {
@@ -1292,11 +1297,13 @@ fn limits_interactive_and_cleanup() {
     )
     .unwrap();
     fs::remove_dir_all(directory.path().join("test")).unwrap();
-    run(
+    let output = run(
         &directory,
         &[
             "test",
             "--interactive",
+            "--show-io",
+            "always",
             "--judge",
             "ruby ./judge.rb",
             "--time-limit",
@@ -1307,6 +1314,11 @@ fn limits_interactive_and_cleanup() {
             "$stdout.sync=true; print(STDIN.read(1).to_i + 1)",
         ],
         0,
+    );
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.contains("Interaction:\n? 7! 8 (no eol)\n"),
+        "{stdout}"
     );
     case(&directory, b"", b"");
     fs::remove_file(directory.path().join("test/sample-1.out")).unwrap();

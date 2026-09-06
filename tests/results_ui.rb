@@ -102,6 +102,21 @@ begin
     end
   end
 
+  interactive_args = [
+    'test', '--interactive', '--show-io', 'always', '--time-limit', '2000', '--judge',
+    %q{sh -c 'printf "question\n"; IFS= read -r answer; test "$answer" = answer'},
+    '--', 'sh', '-c',
+    %q{IFS= read -r question; test "$question" = question || exit 1; printf "answer\n"}
+  ]
+  Terminal.new(binary, *interactive_args) do |term|
+    term.finish(0, ui: false)
+    check(term.output.include?("\e[32m? question"), 'Missing judge output color')
+    check(term.output.include?("\e[33m! answer"), 'Missing solution output color')
+    plain = term.output.gsub(/\e\[[\d;]*m/, '')
+    check(plain.include?("? question\r\n! answer\r\n"), 'Extra interaction newlines')
+    check(!plain.include?('(no eol)'), 'Colored interaction lost its final newline')
+  end
+
   Terminal.new(binary, 'results') do |term|
     term.finish(0, ui: false)
     check(term.output.include?("\e[32m"), 'Missing AC color with redirected stderr')
@@ -110,6 +125,11 @@ begin
   end
 
   [ [['--no-color'], {}], [[], { 'NO_COLOR' => '1' }] ].each do |flags, env|
+    Terminal.new(binary, *flags, *interactive_args, env: env) do |term|
+      term.finish(0, ui: false)
+      check(term.output.include?('? question') && term.output.include?('! answer') &&
+            !term.output.include?("\e"), 'Interaction colors were not disabled')
+    end
     Terminal.new(binary, 'test', *flags, '--', 'cat', env: env) do |term|
       term.finish(0, ui: false)
       check(term.output.include?('sample-1: AC (') && !term.output.include?("\e"),

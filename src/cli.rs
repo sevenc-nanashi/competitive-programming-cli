@@ -196,7 +196,7 @@ pub struct Test {
     #[usage(long, short = 'J')]
     pub judge: Option<String>,
     /// Connect the solution and judge through stdin/stdout for interactive testing; requires --judge.
-    #[usage(long, requires("--judge"))]
+    #[usage(long, requires("--judge"), short = 'i')]
     pub interactive: bool,
 }
 

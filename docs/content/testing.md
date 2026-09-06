@@ -208,6 +208,7 @@ cpg test --judge "ruby ./judge.rb {test_input} {solution_output} {test_output}" 
 You can test interactive problems with custom judge.
 The judge's standard input will receive the output from the solution, and the judge's standard output will be sent to the solution's standard input.
 cpg will prefix `?` for the judge's output and `!` for the solution's output.
+On terminals with color enabled, judge output is green and solution output is yellow.
 The transcript is displayed after each case according to `--show-io`.
 If test files exist, the judge will receive the path as `{test_input}` and `{test_output}` arguments, and cpg will run the judge and solution for each test case.
 As with custom judges, a missing `.out` is replaced with an empty temporary file for that run.
