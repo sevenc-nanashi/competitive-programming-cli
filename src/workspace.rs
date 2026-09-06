@@ -81,7 +81,6 @@ fn template(
     name: &str,
     destination: &Path,
     setup: &[String],
-    metadata: &Metadata,
     interrupted: &AtomicBool,
 ) -> Result<()> {
     ensure!(!interrupted.load(Ordering::Relaxed), "Interrupted");
@@ -91,7 +90,6 @@ fn template(
         Err(e) if e.kind() == ErrorKind::NotFound => (),
         Err(e) => return Err(e.into()),
     }
-    write_metadata(destination, metadata)?;
     for command in setup {
         tracing::info!("Running [setup.{name}]: {command}");
         runner::setup(command, destination, interrupted)
@@ -148,18 +146,18 @@ fn write_problem(
     interrupted: &AtomicBool,
 ) -> Result<()> {
     fs::create_dir_all(destination)?;
-    let metadata = Metadata::Problem {
+    let mut metadata = Metadata::Problem {
         reference: problem.reference.clone(),
         title: problem.title.clone(),
         template_checksums: BTreeMap::new(),
     };
+    write_metadata(destination, &metadata)?;
     if single {
         template(
             paths,
             "workspace",
             destination,
             &config.setup.workspace,
-            &metadata,
             interrupted,
         )?;
     }
@@ -168,7 +166,6 @@ fn write_problem(
         "problem",
         destination,
         &config.setup.problem,
-        &metadata,
         interrupted,
     )?;
     if single {
@@ -177,11 +174,16 @@ fn write_problem(
             "single_problem",
             destination,
             &config.setup.single_problem,
-            &metadata,
             interrupted,
         )?;
     }
-    let template_checksums = template_checksums(destination)?;
+    match metadata {
+        Metadata::Problem {
+            template_checksums: ref mut template_checksums_,
+            ..
+        } => *template_checksums_ = template_checksums(destination)?,
+        _ => unreachable!(),
+    }
     fs::create_dir_all(destination.join("test"))?;
     for (i, sample) in problem.samples.iter().enumerate() {
         let name = format!("sample-{}", i + 1);
@@ -200,14 +202,7 @@ fn write_problem(
         problem.reference.id,
         problem.title
     );
-    write_metadata(
-        destination,
-        &Metadata::Problem {
-            reference: problem.reference,
-            title: problem.title,
-            template_checksums,
-        },
-    )
+    write_metadata(destination, &metadata)
 }
 
 pub fn download(
@@ -256,12 +251,12 @@ pub fn download(
                 contest.title
             );
             let metadata = Metadata::Contest(contest.clone());
+            write_metadata(staging.path(), &metadata)?;
             template(
                 paths,
                 "workspace",
                 staging.path(),
                 &config.setup.workspace,
-                &metadata,
                 interrupted,
             )?;
             template(
@@ -269,7 +264,6 @@ pub fn download(
                 "contest",
                 staging.path(),
                 &config.setup.contest,
-                &metadata,
                 interrupted,
             )?;
             let zfill_length = contest.problems.len().to_string().len();
