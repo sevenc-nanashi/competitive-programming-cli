@@ -2,18 +2,18 @@
 
 ## Configuration
 
-Configuration is stored within `$XDG_CONFIG_HOME/cpcli` (called `$config` in this document) by default.
-Overridable with `$CPCLI_CONFIG_HOME` environment variable.
-When XDG variables are unset, the configuration directory is `~/.config/cpcli`
-and the data directory is `~/.local/share/cpcli`.
+Configuration is stored within `$XDG_CONFIG_HOME/cpg` (called `$config` in this document) by default.
+Overridable with `$CPG_CONFIG_HOME` environment variable.
+When XDG variables are unset, the configuration directory is `~/.config/cpg`
+and the data directory is `~/.local/share/cpg`.
 
 Run the interactive setup before downloading or listing problems:
 
 ```bash
-cpcli init
+cpg init
 ```
 
-It asks for the workspace root (default: `~/cpcli`), creates `config.toml`, the
+It asks for the workspace root (default: `~/cpg`), creates `config.toml`, the
 workspace root, and the four template directories below, then prints a guide
 to language settings, templates, login, and downloading problems. Relative paths
 are saved as absolute paths. Re-running it keeps an existing configuration and
@@ -30,33 +30,33 @@ root = "/home/your-name/competitive-programming"
 After setting the root, inspect the current paths with:
 
 ```bash
-cpcli config
+cpg config
 # Workspace root: /home/your-name/competitive-programming
-# Configuration directory: /home/your-name/.config/cpcli
-# Cookies directory: /home/your-name/.local/share/cpcli/cookies
-# Workspace template directory: /home/your-name/.config/cpcli/workspace_template
-# Problem template directory: /home/your-name/.config/cpcli/problem_template
-# Contest template directory: /home/your-name/.config/cpcli/contest_template
-# Single problem template directory: /home/your-name/.config/cpcli/single_problem_template
+# Configuration directory: /home/your-name/.config/cpg
+# Cookies directory: /home/your-name/.local/share/cpg/cookies
+# Workspace template directory: /home/your-name/.config/cpg/workspace_template
+# Problem template directory: /home/your-name/.config/cpg/problem_template
+# Contest template directory: /home/your-name/.config/cpg/contest_template
+# Single problem template directory: /home/your-name/.config/cpg/single_problem_template
 
 # Print only the workspace root, for use in scripts
-cpcli config --root
+cpg config --root
 
 # Or print only one of the other directories
-cpcli config --config-dir
-cpcli config --cookies-dir
-cpcli config --workspace-template-dir
-cpcli config --problem-template-dir
-cpcli config --contest-template-dir
-cpcli config --single-problem-template-dir
+cpg config --config-dir
+cpg config --cookies-dir
+cpg config --workspace-template-dir
+cpg config --problem-template-dir
+cpg config --contest-template-dir
+cpg config --single-problem-template-dir
 ```
 
 Paths are absolute and reflect the environment overrides above and in
 [Login](#login). These commands do not create directories or modify settings.
 The flags are mutually exclusive. The full display and `--root` require a
-configured root; run `cpcli init` or set `root` first. All directory flags also work
+configured root; run `cpg init` or set `root` first. All directory flags also work
 before initialization. Template directories are located within the configuration
-directory, including when `$CPCLI_CONFIG_HOME` is set.
+directory, including when `$CPG_CONFIG_HOME` is set.
 
 [Language settings](./testing.md) belong in the same file. Path settings and CLI
 path arguments expand a leading `~` or `~/` to `$HOME`, including `root`, source
@@ -85,8 +85,8 @@ This tool does not provide login form itself.
 You need to prepare cookies for each online judge and save them in Netscape HTTP Cookie Format.
 For example, you can use [cookies.txt](https://addons.mozilla.org/ja/firefox/addon/cookies-txt/) Firefox extension to export cookies.
 
-The cookies file should be saved in `$XDG_DATA_HOME/cpcli/cookies` by default.
-Overridable with `$CPCLI_COOKIES_HOME` environment variable.
+The cookies file should be saved in `$XDG_DATA_HOME/cpg/cookies` by default.
+Overridable with `$CPG_COOKIES_HOME` environment variable.
 `login` verifies the session before saving `<service>.txt` with mode `600` in a
 directory with mode `700`. An unsuccessful login leaves the previous cookies intact.
 AtCoder Problems uses the AtCoder session; both `login atcoder` and
@@ -94,5 +94,5 @@ AtCoder Problems uses the AtCoder session; both `login atcoder` and
 
 ```bash
 # Login to an online judge
-cpcli login atcoder --cookie-file /path/to/cookies.txt
+cpg login atcoder --cookie-file /path/to/cookies.txt
 ```

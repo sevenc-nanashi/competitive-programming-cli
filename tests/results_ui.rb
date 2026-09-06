@@ -17,7 +17,7 @@ class Terminal
     @master, @slave = PTY.open
     @master.winsize = [24, 180]
     @mode = mode
-    @errors = Tempfile.new('cpcli-results-errors')
+    @errors = Tempfile.new('cpg-results-errors')
     @output = +''
     @pid = Process.spawn(
       { 'TERM' => 'xterm-256color', 'NO_COLOR' => nil, 'FORCE_COLOR' => nil }.merge(env),
@@ -127,12 +127,12 @@ begin
     end
   end
 
-  Dir.mktmpdir('cpcli-open') do |directory|
+  Dir.mktmpdir('cpg-open') do |directory|
     opened = File.join(directory, 'url')
     opener = File.join(directory, 'xdg-open')
-    File.write(opener, "#!#{RbConfig.ruby}\nFile.write(ENV.fetch('CPCLI_OPENED_URL'), ARGV.fetch(0))\n")
+    File.write(opener, "#!#{RbConfig.ruby}\nFile.write(ENV.fetch('CPG_OPENED_URL'), ARGV.fetch(0))\n")
     File.chmod(0o755, opener)
-    env = { 'PATH' => directory, 'CPCLI_OPENED_URL' => opened }
+    env = { 'PATH' => directory, 'CPG_OPENED_URL' => opened }
     Terminal.new(binary, 'results', '--ui', '--limit', '2', env: env) do |term|
       term.expect('! Refreshing |')
       term.expect('Running')

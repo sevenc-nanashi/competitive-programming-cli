@@ -8,13 +8,13 @@ use std::{
 use tempfile::TempDir;
 
 fn command(directory: &TempDir) -> Command {
-    let mut command = Command::new(env!("CARGO_BIN_EXE_cpcli"));
+    let mut command = Command::new(env!("CARGO_BIN_EXE_cpg"));
     command
         .current_dir(directory.path())
         .env("HOME", directory.path())
         .env("CARGO_MANIFEST_DIR", directory.path())
-        .env("CPCLI_CONFIG_HOME", "~/config")
-        .env("CPCLI_COOKIES_HOME", "~/cookies");
+        .env("CPG_CONFIG_HOME", "~/config")
+        .env("CPG_COOKIES_HOME", "~/cookies");
     command
 }
 
@@ -66,13 +66,13 @@ fn interactive_initialization() {
     }
 
     for (input, expected_root) in [
-        ("\n", "cpcli"),
+        ("\n", "cpg"),
         ("~/my \"競プロ\" workspace\n", "my \"競プロ\" workspace"),
         ("relative workspace\n", "relative workspace"),
     ] {
         let directory = tempfile::tempdir().unwrap();
         let output = initialize(&directory, input, 0);
-        assert!(String::from_utf8_lossy(&output.stderr).contains("Workspace root [~/cpcli]:"));
+        assert!(String::from_utf8_lossy(&output.stderr).contains("Workspace root [~/cpg]:"));
         let root = directory.path().join(expected_root);
         let config_path = directory.path().join("config/config.toml");
         let config: toml::Value =
@@ -93,11 +93,11 @@ fn interactive_initialization() {
         }
         for step in [
             "[language.cpp]",
-            "cpcli login",
-            "cpcli download",
-            "cpcli prepare",
-            "cpcli test",
-            "cpcli submit",
+            "cpg login",
+            "cpg download",
+            "cpg prepare",
+            "cpg test",
+            "cpg submit",
         ] {
             assert!(guide.contains(step), "Missing guide step: {step}");
         }
@@ -123,7 +123,7 @@ fn interactive_initialization() {
     let output = initialize(&directory, "", 2);
     assert!(String::from_utf8_lossy(&output.stderr).contains("no input"));
     assert!(!directory.path().join("config").exists());
-    assert!(!directory.path().join("cpcli").exists());
+    assert!(!directory.path().join("cpg").exists());
     fs::write(directory.path().join("not-a-directory"), "keep").unwrap();
     initialize(&directory, "not-a-directory\n", 2);
     assert!(!directory.path().join("config").exists());
@@ -225,8 +225,8 @@ problem_directory = "."
     );
     assert_eq!(fs::read_to_string(&config).unwrap(), original);
 
-    let cpcli_config = directory.path().join("config/config.toml");
-    let original_cpcli = fs::read(&cpcli_config).unwrap();
+    let cpg_config = directory.path().join("config/config.toml");
+    let original_cpg = fs::read(&cpg_config).unwrap();
     fs::write(destination.join("main.rb"), "# keep my edits\n").unwrap();
     let output = run(
         &directory,
@@ -242,13 +242,13 @@ problem_directory = "."
         fs::read_to_string(destination.join("main.rb")).unwrap(),
         "# keep my edits\n"
     );
-    assert_eq!(fs::read(cpcli_config).unwrap(), original_cpcli);
+    assert_eq!(fs::read(cpg_config).unwrap(), original_cpg);
 
     run_with_input(
         command(&directory)
             .arg("init")
             .env("XDG_CONFIG_HOME", "~/oj-config")
-            .env("CPCLI_CONFIG_HOME", "~/declined"),
+            .env("CPG_CONFIG_HOME", "~/declined"),
         "\nn\n",
         0,
     );
@@ -270,7 +270,7 @@ problem_directory = "."
         run_with_input(
             command(&directory)
                 .args(["init", "--from-oj", config.to_str().unwrap()])
-                .env("CPCLI_CONFIG_HOME", "~/invalid"),
+                .env("CPG_CONFIG_HOME", "~/invalid"),
             "\n",
             2,
         );
@@ -371,8 +371,8 @@ fn configuration_paths() {
     ] {
         let expected = run(&directory, &args, 0);
         let output = command(&directory)
-            .env("CPCLI_CONFIG_HOME", "config")
-            .env("CPCLI_COOKIES_HOME", "cookies")
+            .env("CPG_CONFIG_HOME", "config")
+            .env("CPG_COOKIES_HOME", "cookies")
             .args(&args)
             .output()
             .unwrap();
@@ -403,19 +403,19 @@ fn open_url_only() {
     let directory = tempfile::tempdir().unwrap();
     let output = run(&directory, &["open", "--url-only"], 2);
     assert!(output.stdout.is_empty());
-    assert!(String::from_utf8_lossy(&output.stderr).contains("No .cpcli.toml"));
+    assert!(String::from_utf8_lossy(&output.stderr).contains("No .cpg.toml"));
 
     let contest_url = "https://atcoder.jp/contests/practice";
     let problem_url = "https://atcoder.jp/contests/practice/tasks/practice_1";
     fs::create_dir_all(directory.path().join("problem/src")).unwrap();
     fs::create_dir(directory.path().join("src")).unwrap();
     fs::write(
-        directory.path().join(".cpcli.toml"),
+        directory.path().join(".cpg.toml"),
         format!("kind = 'contest'\nservice = 'atcoder'\nid = 'practice'\nurl = {contest_url:?}\ntitle = 'Practice'\nproblems = []\n"),
     )
     .unwrap();
     fs::write(
-        directory.path().join("problem/.cpcli.toml"),
+        directory.path().join("problem/.cpg.toml"),
         format!("kind = 'problem'\nservice = 'atcoder'\nid = 'practice_1'\nurl = {problem_url:?}\ntitle = 'Welcome to AtCoder'\n"),
     )
     .unwrap();
@@ -487,7 +487,7 @@ fn cli_contract_and_local_judging() {
     assert!(
         String::from_utf8_lossy(&output.stderr)
             .lines()
-            .any(|line| line.starts_with("x) [cpcli] "))
+            .any(|line| line.starts_with("x) [cpg] "))
     );
     assert!(!output.stderr.contains(&0x1b));
     case(&directory, b"hello  \n\n", b"hello\n");
@@ -856,8 +856,8 @@ run = "{binary}"
     run(&directory, &["test", "--test-dir", "~", "--", "cat"], 0);
     let output = command(&directory)
         .env_remove("HOME")
-        .env("CPCLI_CONFIG_HOME", directory.path().join("config"))
-        .env("CPCLI_COOKIES_HOME", directory.path().join("cookies"))
+        .env("CPG_CONFIG_HOME", directory.path().join("config"))
+        .env("CPG_COOKIES_HOME", directory.path().join("cookies"))
         .args(["test", "~/space ' name.rb"])
         .output()
         .unwrap();
@@ -921,7 +921,7 @@ run = "{binary}"
             .unwrap()
             .file_name()
             .to_string_lossy()
-            .starts_with("cpcli_preprocessed_")
+            .starts_with("cpg_preprocessed_")
     }));
 }
 
@@ -1051,7 +1051,7 @@ fn limits_interactive_and_cleanup() {
         }
         assert!(
             started.elapsed() < Duration::from_secs(5),
-            "cpcli ignored SIGINT"
+            "cpg ignored SIGINT"
         );
         thread::sleep(Duration::from_millis(10));
     }
@@ -1141,7 +1141,7 @@ mock = "ruby"
     assert_eq!(fs::read_dir(echo.join("test")).unwrap().count(), 2);
     assert!(echo.join("workspace.txt").is_file());
     let metadata: toml::Value =
-        toml::from_str(&fs::read_to_string(echo.join(".cpcli.toml")).unwrap()).unwrap();
+        toml::from_str(&fs::read_to_string(echo.join(".cpg.toml")).unwrap()).unwrap();
     assert_eq!(
         metadata["template_checksums"]["src/nested.rb"]
             .as_str()
@@ -1166,7 +1166,7 @@ mock = "ruby"
         0,
     );
     let logs = String::from_utf8_lossy(&output.stderr);
-    assert!(logs.contains("i) [cpcli::workspace] <download{"));
+    assert!(logs.contains("i) [cpg::workspace] <download{"));
     assert!(!logs.contains('\u{1b}'));
     let contest = root.join("mock/contests/practice");
     assert_eq!(
@@ -1179,7 +1179,7 @@ mock = "ruby"
     );
     assert!(!contest.join("1_sum/workspace.txt").exists());
     assert!(contest.join("1_sum/test/sample-2.out").is_file());
-    assert!(contest.join("2_echo/.cpcli.toml").is_file());
+    assert!(contest.join("2_echo/.cpg.toml").is_file());
     assert_eq!(
         fs::read(contest.join("2_echo/test/sample-1.in")).unwrap(),
         b"hello\n"
@@ -1200,7 +1200,7 @@ mock = "ruby"
         .output()
         .unwrap();
     assert!(ruby.status.success());
-    fs::write(&opener, format!("#!{}\nraise 'Expected one URL' unless ARGV.length == 1\nFile.open(ENV.fetch('CPCLI_OPEN_LOG'), 'a') {{ |f| f.puts ARGV.fetch(0) }}\nexit Integer(ENV.fetch('CPCLI_OPEN_EXIT'))\n", String::from_utf8(ruby.stdout).unwrap())).unwrap();
+    fs::write(&opener, format!("#!{}\nraise 'Expected one URL' unless ARGV.length == 1\nFile.open(ENV.fetch('CPG_OPEN_LOG'), 'a') {{ |f| f.puts ARGV.fetch(0) }}\nexit Integer(ENV.fetch('CPG_OPEN_EXIT'))\n", String::from_utf8(ruby.stdout).unwrap())).unwrap();
     fs::set_permissions(&opener, fs::Permissions::from_mode(0o755)).unwrap();
     let opened = directory.path().join("opened-urls");
     let open_command = |cwd: &std::path::Path, alias: &str| {
@@ -1208,8 +1208,8 @@ mock = "ruby"
         cmd.current_dir(cwd)
             .arg(alias)
             .env("PATH", &browser_bin)
-            .env("CPCLI_OPEN_LOG", &opened)
-            .env("CPCLI_OPEN_EXIT", "0");
+            .env("CPG_OPEN_LOG", &opened)
+            .env("CPG_OPEN_EXIT", "0");
         cmd
     };
     for (cwd, alias) in [
@@ -1229,10 +1229,10 @@ mock = "ruby"
     assert_eq!(fs::read_to_string(&opened).unwrap(), expected);
     let output = open_command(directory.path(), "o").output().unwrap();
     assert_eq!(output.status.code(), Some(2));
-    assert!(String::from_utf8_lossy(&output.stderr).contains("No .cpcli.toml"));
+    assert!(String::from_utf8_lossy(&output.stderr).contains("No .cpg.toml"));
     assert_eq!(fs::read_to_string(&opened).unwrap(), expected);
     let output = open_command(&echo, "o")
-        .env("CPCLI_OPEN_EXIT", "7")
+        .env("CPG_OPEN_EXIT", "7")
         .output()
         .unwrap();
     assert_eq!(output.status.code(), Some(2));
@@ -1311,7 +1311,7 @@ mock = "ruby"
     let solution = echo.join("solution.rb");
     let source = solution.to_str().unwrap();
     let output = run(&directory, &["s", source], 2);
-    assert!(String::from_utf8_lossy(&output.stderr).contains("!) [cpcli] "));
+    assert!(String::from_utf8_lossy(&output.stderr).contains("!) [cpg] "));
     assert!(String::from_utf8_lossy(&output.stderr).contains("--allow-submit-unchanged-solution"));
     run(
         &directory,
@@ -1471,7 +1471,7 @@ mock = "ruby"
     assert!(!ui.stdout.contains(&0x1b));
     let terminal_test = Command::new("ruby")
         .arg(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/results_ui.rb"))
-        .arg(env!("CARGO_BIN_EXE_cpcli"))
+        .arg(env!("CARGO_BIN_EXE_cpg"))
         .arg(&stored_path)
         .envs(
             command(&directory)
@@ -1568,7 +1568,7 @@ mock = "ruby"
                 .unwrap()
                 .file_name()
                 .to_string_lossy()
-                .starts_with("cpcli_preprocessed_")
+                .starts_with("cpg_preprocessed_")
         }));
     }
     let settings = fs::read_to_string(mock.join("service.toml"))

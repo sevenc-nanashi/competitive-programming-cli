@@ -181,7 +181,7 @@ fn transform_source(
     };
     // Keep the extension and parent directory for compilers and relative includes.
     let output = tempfile::Builder::new()
-        .prefix("cpcli_preprocessed_")
+        .prefix("cpg_preprocessed_")
         .suffix(&suffix)
         .tempfile_in(&cwd)?;
     let program = Program::shell(command.replace("{input}", &quote(input.as_os_str())?), cwd);
@@ -781,7 +781,7 @@ pub fn generate(config: &Config, options: &Generate, interrupted: &AtomicBool) -
     let mut count = 0;
     let mut save = |input: Option<&Path>, output: PathBuf| -> Result<()> {
         let staging = tempfile::Builder::new()
-            .prefix(".cpcli-")
+            .prefix(".cpg-")
             .tempfile_in(&directory)?;
         let stdin = match input {
             Some(p) => File::open(p)?.into(),

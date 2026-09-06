@@ -49,12 +49,12 @@ fn xdg_directory(xdg_var: &str, default: &str, suffix: &str) -> Result<PathBuf> 
 impl Paths {
     pub fn discover() -> Result<Self> {
         Ok(Self {
-            config: directory("CPCLI_CONFIG_HOME", "XDG_CONFIG_HOME", ".config", "cpcli")?,
+            config: directory("CPG_CONFIG_HOME", "XDG_CONFIG_HOME", ".config", "cpg")?,
             cookies: directory(
-                "CPCLI_COOKIES_HOME",
+                "CPG_COOKIES_HOME",
                 "XDG_DATA_HOME",
                 ".local/share",
-                "cpcli/cookies",
+                "cpg/cookies",
             )?,
         })
     }
@@ -96,9 +96,9 @@ pub fn init(paths: &Paths, args: &crate::cli::Init, interrupted: &AtomicBool) ->
             )
         })?
     } else {
-        let input = prompt("Workspace root [~/cpcli]: ", interrupted)?;
+        let input = prompt("Workspace root [~/cpg]: ", interrupted)?;
         let root = match input.as_str() {
-            "" => "~/cpcli",
+            "" => "~/cpg",
             root => root,
         };
         Config {
@@ -219,16 +219,16 @@ pub fn init(paths: &Paths, args: &crate::cli::Init, interrupted: &AtomicBool) ->
          run = \"{{binary}}\"\n\n\
          2. Put your starter solution in problem_template and shared files in workspace_template.\n\
          3. Export Netscape-format cookies from your browser, then import them:\n\
-         \x20 cpcli login atcoder --cookie-file /path/to/cookies.txt\n\
+         \x20 cpg login atcoder --cookie-file /path/to/cookies.txt\n\
          4. Download a problem or contest:\n\
-         \x20 cpcli download <problem-url>\n\
-         \x20 cpcli prepare <contest-url>\n\
+         \x20 cpg download <problem-url>\n\
+         \x20 cpg prepare <contest-url>\n\
          5. Enter the printed directory (or a problem directory within a contest), then run:\n\
-         \x20 cpcli test ./solution.cpp\n\
-         \x20 cpcli submit ./solution.cpp --language <language-id>\n\
-         \x20 cpcli results --ui\n\n\
+         \x20 cpg test ./solution.cpp\n\
+         \x20 cpg submit ./solution.cpp --language <language-id>\n\
+         \x20 cpg results --ui\n\n\
          Save submission language IDs in [language.<name>.submit], keyed by service.\n\
-         Run cpcli submit without a configured language to list the available IDs.",
+         Run cpg submit without a configured language to list the available IDs.",
         config_path.display()
     );
     Ok(())

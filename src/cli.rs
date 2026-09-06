@@ -8,7 +8,7 @@ use url::Url;
 
 /// Download, test, and submit competitive programming solutions.
 #[derive(Debug, usage::Cli)]
-#[usage(bin = "cpcli", version)]
+#[usage(bin = "cpg", version)]
 pub struct Cli {
     /// Disable colored output.
     #[usage(long, global)]
@@ -211,7 +211,7 @@ pub struct Generate {
 pub struct Submit {
     /// Solution source file to submit.
     pub file: PathBuf,
-    /// Submit to this problem URL instead of detecting it from the source's .cpcli.toml.
+    /// Submit to this problem URL instead of detecting it from the source's .cpg.toml.
     #[usage(long)]
     pub problem: Option<Url>,
     /// Server language ID, overriding the language configuration.

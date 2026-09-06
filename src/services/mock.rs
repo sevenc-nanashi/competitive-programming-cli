@@ -63,7 +63,7 @@ impl MockBackend {
         let cookies = self
             .cookies
             .cookies(&Url::parse("https://mock.local/")?)
-            .context("Mock session missing; run cpcli login mock")?;
+            .context("Mock session missing; run cpg login mock")?;
         let expected = format!("session={}", settings.session);
         ensure!(
             cookies
@@ -201,7 +201,7 @@ impl ServiceBackend for MockBackend {
             submission: submission.clone(),
         };
         let mut staging = tempfile::Builder::new()
-            .prefix(".cpcli-")
+            .prefix(".cpg-")
             .tempfile_in(&directory)?;
         staging.write_all(toml::to_string_pretty(&stored)?.as_bytes())?;
         staging.persist_noclobber(directory.join(format!("{}.toml", submission.id)))?;

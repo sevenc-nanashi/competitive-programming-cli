@@ -1,4 +1,4 @@
-# Competitive Programming CLI (cpcli)
+# Competitive Programming CLI (cpg)
 
 > [!WARNING]
 > This project is in early development.
@@ -6,7 +6,7 @@
 > - Configuration and metadata formats may change.
 > - Only Linux is supported for now.
 
-cpcli is a command-line interface tool for competitive programming.
+cpg is a command-line interface tool for competitive programming.
 
 This tool can:
 
@@ -24,11 +24,11 @@ Currently supported online judges:
 - AtCoder Problems (Virtual Contests)
 - Yukicoder
 
-cpcli currently supports Linux. Building requires Rust 1.91 or newer.
+cpg currently supports Linux. Building requires Rust 1.91 or newer.
 
 ## Getting started
 
-1. [Install cpcli](./installation.md).
+1. [Install cpg](./installation.md).
 2. [Configure your workspace and log in](./configuration.md).
 3. [Download a problem or contest](./workspaces.md).
 4. [Test your solution](./testing.md) and [generate extra test cases](./generating.md).

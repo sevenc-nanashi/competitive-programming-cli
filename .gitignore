@@ -2,6 +2,6 @@
 /docs/node_modules
 /docs/dist
 /docs/content/command-reference.md
-/docs/cpcli.usage.kdl
+/docs/cpg.usage.kdl
 /mock_service/submissions
 !/mock_service/**/test/*.out

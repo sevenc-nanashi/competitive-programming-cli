@@ -49,18 +49,18 @@ stages. Direct commands after `--` do not use language transformations.
 
 ```bash
 # Test a solution against the sample test cases
-cpcli test ./solution.cpp
+cpg test ./solution.cpp
 # -> g++ -std=c++23 -Wall -Wextra -o solution ./solution.cpp && ./solution < ./test/sample-1.in
 
 # Or shortcut
-cpcli t ./solution.cpp
+cpg t ./solution.cpp
 
 # Or specify the test case directory
-cpcli test --test-dir ./random ./solution.cpp
+cpg test --test-dir ./random ./solution.cpp
 # -> g++ -std=c++23 -Wall -Wextra -o solution ./solution.cpp && ./solution < ./random/sample-1.in
 
 # Or specify the profile to use for compilation
-cpcli test --profile fast ./solution.cpp
+cpg test --profile fast ./solution.cpp
 # -> g++ -std=c++23 -O2 -Wall -Wextra -o solution ./solution.cpp && ./solution < ./test/sample-1.in
 ```
 
@@ -68,14 +68,14 @@ Or you can specify the command to execute directly after `--`:
 
 ```bash
 # Test a solution against the sample test cases with custom command
-cpcli test -- ruby ./solution.rb
+cpg test -- ruby ./solution.rb
 ```
 
 For TLE and MLE, you can use `--time-limit` and `--memory-limit` options to specify the time limit and memory limit for each test case.
 
 ```bash
 # Test a solution against the sample test cases with time limit of 2000ms and memory limit of 256MB
-cpcli test --time-limit 2000 --memory-limit 256 ./solution.cpp
+cpg test --time-limit 2000 --memory-limit 256 ./solution.cpp
 ```
 
 The time limit measures wall-clock time. The memory limit is in MiB and uses
@@ -104,15 +104,15 @@ Verdicts and the summary are always shown. Standard error from the solution
 and judge is still streamed directly.
 
 ```bash
-cpcli test --show-io always ./solution.cpp
-cpcli test --show-io never -- ruby ./solution.rb
+cpg test --show-io always ./solution.cpp
+cpg test --show-io never -- ruby ./solution.rb
 ```
 
 For stripping trailing white-space in the output, you can use `--strip` option to ignore trailing white-space differences between the expected output and the actual output.
 
 ```bash
 # Test a solution against the sample test cases with stripping trailing white-space
-cpcli test --strip ./solution.cpp
+cpg test --strip ./solution.cpp
 ```
 
 For CRLF/LF insensitive comparison, you can use `--ignore-line-ending` option to ignore line ending differences between the expected output and the actual output.
@@ -120,14 +120,14 @@ This is enabled by default, but you can disable it with `--no-ignore-line-ending
 
 ```bash
 # Test a solution against the sample test cases with CRLF/LF insensitive comparison
-cpcli test --ignore-line-ending ./solution.cpp
+cpg test --ignore-line-ending ./solution.cpp
 ```
 
 For fast failure, you can use `--fast-fail` option to stop testing after the first failed test case.
 
 ```bash
 # Test a solution against the sample test cases with fast failure
-cpcli test --fast-fail ./solution.cpp
+cpg test --fast-fail ./solution.cpp
 ```
 
 For floating point comparison, you can use `--float-error` option to specify the acceptable error for floating point comparison.
@@ -135,41 +135,41 @@ It will allow if the absolute difference or relative difference between the expe
 
 ```bash
 # Test a solution against the sample test cases with floating point comparison
-cpcli test --float-error 1e-6 ./solution.cpp
+cpg test --float-error 1e-6 ./solution.cpp
 
 # Or allow absolute error only
-cpcli test --float-error 1e-6 --float-error-type absolute ./solution.cpp
+cpg test --float-error 1e-6 --float-error-type absolute ./solution.cpp
 
 # Or allow relative error only
-cpcli test --float-error 1e-6 --float-error-type relative ./solution.cpp
+cpg test --float-error 1e-6 --float-error-type relative ./solution.cpp
 ```
 
 For custom judges, you can specify the command to execute for each test case:
 The judge will receive three arguments in the same order as oj: the test input file (`{test_input}`), the actual output file from the solution (`{solution_output}`), and the expected output file (`{test_output}`).
-`{test_output}` is the corresponding `.out` path. If it is missing, cpcli passes
+`{test_output}` is the corresponding `.out` path. If it is missing, cpg passes
 an empty temporary file instead and deletes it after the case finishes.
-If the judge command does not have these placeholders, cpcli will append them to the end of the command.
+If the judge command does not have these placeholders, cpg will append them to the end of the command.
 Judges should return exit code 0 for accepted, otherwise return non-zero exit code for rejected.
 
 ```bash
 # Test a solution against the sample test cases with custom judge
-cpcli test --judge ./judge.rb ./solution.rb
+cpg test --judge ./judge.rb ./solution.rb
 
 # Or directly specify the command to execute for each test case
-cpcli test --judge "ruby ./judge.rb {test_input} {solution_output} {test_output}" ./solution.rb
+cpg test --judge "ruby ./judge.rb {test_input} {solution_output} {test_output}" ./solution.rb
 ```
 
 ## Test interactive problems
 
 You can test interactive problems with custom judge.
 The judge's standard input will receive the output from the solution, and the judge's standard output will be sent to the solution's standard input.
-cpcli will prefix `?` for the judge's output and `!` for the solution's output.
+cpg will prefix `?` for the judge's output and `!` for the solution's output.
 The transcript is displayed after each case according to `--show-io`.
-If test files exist, the judge will receive the path as `{test_input}` and `{test_output}` arguments, and cpcli will run the judge and solution for each test case.
+If test files exist, the judge will receive the path as `{test_input}` and `{test_output}` arguments, and cpg will run the judge and solution for each test case.
 As with custom judges, a missing `.out` is replaced with an empty temporary file for that run.
 Unlike other test commands, this command can be run without test files, and the judge will be run only once with no test files.
 
 ```bash
 # Test an interactive problem with custom judge
-cpcli test --interactive --judge ./judge.rb ./solution.rb
+cpg test --interactive --judge ./judge.rb ./solution.rb
 ```

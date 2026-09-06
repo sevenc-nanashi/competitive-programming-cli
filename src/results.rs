@@ -174,7 +174,7 @@ fn monitor(
         Metadata::Contest(contest) => &contest.title,
         Metadata::Problem { title, .. } => title,
     };
-    let title = format!("cpcli results — {title}");
+    let title = format!("cpg results — {title}");
     let title: String = title.chars().filter(|c| !c.is_control()).collect();
     let (request_tx, request_rx) = mpsc::channel();
     let (update_tx, update_rx) = mpsc::channel();

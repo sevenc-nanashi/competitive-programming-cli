@@ -13,7 +13,7 @@ The downloaded problem will be saved in a directory `$root/$host/problems/$probl
 
 The directory will contain:
 
-- `.cpcli.toml` file, which contains metadata of the problem.
+- `.cpg.toml` file, which contains metadata of the problem.
 - Workspace template files.
 - Problem template files.
 - Single problem template files.
@@ -21,7 +21,7 @@ The directory will contain:
 
 Samples are always numbered starting at 1, even when there is only one.
 Additional samples are named `sample-2.in`, `sample-2.out`, etc.
-The `.cpcli.toml` metadata records the service, problem ID, canonical URL, title,
+The `.cpg.toml` metadata records the service, problem ID, canonical URL, title,
 and original contest/internal IDs where applicable.
 
 If multiple template files contain the same file name, the last one will overwrite the previous ones.
@@ -31,10 +31,10 @@ Template symlinks are rejected.
 
 ```bash
 # Download a problem from AtCoder
-cpcli download https://atcoder.jp/contests/abc473/tasks/abc473_f
+cpg download https://atcoder.jp/contests/abc473/tasks/abc473_f
 
 # Or shortcut
-cpcli d https://atcoder.jp/contests/abc473/tasks/abc473_f
+cpg d https://atcoder.jp/contests/abc473/tasks/abc473_f
 ```
 
 ## Download contest problems
@@ -53,7 +53,7 @@ The downloaded problems will be saved in a directory `$root/$host/contests/$cont
 
 The contest directory will contain:
 
-- `.cpcli.toml` file, which contains metadata of the contest.
+- `.cpg.toml` file, which contains metadata of the contest.
 - Workspace template files.
 - Contest template files.
 
@@ -69,30 +69,30 @@ problems; yukicoder uses the contest's problem ID list.
 
 ```bash
 # Download contest problems from AtCoder
-cpcli prepare https://atcoder.jp/contests/abc473
+cpg prepare https://atcoder.jp/contests/abc473
 
 # Or shortcut
-cpcli p https://atcoder.jp/contests/abc473
+cpg p https://atcoder.jp/contests/abc473
 ```
 
 ## Open the current problem or contest
 
 ```bash
-cpcli open
+cpg open
 # Or shortcut
-cpcli o
+cpg o
 ```
 
-Opens the problem or contest URL from the nearest `.cpcli.toml` in your default
+Opens the problem or contest URL from the nearest `.cpg.toml` in your default
 browser. This also works from subdirectories. A problem directory inside a
 contest opens that problem; the contest directory opens the contest page.
 
 Use `--url-only` to print just the URL to stdout without opening a browser:
 
 ```bash
-cpcli open --url-only
+cpg open --url-only
 # Or shortcut
-cpcli o --url-only
+cpg o --url-only
 ```
 
 ## List workspaces
@@ -100,7 +100,7 @@ cpcli o --url-only
 You can list the workspaces you've downloaded using the `list` command.
 
 By default, `list` shows workspace directories: contests and standalone problems.
-Paths are relative to the workspace root, which you can get with `cpcli config --root`.
+Paths are relative to the workspace root, which you can get with `cpg config --root`.
 Choose one of the following mutually exclusive filters:
 
 | Option                  | Directories listed                                  |
@@ -112,19 +112,19 @@ Choose one of the following mutually exclusive filters:
 
 ```bash
 # List workspaces you've downloaded
-cpcli list
+cpg list
 
 # Show the workspace root
-cpcli config --root
+cpg config --root
 
 # List contest directories
-cpcli list --contests
+cpg list --contests
 
 # List standalone problem directories
-cpcli list --problems
+cpg list --problems
 
 # Include individual problems within contests
-cpcli list --all-problems
+cpg list --all-problems
 ```
 
 This command is for piping the output to other commands, such as `fzf`.
@@ -134,8 +134,8 @@ This feature is heavily inspired by [ghq](https://github.com/x-motemen/ghq).
 ```bash
 ccd() {
     local root dir
-    root="$(cpcli config --root)" || return
-    dir="$(cpcli list | fzf)" || return
+    root="$(cpg config --root)" || return
+    dir="$(cpg list | fzf)" || return
     [ -n "$dir" ] && cd -- "$root/$dir"
 }
 ```

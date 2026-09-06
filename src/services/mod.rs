@@ -196,7 +196,7 @@ impl Http {
         let client = Client::builder()
             .cookie_provider(jar)
             .timeout(Duration::from_secs(30))
-            .user_agent(concat!("cpcli/", env!("CARGO_PKG_VERSION")))
+            .user_agent(concat!("cpg/", env!("CARGO_PKG_VERSION")))
             .redirect(reqwest::redirect::Policy::custom(|attempt| {
                 if attempt.previous().len() >= 10 {
                     return attempt.error("Too many redirects");
@@ -244,7 +244,7 @@ impl Http {
         let url = response.url().clone();
         ensure!(
             !url.path().starts_with("/login") && !url.path().starts_with("/auth/"),
-            "Session expired; import fresh cookies with cpcli login"
+            "Session expired; import fresh cookies with cpg login"
         );
         Ok((url, response.text()?))
     }

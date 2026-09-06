@@ -229,7 +229,7 @@ impl ServiceBackend for AtCoderBackend {
             url.path().contains("/submissions/"),
             concat!(
                 "AtCoder did not confirm submission; check results before submitting again. ",
-                "Note that AtCoder has captchas for past contests, which cannot be bypassed by cpcli.",
+                "Note that AtCoder has captchas for past contests, which cannot be bypassed by cpg.",
                 "Please submit manually if this is the case."
             )
         );

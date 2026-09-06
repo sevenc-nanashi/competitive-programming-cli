@@ -1,4 +1,4 @@
-# Competitive Programming CLI (cpcli)
+# Competitive Programming CLI (cpg)
 
 > [!WARNING]
 > This project is in early development.
@@ -6,7 +6,7 @@
 > - Configuration and metadata formats may change.
 > - Only Linux is supported for now.
 
-cpcli is a command-line interface tool for competitive programming.
+cpg is a command-line interface tool for competitive programming.
 
 This tool can:
 
@@ -24,7 +24,7 @@ Currently supported online judges:
 - AtCoder Problems (Virtual Contests)
 - Yukicoder
 
-cpcli currently supports Linux. Building requires Rust 1.91 or newer.
+cpg currently supports Linux. Building requires Rust 1.91 or newer.
 
 ## Documentation
 
@@ -45,7 +45,7 @@ aube run build
 `cargo run --locked -- __usage_spec__` using
 [`usage generate markdown`](https://usage.jdx.dev/cli/reference/generate/markdown).
 Edit the command definitions and help in `src/cli.rs`; the generated
-`docs/cpcli.usage.kdl` and `docs/content/command-reference.md` are ignored by Git.
+`docs/cpg.usage.kdl` and `docs/content/command-reference.md` are ignored by Git.
 Run `aube run reference` inside `docs` to regenerate only the reference.
 
 ## Acknowledgements

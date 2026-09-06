@@ -1,5 +1,5 @@
 #[cfg(not(target_os = "linux"))]
-compile_error!("cpcli currently supports Linux only");
+compile_error!("cpg currently supports Linux only");
 
 mod cli;
 mod config;
@@ -158,7 +158,7 @@ fn run(cli: Cli, interrupted: &AtomicBool) -> Result<bool> {
             let problem = match args.problem {
                 Some(url) => services.resolve(&url)?.problem()?,
                 None => match local
-                    .context("No .cpcli.toml found for the source; specify --problem URL")?
+                    .context("No .cpg.toml found for the source; specify --problem URL")?
                     .1
                 {
                     Metadata::Problem { reference, .. } => reference,

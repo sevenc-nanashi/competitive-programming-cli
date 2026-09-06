@@ -15,7 +15,7 @@ use std::{
     path::{Component, Path, PathBuf},
 };
 
-const METADATA: &str = ".cpcli.toml";
+const METADATA: &str = ".cpg.toml";
 
 pub fn read_metadata(directory: &Path) -> Result<Metadata> {
     let path = directory.join(METADATA);
@@ -30,7 +30,7 @@ pub fn locate(directory: &Path) -> Result<Metadata> {
         .map(|(_, metadata)| metadata)
         .with_context(|| {
             format!(
-                "No .cpcli.toml found in {} or its parents",
+                "No .cpg.toml found in {} or its parents",
                 directory.display()
             )
         })
@@ -181,7 +181,7 @@ pub fn download(
     );
     fs::create_dir_all(&parent)?;
     let staging = tempfile::Builder::new()
-        .prefix(".cpcli-")
+        .prefix(".cpg-")
         .tempdir_in(&parent)?;
     match resource {
         ResourceRef::Problem(p) => {

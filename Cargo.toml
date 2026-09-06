@@ -10,7 +10,7 @@ readme = "README.md"
 exclude = ["__gi_*", ".github", "docs"]
 
 [[bin]]
-name = "cpcli"
+name = "cpg"
 path = "src/main.rs"
 
 [dependencies]
@@ -42,7 +42,7 @@ usage = { package = "usage-rs", version = "6", features = ["validation"] }
 mock = []
 
 [package.metadata.binstall]
-pkg-url = "{ repo }/releases/download/v{ version }/cpcli-{ target }.tar.gz"
+pkg-url = "{ repo }/releases/download/v{ version }/cpg-{ target }.tar.gz"
 pkg-fmt = "tgz"
 bin-dir = "{ bin }{ binary-ext }"
 
