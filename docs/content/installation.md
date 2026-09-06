@@ -8,7 +8,7 @@ To install the current checkout:
 cargo install --path . --locked
 ```
 
-After a crates.io release is published, you can install cpg using cargo:
+You can install cpg using cargo:
 
 ```bash
 # Build from source

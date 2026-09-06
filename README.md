@@ -26,54 +26,7 @@ Currently supported online judges:
 
 cpg currently supports Linux. Building requires Rust 1.91 or newer.
 
-## Documentation
-
-See the [documentation site](https://sevenc-nanashi.github.io/competitive-programming-cli/)
-for installation, configuration, and command usage. The Markdown sources are
-available in [docs/content](docs/content/index.md).
-
-To build the documentation locally on Linux, install Rust 1.91 or newer and the
-tools in `mise.toml`, then run:
-
-```bash
-cd docs
-aube ci
-aube run build
-```
-
-`aube run build` and `aube run dev` regenerate the command reference from
-`cargo run --locked -- __usage_spec__` using
-[`usage generate markdown`](https://usage.jdx.dev/cli/reference/generate/markdown).
-Edit the command definitions and help in `src/cli.rs`; the generated
-`docs/cpg.usage.kdl` and `docs/content/command-reference.md` are ignored by Git.
-Run `aube run reference` inside `docs` to regenerate only the reference.
-
-## Releasing
-
-For a new crate, publish its first version manually before configuring Trusted
-Publishing.
-
-Create the GitHub Actions environment `publish` and configure a
-[crates.io Trusted Publisher](https://crates.io/docs/trusted-publishing) for
-`competitive-programming-cli` with these settings:
-
-| Setting           | Value                         |
-| ----------------- | ----------------------------- |
-| Repository owner  | `sevenc-nanashi`              |
-| Repository name   | `competitive-programming-cli` |
-| Workflow filename | `release.yml`                 |
-| Environment       | `publish`                     |
-
-Run the **Release** workflow manually from the branch to release, supplying a
-version without the `v` prefix (for example, `0.1.0` or `0.1.0-rc.1`). The
-environment's deployment rules must allow that branch.
-
-After CI passes, the workflow updates `Cargo.toml` and `Cargo.lock` in a release
-commit, verifies the package, builds the Linux binary, and publishes to crates.io
-using a short-lived OIDC token. It then pushes the `v<version>` tag and creates a
-GitHub release containing the binary archive.
-Prerelease versions are marked as prereleases on GitHub. The version commit is
-only pushed as a tag; the source branch keeps its existing version.
+Refer the [Documentation](https://sevenc7c.com/competitive-programming-cli/installation/index.html) for installation.
 
 ## Acknowledgements
 
