@@ -162,7 +162,7 @@ pub struct Test {
     #[usage(flatten)]
     pub program: ProgramArgs,
     /// Show case input, expected output, and actual output (or interactive transcript).
-    #[usage(long, value_enum, default = "failure")]
+    #[usage(long, value_enum, default = "failure", short = 'v')]
     pub show_io: ShowIo,
     /// Directory containing .in and .out test files.
     ///
