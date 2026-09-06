@@ -296,6 +296,30 @@ problem_directory = "."
 }
 
 #[test]
+fn configuration_schema() {
+    let directory = tempfile::tempdir().unwrap();
+    let output = run(&directory, &["config", "--schema"], 0);
+    assert!(output.stderr.is_empty());
+    let schema: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(schema["type"], "object");
+    assert_eq!(schema["additionalProperties"], false);
+    assert!(schema["properties"]["setup"].is_object());
+    assert!(schema["properties"]["language"].is_object());
+    assert!(!directory.path().join("config").exists());
+
+    run_with_input(command(&directory).arg("init"), "\n", 0);
+    let config_path = directory.path().join("config/config.toml");
+    assert!(
+        fs::read_to_string(&config_path)
+            .unwrap()
+            .starts_with(&format!("#:schema {}\n", schema["$id"].as_str().unwrap()))
+    );
+    fs::write(config_path, "invalid configuration").unwrap();
+    let unchanged = run(&directory, &["config", "--schema"], 0);
+    assert_eq!(unchanged.stdout, output.stdout);
+}
+
+#[test]
 fn configuration_paths() {
     let directory = tempfile::tempdir().unwrap();
     run(&directory, &["config"], 2);
@@ -380,6 +404,7 @@ fn configuration_paths() {
         assert_eq!(output.stdout, expected.stdout);
     }
     let flags = [
+        "--schema",
         "--root",
         "--config-dir",
         "--cookies-dir",

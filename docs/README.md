@@ -14,9 +14,15 @@ aube run build
 [`usage generate markdown`](https://usage.jdx.dev/cli/reference/generate/markdown).
 Edit the command definitions and help in `src/cli.rs`; the generated
 `docs/cpg.usage.kdl` and `docs/content/command-reference.md` are ignored by Git.
-Run `aube run reference` inside `docs` to regenerate only the reference.
+Run `aube run reference` inside `docs` to regenerate the reference and configuration schema.
 Releases generate `command-reference.md` from the release binary's usage spec
 and include it in the binary archive and as a separate download.
+
+The same commands regenerate `public/config.schema.json` from `cpg config --schema`
+using schemars. Edit the types and doc comments in `src/config.rs`; the generated
+schema is checked into Git and published with the documentation. Releases regenerate
+it from the release binary, commit it before creating the version tag, and include
+it in the archive and as a separate download.
 
 To update the demo GIF and asciinema recording, run `mise run demo` from the
 repository root. Recording requires Ruby, FFmpeg, and the tools in `mise.toml`.

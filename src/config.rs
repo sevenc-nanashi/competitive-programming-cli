@@ -1,5 +1,6 @@
 use anyhow::{Context, Result, ensure};
 use console::Style;
+use schemars::JsonSchema;
 use serde::Deserialize;
 use std::{
     collections::BTreeMap,
@@ -15,6 +16,12 @@ use std::{
     thread,
     time::Duration,
 };
+
+const SCHEMA_URL: &str = concat!(
+    "https://raw.githubusercontent.com/sevenc-nanashi/competitive-programming-cli/refs/tags/v",
+    env!("CARGO_PKG_VERSION"),
+    "/docs/public/config.schema.json"
+);
 
 #[derive(Debug)]
 pub struct Paths {
@@ -169,6 +176,7 @@ pub fn init(paths: &Paths, args: &crate::cli::Init, interrupted: &AtomicBool) ->
         tracing::info!("Keeping existing configuration: {}", config_path.display());
     } else {
         let mut staging = tempfile::NamedTempFile::new_in(&paths.config)?;
+        writeln!(staging, "#:schema {SCHEMA_URL}")?;
         staging.write_all(toml::to_string(&BTreeMap::from([("root", &root)]))?.as_bytes())?;
         staging.as_file().sync_all()?;
         staging
@@ -308,54 +316,77 @@ fn read_oj_templates(config_path: &Path) -> Result<Vec<OjTemplate>> {
         .collect()
 }
 
-#[derive(Debug, Default, Deserialize)]
+/// Configuration for cpg (config.toml).
+#[derive(Debug, Default, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
+#[schemars(title = "cpg configuration", extend("$id" = SCHEMA_URL))]
 pub struct Config {
+    /// Workspace root. Expands a leading ~ to HOME; relative paths resolve from the current directory.
+    #[schemars(length(min = 1))]
     pub root: Option<PathBuf>,
+    /// Shell commands to run after copying each template.
     #[serde(default)]
     pub setup: Setup,
+    /// Languages keyed by name. The executable language customizes the executable-file fallback.
     #[serde(default)]
     pub language: BTreeMap<String, Language>,
 }
 
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Default, Deserialize, JsonSchema)]
 #[serde(default, deny_unknown_fields)]
 pub struct Setup {
+    /// Run after copying the workspace template, in the standalone problem or contest root.
     #[serde(deserialize_with = "setup_commands")]
+    #[schemars(with = "SetupCommands")]
     pub workspace: Vec<String>,
+    /// Run after copying the problem template, in each problem directory.
     #[serde(deserialize_with = "setup_commands")]
+    #[schemars(with = "SetupCommands")]
     pub problem: Vec<String>,
+    /// Run after copying the contest template, in the contest root.
     #[serde(deserialize_with = "setup_commands")]
+    #[schemars(with = "SetupCommands")]
     pub contest: Vec<String>,
+    /// Run after copying the single problem template, in the standalone problem root.
     #[serde(deserialize_with = "setup_commands")]
+    #[schemars(with = "SetupCommands")]
     pub single_problem: Vec<String>,
+}
+
+/// One shell command or multiple commands run in order in separate shells. Use [] to run none.
+#[derive(Deserialize, JsonSchema)]
+#[serde(untagged)]
+enum SetupCommands {
+    Single(String),
+    Multiple(Vec<String>),
 }
 
 fn setup_commands<'de, D: serde::Deserializer<'de>>(
     deserializer: D,
 ) -> Result<Vec<String>, D::Error> {
-    #[derive(Deserialize)]
-    #[serde(untagged)]
-    enum Commands {
-        Single(String),
-        Multiple(Vec<String>),
-    }
-    Ok(match Commands::deserialize(deserializer)? {
-        Commands::Single(command) => vec![command],
-        Commands::Multiple(commands) => commands,
+    Ok(match SetupCommands::deserialize(deserializer)? {
+        SetupCommands::Single(command) => vec![command],
+        SetupCommands::Multiple(commands) => commands,
     })
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Language {
+    /// File extensions without the leading dot. Use [] for the executable fallback.
     pub extensions: Vec<String>,
+    /// Shell command before compilation, execution, or submission. Receives source on stdin and via {input}; writes transformed UTF-8 source to stdout.
     pub preprocess: Option<String>,
+    /// Shell command before submission, after preprocess. Receives source on stdin and via {input}; writes transformed UTF-8 source to stdout.
     pub presubmit: Option<String>,
+    /// Compilation shell command with shell-quoted {input} and {binary} paths. Omit for interpreted languages.
     pub compile: Option<String>,
+    /// Execution shell command with shell-quoted {input} and {binary} paths.
     pub run: String,
+    /// Named compile/run overrides selected with --profile. Omitted commands inherit language settings.
     #[serde(default)]
     pub profile: BTreeMap<String, Profile>,
+    /// Submission language IDs keyed by service (atcoder or yukicoder). AtCoder Problems uses atcoder. IDs must be strings.
     #[serde(default)]
     pub submit: BTreeMap<String, String>,
 }
@@ -370,14 +401,24 @@ static EXECUTABLE: LazyLock<Language> = LazyLock::new(|| Language {
     submit: BTreeMap::new(),
 });
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Profile {
+    /// Override the compilation shell command. Supports {input} and {binary}.
     pub compile: Option<String>,
+    /// Override the execution shell command. Supports {input} and {binary}.
     pub run: Option<String>,
 }
 
+const SCHEMA_PATTERN: &str = "#:schema https://raw.githubusercontent.com/sevenc-nanashi/competitive-programming-cli/refs/tags/v";
+
 impl Config {
+    pub fn schema() -> schemars::Schema {
+        schemars::generate::SchemaSettings::draft07()
+            .into_generator()
+            .into_root_schema_for::<Self>()
+    }
+
     pub fn load(paths: &Paths) -> Result<Self> {
         let path = paths.config.join("config.toml");
         let text = match fs::read_to_string(&path) {
@@ -385,6 +426,14 @@ impl Config {
             Err(e) if e.kind() == ErrorKind::NotFound => return Ok(Self::default()),
             Err(e) => return Err(e).with_context(|| format!("Cannot read {}", path.display())),
         };
+        if text.contains(SCHEMA_PATTERN) && !text.contains(env!("CARGO_PKG_VERSION")) {
+            tracing::warn!("Configuration schema version does not match the current version.");
+            tracing::warn!(
+                "Consider updating your configuration to match the current schema: {}",
+                SCHEMA_URL
+            );
+        }
+
         toml::from_str(&text).with_context(|| format!("Invalid configuration: {}", path.display()))
     }
 

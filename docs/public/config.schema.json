@@ -1,0 +1,168 @@
+{
+  "$id": "https://raw.githubusercontent.com/sevenc-nanashi/competitive-programming-cli/refs/tags/v0.1.0-preview.3/docs/public/config.schema.json",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "cpg configuration",
+  "description": "Configuration for cpg (config.toml).",
+  "type": "object",
+  "properties": {
+    "language": {
+      "description": "Languages keyed by name. The executable language customizes the executable-file fallback.",
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/definitions/Language"
+      }
+    },
+    "root": {
+      "description": "Workspace root. Expands a leading ~ to HOME; relative paths resolve from the current directory.",
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 1
+    },
+    "setup": {
+      "description": "Shell commands to run after copying each template.",
+      "allOf": [
+        {
+          "$ref": "#/definitions/Setup"
+        }
+      ]
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "Language": {
+      "type": "object",
+      "properties": {
+        "compile": {
+          "description": "Compilation shell command with shell-quoted {input} and {binary} paths. Omit for interpreted languages.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "extensions": {
+          "description": "File extensions without the leading dot. Use [] for the executable fallback.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "preprocess": {
+          "description": "Shell command before compilation, execution, or submission. Receives source on stdin and via {input}; writes transformed UTF-8 source to stdout.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "presubmit": {
+          "description": "Shell command before submission, after preprocess. Receives source on stdin and via {input}; writes transformed UTF-8 source to stdout.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "profile": {
+          "description": "Named compile/run overrides selected with --profile. Omitted commands inherit language settings.",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/Profile"
+          }
+        },
+        "run": {
+          "description": "Execution shell command with shell-quoted {input} and {binary} paths.",
+          "type": "string"
+        },
+        "submit": {
+          "description": "Submission language IDs keyed by service (atcoder or yukicoder). AtCoder Problems uses atcoder. IDs must be strings.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "default": {}
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "extensions",
+        "run"
+      ]
+    },
+    "Profile": {
+      "type": "object",
+      "properties": {
+        "compile": {
+          "description": "Override the compilation shell command. Supports {input} and {binary}.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "run": {
+          "description": "Override the execution shell command. Supports {input} and {binary}.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "Setup": {
+      "type": "object",
+      "properties": {
+        "contest": {
+          "description": "Run after copying the contest template, in the contest root.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/SetupCommands"
+            }
+          ],
+          "default": []
+        },
+        "problem": {
+          "description": "Run after copying the problem template, in each problem directory.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/SetupCommands"
+            }
+          ],
+          "default": []
+        },
+        "single_problem": {
+          "description": "Run after copying the single problem template, in the standalone problem root.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/SetupCommands"
+            }
+          ],
+          "default": []
+        },
+        "workspace": {
+          "description": "Run after copying the workspace template, in the standalone problem or contest root.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/SetupCommands"
+            }
+          ],
+          "default": []
+        }
+      },
+      "additionalProperties": false
+    },
+    "SetupCommands": {
+      "description": "One shell command or multiple commands run in order in separate shells. Use [] to run none.",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      ]
+    }
+  }
+}

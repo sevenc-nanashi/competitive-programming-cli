@@ -48,31 +48,35 @@ jobs:
         id: version
         run: |
           cargo set-version "$RELEASE_VERSION"
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add Cargo.toml Cargo.lock
-          git commit -m "chore: release v$RELEASE_VERSION"
-          git tag "v$RELEASE_VERSION"
           version_without_metadata="${RELEASE_VERSION%%+*}"
           if [[ "$version_without_metadata" == *-* ]]; then
             echo "prerelease=true" >> "$GITHUB_OUTPUT"
           else
             echo "prerelease=false" >> "$GITHUB_OUTPUT"
           fi
-      - run: cargo publish --locked --dry-run
       - run: cargo build --locked --release --target x86_64-unknown-linux-gnu
       - name: Generate command reference
         run: |
           target/x86_64-unknown-linux-gnu/release/cpg __usage_spec__ > target/cpg.usage.kdl
           usage generate markdown --file target/cpg.usage.kdl --out-file target/command-reference.md
+      - name: Generate configuration schema
+        run: target/x86_64-unknown-linux-gnu/release/cpg config --schema > docs/public/config.schema.json
       - name: Generate third-party notices
         run: cargo about generate --locked --fail about.hbs --output-file target/notice.md
+      - name: Commit release
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Cargo.toml Cargo.lock docs/public/config.schema.json
+          git commit -m "chore: release v$RELEASE_VERSION"
+          git tag "v$RELEASE_VERSION"
+      - run: cargo publish --locked --dry-run
       - name: Package
         run: |
           mkdir "$RUNNER_TEMP/dist"
-          cp target/x86_64-unknown-linux-gnu/release/cpg README.md LICENSE target/notice.md target/command-reference.md "$RUNNER_TEMP/dist/"
+          cp target/x86_64-unknown-linux-gnu/release/cpg README.md LICENSE target/notice.md target/command-reference.md docs/public/config.schema.json "$RUNNER_TEMP/dist/"
           cd "$RUNNER_TEMP"
-          tar -C dist -czf cpg-x86_64-unknown-linux-gnu.tar.gz cpg README.md LICENSE notice.md command-reference.md
+          tar -C dist -czf cpg-x86_64-unknown-linux-gnu.tar.gz cpg README.md LICENSE notice.md command-reference.md config.schema.json
       - name: Authenticate to crates.io
         uses: rust-lang/crates-io-auth-action@v1
         id: crates-io-auth
@@ -94,3 +98,4 @@ jobs:
             ${{ runner.temp }}/cpg-x86_64-unknown-linux-gnu.tar.gz
             ${{ runner.temp }}/dist/notice.md
             ${{ runner.temp }}/dist/command-reference.md
+            ${{ runner.temp }}/dist/config.schema.json

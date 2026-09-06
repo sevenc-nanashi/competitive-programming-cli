@@ -27,6 +27,10 @@ You can also set the workspace root manually in `$config/config.toml`:
 root = "/home/your-name/competitive-programming"
 ```
 
+The JSON Schema for the configuration file is available on
+`https://raw.githubusercontent.com/sevenc-nanashi/competitive-programming-cli/refs/tags/v{version}/docs/public/config.schema.json`,
+or print it locally with `cpg config --schema`.
+
 After setting the root, inspect the current paths with:
 
 ```bash

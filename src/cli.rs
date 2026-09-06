@@ -75,6 +75,8 @@ pub struct Config {
 #[derive(Debug, Clone, Copy, usage::ArgGroup)]
 #[usage(name = "field")]
 pub enum ConfigField {
+    /// Print the configuration JSON Schema generated from cpg's configuration types.
+    Schema,
     /// Print only the absolute workspace root.
     Root,
     /// Print only the absolute configuration directory.

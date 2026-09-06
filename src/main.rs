@@ -38,6 +38,10 @@ fn run(cli: Cli, interrupted: &AtomicBool) -> Result<bool> {
             match args.field {
                 Some(field) => {
                     let path = match field {
+                        ConfigField::Schema => {
+                            println!("{}", serde_json::to_string_pretty(&Config::schema())?);
+                            return Ok(true);
+                        }
                         ConfigField::Root => Config::load(&paths)?.root()?,
                         ConfigField::ConfigDir => config_dir,
                         ConfigField::CookiesDir => std::path::absolute(&paths.cookies)?,
