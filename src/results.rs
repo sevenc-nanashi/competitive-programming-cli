@@ -23,7 +23,39 @@ use std::{
 };
 
 const REFRESH_INTERVAL: Duration = Duration::from_secs(3);
+const IDLE_TIMEOUT: Duration = Duration::from_secs(2 * 60 * 60);
 const HEADERS: [&str; 6] = ["STATUS", "PROBLEM", "RUNTIME", "LANGUAGE", "TIME", "ID"];
+
+struct IdleTimer {
+    deadline: Instant,
+    latest_submission: Option<String>,
+}
+
+impl IdleTimer {
+    fn new(now: Instant) -> Self {
+        Self {
+            deadline: now + IDLE_TIMEOUT,
+            latest_submission: None,
+        }
+    }
+
+    fn reset(&mut self, now: Instant) {
+        self.deadline = now + IDLE_TIMEOUT;
+    }
+
+    fn observe_submission(&mut self, latest: Option<&str>, now: Instant) {
+        if let Some(id) = latest
+            && self.latest_submission.as_deref() != Some(id)
+        {
+            self.latest_submission = Some(id.to_owned());
+            self.reset(now);
+        }
+    }
+
+    fn expired(&self, now: Instant) -> bool {
+        now >= self.deadline
+    }
+}
 
 pub fn run(
     args: &Results,
@@ -192,6 +224,7 @@ fn monitor(
     let mut fetching = false;
     let mut paused = false;
     let mut refresh_at = Instant::now();
+    let mut idle = IdleTimer::new(refresh_at);
     let mut submissions = Vec::new();
     let mut rows = table(&submissions);
     let mut offset = 0usize;
@@ -202,6 +235,10 @@ fn monitor(
         match update_rx.try_recv() {
             Ok(result) => {
                 submissions = result?;
+                idle.observe_submission(
+                    submissions.first().map(|submission| submission.id.as_str()),
+                    Instant::now(),
+                );
                 rows = table(&submissions);
                 fetching = false;
                 refresh_at = Instant::now() + REFRESH_INTERVAL;
@@ -214,6 +251,10 @@ fn monitor(
                 Ok(()) => "Opened submission in browser".into(),
                 Err(error) => format!("{error:#}"),
             };
+        }
+        if !paused && !fetching && idle.expired(Instant::now()) {
+            paused = true;
+            message = "No new submissions or interaction for 2 hours; press p to resume".into();
         }
         if !paused && !fetching && Instant::now() >= refresh_at {
             request_tx.send(())?;
@@ -286,19 +327,27 @@ fn monitor(
         if !event::poll(Duration::from_millis(100))? {
             continue;
         }
-        let Event::Key(key) = event::read()? else {
-            continue;
-        };
-        if key.kind == KeyEventKind::Release {
+        let event = event::read()?;
+        if matches!(event, Event::Key(key) if key.kind == KeyEventKind::Release) {
             continue;
         }
+        idle.reset(Instant::now());
+        let Event::Key(key) = event else {
+            continue;
+        };
         match key.code {
             KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                 interrupted.store(true, Ordering::Relaxed);
                 break;
             }
             KeyCode::Char('q') | KeyCode::Esc => break,
-            KeyCode::Char('p') => paused = !paused,
+            KeyCode::Char('p') => {
+                paused = !paused;
+                if !paused {
+                    refresh_at = Instant::now();
+                    message.clear();
+                }
+            }
             KeyCode::Char('r') if !fetching => {
                 request_tx.send(())?;
                 fetching = true;
@@ -331,6 +380,35 @@ fn monitor(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn idle_timeout_tracks_submissions_and_interaction() {
+        let start = Instant::now();
+        let mut idle = IdleTimer::new(start);
+        let before_timeout = start + IDLE_TIMEOUT - Duration::from_millis(1);
+        idle.observe_submission(None, before_timeout);
+        assert!(!idle.expired(before_timeout));
+        assert!(idle.expired(start + IDLE_TIMEOUT));
+
+        // Existing results and status changes do not keep the monitor awake.
+        let mut idle = IdleTimer::new(start);
+        idle.observe_submission(Some("10"), start);
+        idle.observe_submission(Some("10"), before_timeout);
+        idle.observe_submission(None, before_timeout);
+        assert!(idle.expired(start + IDLE_TIMEOUT));
+
+        // A newly observed submission starts another two-hour window.
+        idle.observe_submission(Some("11"), before_timeout);
+        assert!(!idle.expired(start + IDLE_TIMEOUT));
+        assert!(idle.expired(before_timeout + IDLE_TIMEOUT));
+
+        // Terminal interaction, including resume, also starts a fresh window.
+        let resumed = before_timeout + IDLE_TIMEOUT;
+        idle.reset(resumed);
+        idle.observe_submission(Some("11"), resumed + IDLE_TIMEOUT - Duration::from_secs(1));
+        assert!(!idle.expired(resumed + IDLE_TIMEOUT - Duration::from_millis(1)));
+        assert!(idle.expired(resumed + IDLE_TIMEOUT));
+    }
 
     #[test]
     fn colors_and_unicode_columns() {

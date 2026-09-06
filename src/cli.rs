@@ -251,6 +251,7 @@ pub struct Submit {
 #[derive(Debug, usage::Args)]
 pub struct Results {
     /// Monitor submissions in an interactive terminal UI.
+    /// Automatically pause after two hours without new submissions or terminal interaction.
     #[usage(long, short = 'i')]
     pub ui: bool,
     /// Maximum number of recent submissions to display.

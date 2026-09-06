@@ -64,6 +64,13 @@ On a terminal, both modes use aligned columns and colored status labels. URLs
 appear below each submission in the normal listing. `--no-color` or `NO_COLOR`
 disables colors.
 
+The interactive monitor refreshes every three seconds. It pauses automatically
+after two hours without a newly observed submission or terminal interaction,
+including when there are no submissions. Regular refreshes and verdict changes
+do not reset this timer. Press `p` to pause or resume polling; resuming fetches
+results immediately and starts a new two-hour window. `r` refreshes once while
+keeping the current pause state, and `q` quits.
+
 When stdout is piped or redirected, both `results` and `results --ui` print a
 single snapshot in the original tab-separated format, with the same header and
 column order and no colors or terminal controls.
