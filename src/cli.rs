@@ -239,6 +239,9 @@ pub struct Submit {
     /// Solution source file to submit.
     #[usage(value_hint = usage::ValueHint::FilePath)]
     pub file: PathBuf,
+    /// Copy the source after preprocess and presubmit to the clipboard without submitting.
+    #[usage(long, short = 'c', conflicts("--problem", "--language"))]
+    pub clipboard: bool,
     /// Submit to this problem URL instead of detecting it from the source's .cpg.toml.
     #[usage(long, value_hint = usage::ValueHint::Url)]
     pub problem: Option<Url>,

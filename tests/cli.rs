@@ -304,6 +304,7 @@ fn configuration_schema() {
     assert_eq!(schema["type"], "object");
     assert_eq!(schema["additionalProperties"], false);
     assert!(schema["properties"]["setup"].is_object());
+    assert!(schema["properties"]["clipboard"].is_object());
     assert!(schema["properties"]["language"].is_object());
     assert!(!directory.path().join("config").exists());
 
@@ -317,6 +318,121 @@ fn configuration_schema() {
     fs::write(config_path, "invalid configuration").unwrap();
     let unchanged = run(&directory, &["config", "--schema"], 0);
     assert_eq!(unchanged.stdout, output.stdout);
+}
+
+#[test]
+fn clipboard() {
+    let directory = tempfile::tempdir().unwrap();
+    fs::create_dir(directory.path().join("config")).unwrap();
+    let config_path = directory.path().join("config/config.toml");
+    let configure = |script: &str| {
+        fs::write(
+            &config_path,
+            format!("[clipboard]\nkind = 'command'\ncommand = {script:?}\n"),
+        )
+        .unwrap();
+    };
+    let args = ["submit", "solution.txt", "--clipboard"];
+    configure("cat > 'copied text'; echo clipboard-output");
+    for text in [
+        String::new(),
+        "競プロ\r\n'\"`$(touch injected)`\nno eol".repeat(10000),
+    ] {
+        fs::write(directory.path().join("solution.txt"), &text).unwrap();
+        let output = run(&directory, &args, 0);
+        assert!(output.stdout.is_empty());
+        assert!(String::from_utf8_lossy(&output.stderr).contains("clipboard-output"));
+        assert_eq!(
+            fs::read_to_string(directory.path().join("copied text")).unwrap(),
+            text
+        );
+        assert!(!directory.path().join("injected").exists());
+    }
+    fs::write(&config_path, "[clipboard]\nkind = 'command'\ncommand = \"cat > 'copied text'\"\n[language.text]\nextensions = ['txt']\nrun = 'cat {input}'\npreprocess = \"tr a-z A-Z\"\npresubmit = \"cat; printf '!done'\"\n").unwrap();
+    fs::write(directory.path().join("solution.txt"), "hello\n").unwrap();
+    run(&directory, &args, 0);
+    assert_eq!(
+        fs::read_to_string(directory.path().join("copied text")).unwrap(),
+        "HELLO\n!done"
+    );
+
+    // Clipboard commands may keep a background process alive to serve the copied text.
+    configure(
+        "cat > 'copied text'; (sleep 0.1; printf alive > retained) </dev/null >/dev/null 2>&1 &",
+    );
+    run(&directory, &args, 0);
+    let started = Instant::now();
+    while !directory.path().join("retained").exists() {
+        assert!(
+            started.elapsed() < Duration::from_secs(5),
+            "Clipboard daemon was killed"
+        );
+        thread::sleep(Duration::from_millis(10));
+    }
+
+    // Interrupt a command that never consumes its input, even when the input pipe fills up.
+    fs::write(directory.path().join("solution.txt"), "a".repeat(1_000_000)).unwrap();
+    configure("ruby -e 'STDOUT.sync = true; puts \"clipboard ready\"; sleep 30'");
+    let mut child = command(&directory)
+        .args(args)
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    assert!(
+        BufReader::new(child.stderr.take().unwrap())
+            .lines()
+            .any(|line| line.unwrap() == "clipboard ready")
+    );
+    unsafe {
+        libc::kill(child.id() as i32, libc::SIGINT);
+    }
+    let started = Instant::now();
+    loop {
+        if let Some(status) = child.try_wait().unwrap() {
+            assert_eq!(status.code(), Some(130));
+            break;
+        }
+        if started.elapsed() > Duration::from_secs(5) {
+            child.kill().unwrap();
+            child.wait().unwrap();
+            panic!("Clipboard command ignored SIGINT");
+        }
+        thread::sleep(Duration::from_millis(10));
+    }
+
+    for (script, error) in [
+        ("exit 7", "Clipboard command failed"),
+        ("cpg-missing-clipboard-command", "Clipboard command failed"),
+        (" ", "Clipboard command must not be empty"),
+    ] {
+        configure(script);
+        let output = run(&directory, &args, 2);
+        assert!(String::from_utf8_lossy(&output.stderr).contains(error));
+    }
+    for settings in [
+        "kind = 'invalid'",
+        "kind = 'command'",
+        "kind = 'command'\ncommand = 42",
+        "kind = 'arboard'\ncommand = 'cat'",
+    ] {
+        fs::write(&config_path, format!("[clipboard]\n{settings}\n")).unwrap();
+        let output = run(&directory, &args, 2);
+        assert!(String::from_utf8_lossy(&output.stderr).contains("Invalid configuration"));
+    }
+    for config in ["", "[clipboard]\nkind = 'arboard'\n"] {
+        fs::write(&config_path, config).unwrap();
+        let output = command(&directory)
+            .args(args)
+            .env_remove("DISPLAY")
+            .env_remove("WAYLAND_DISPLAY")
+            .env_remove("WAYLAND_SOCKET")
+            .output()
+            .unwrap();
+        assert_eq!(output.status.code(), Some(2));
+        assert!(
+            String::from_utf8_lossy(&output.stderr).contains("Cannot open the system clipboard")
+        );
+    }
 }
 
 #[test]

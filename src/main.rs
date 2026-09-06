@@ -146,12 +146,13 @@ fn run(cli: Cli, interrupted: &AtomicBool) -> Result<bool> {
                     .parent()
                     .context("Source has no parent directory")?,
             )?;
-            if let Some((
-                directory,
-                Metadata::Problem {
-                    template_checksums, ..
-                },
-            )) = &local
+            if !args.clipboard
+                && let Some((
+                    directory,
+                    Metadata::Problem {
+                        template_checksums, ..
+                    },
+                )) = &local
                 && let Some(expected) = template_checksums.get(source_path.strip_prefix(directory)?)
                 && *expected == workspace::checksum(source.as_bytes())
             {
@@ -171,6 +172,11 @@ fn run(cli: Cli, interrupted: &AtomicBool) -> Result<bool> {
                 Some(prepared) => fs::read_to_string(prepared.path())?,
                 None => source,
             };
+            if args.clipboard {
+                runner::copy_to_clipboard(&config.clipboard, &source, interrupted)?;
+                tracing::info!("Copied {} bytes to the clipboard", source.len());
+                return Ok(true);
+            }
             let services = Services::new(&paths)?;
             let problem = match args.problem {
                 Some(url) => services.resolve(&url)?.problem()?,

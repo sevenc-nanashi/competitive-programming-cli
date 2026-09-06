@@ -83,6 +83,37 @@ Other environment variables in TOML paths are not expanded. Arguments after
   - Files and directories within this directory is called "single problem template".
   - This should contain files that makes single problem directory self-contained, such as overwriting `Cargo.toml` with one without workspace dependencies, etc.
 
+## Clipboard
+
+`cpg submit --clipboard` copies the source after preprocessing and presubmit.
+Choose its backend with `[clipboard]` in `$config/config.toml`:
+
+```toml
+[clipboard]
+kind = "arboard"
+```
+
+`arboard` is the default when the section is omitted. It uses the system
+clipboard through [arboard](https://docs.rs/arboard/latest/arboard/).
+On Linux, a clipboard manager must retain the text after cpg exits; otherwise,
+use a command such as `wl-copy` or `xclip` below.
+
+To use a clipboard command instead:
+
+```toml
+[clipboard]
+kind = "command"
+command = "wl-copy"
+```
+
+`command` is required for this backend and runs through `sh -c` in the current
+directory. The complete UTF-8 text is piped to its standard input without adding
+a newline. Command stdout and stderr go to cpg's stderr. A nonzero exit status
+fails the copy; Ctrl-C stops the command and its process group.
+For X11, you can use `command = "xclip -selection clipboard"`.
+
+On WSL, you might want to use `command = "/mnt/c/Windows/System32/clip.exe"` to copy to the Windows clipboard.
+
 ## Commands after copying templates
 
 Add `[setup]` to `$config/config.toml` to run shell commands immediately after

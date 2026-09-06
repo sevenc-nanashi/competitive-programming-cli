@@ -1,6 +1,6 @@
 use crate::{
     cli::{FloatErrorType, Generate, ProgramArgs, ShowIo, Test},
-    config::{Config, Language, expand_path},
+    config::{Clipboard, Config, Language, expand_path},
 };
 use anyhow::{Context, Result, ensure};
 use console::Style;
@@ -213,6 +213,7 @@ fn transform_source(
 struct ManagedChild {
     child: Child,
     status: Option<ExitStatus>,
+    kill_group: bool,
 }
 
 impl ManagedChild {
@@ -246,6 +247,7 @@ impl ManagedChild {
         Ok(Self {
             child,
             status: None,
+            kill_group: true,
         })
     }
 
@@ -260,8 +262,10 @@ impl ManagedChild {
 impl Drop for ManagedChild {
     fn drop(&mut self) {
         // The shell and all children inheriting its process group are owned by this run.
-        unsafe {
-            libc::kill(-(self.child.id() as i32), libc::SIGKILL);
+        if self.kill_group {
+            unsafe {
+                libc::kill(-(self.child.id() as i32), libc::SIGKILL);
+            }
         }
         let _ = self.child.wait();
     }
@@ -453,6 +457,54 @@ pub fn setup(command: &str, directory: &Path, interrupted: &AtomicBool) -> Resul
         result.verdict
     );
     Ok(())
+}
+
+pub fn copy_to_clipboard(
+    clipboard: &Clipboard,
+    content: &str,
+    interrupted: &AtomicBool,
+) -> Result<()> {
+    ensure!(!interrupted.load(Ordering::Relaxed), "Interrupted");
+    match clipboard {
+        // ponytail: persistence after exit relies on a clipboard manager; use command for wl-copy/xclip.
+        Clipboard::Arboard {} => arboard::Clipboard::new()
+            .context("Cannot open the system clipboard")?
+            .set_text(content)
+            .context("Cannot copy text to the clipboard"),
+        Clipboard::Command { command } => {
+            ensure!(
+                !command.trim().is_empty(),
+                "Clipboard command must not be empty"
+            );
+            let program = Program::shell(command.clone(), std::env::current_dir()?);
+            let mut child = ManagedChild::spawn(&program, Stdio::piped(), io::stderr().into())?;
+            let mut stdin = child
+                .child
+                .stdin
+                .take()
+                .context("Missing clipboard command stdin")?;
+            thread::scope(|scope| {
+                let writer = scope.spawn(move || stdin.write_all(content.as_bytes()));
+                let result = monitor(&mut [&mut child], Limits::default(), interrupted);
+                if matches!(&result, Ok(result) if result.verdict == Verdict::Ac) {
+                    writer
+                        .join()
+                        .expect("Clipboard writer panicked")
+                        .context("Cannot write to clipboard command")?;
+                    // Clipboard tools such as wl-copy keep serving data in a background process.
+                    child.kill_group = false;
+                }
+                drop(child);
+                let result = result?;
+                ensure!(
+                    result.verdict == Verdict::Ac,
+                    "Clipboard command failed ({})",
+                    result.verdict
+                );
+                Ok(())
+            })
+        }
+    }
 }
 
 fn relay(

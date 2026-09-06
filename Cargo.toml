@@ -15,6 +15,7 @@ path = "src/main.rs"
 
 [dependencies]
 anyhow = "1"
+arboard = { version = "3.6.1", default-features = false, features = ["wayland-data-control"] }
 colored = "3"
 console = "0.16"
 cookie = "0.18"

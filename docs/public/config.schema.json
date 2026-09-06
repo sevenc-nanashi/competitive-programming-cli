@@ -5,6 +5,14 @@
   "description": "Configuration for cpg (config.toml).",
   "type": "object",
   "properties": {
+    "clipboard": {
+      "description": "Clipboard backend. Defaults to arboard; command sends the text to a shell command's stdin.",
+      "allOf": [
+        {
+          "$ref": "#/definitions/Clipboard"
+        }
+      ]
+    },
     "language": {
       "description": "Languages keyed by name. The executable language customizes the executable-file fallback.",
       "type": "object",
@@ -31,6 +39,44 @@
   },
   "additionalProperties": false,
   "definitions": {
+    "Clipboard": {
+      "oneOf": [
+        {
+          "description": "Use the system clipboard through arboard.",
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "arboard"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind"
+          ]
+        },
+        {
+          "description": "Pipe the text to a shell command.",
+          "type": "object",
+          "properties": {
+            "command": {
+              "description": "Shell command receiving UTF-8 text on stdin, without an added newline.",
+              "type": "string",
+              "minLength": 1
+            },
+            "kind": {
+              "type": "string",
+              "const": "command"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "command"
+          ]
+        }
+      ]
+    },
     "Language": {
       "type": "object",
       "properties": {

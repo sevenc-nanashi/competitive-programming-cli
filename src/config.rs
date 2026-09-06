@@ -327,9 +327,31 @@ pub struct Config {
     /// Shell commands to run after copying each template.
     #[serde(default)]
     pub setup: Setup,
+    /// Clipboard backend. Defaults to arboard; command sends the text to a shell command's stdin.
+    #[serde(default)]
+    pub clipboard: Clipboard,
     /// Languages keyed by name. The executable language customizes the executable-file fallback.
     #[serde(default)]
     pub language: BTreeMap<String, Language>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+pub enum Clipboard {
+    /// Use the system clipboard through arboard.
+    Arboard {},
+    /// Pipe the text to a shell command.
+    Command {
+        /// Shell command receiving UTF-8 text on stdin, without an added newline.
+        #[schemars(length(min = 1))]
+        command: String,
+    },
+}
+
+impl Default for Clipboard {
+    fn default() -> Self {
+        Self::Arboard {}
+    }
 }
 
 #[derive(Debug, Default, Deserialize, JsonSchema)]

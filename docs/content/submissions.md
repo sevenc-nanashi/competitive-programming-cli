@@ -37,6 +37,18 @@ when `--problem` is specified. To intentionally submit the unchanged file:
 cpg submit ./solution.cpp --allow-submit-unchanged-solution
 ```
 
+## Copy a solution to the clipboard
+
+```bash
+cpg submit ./solution.cpp --clipboard
+```
+
+This runs the configured `preprocess` and `presubmit` commands, then copies the
+result using the [clipboard backend](./configuration.md#clipboard). It does not
+submit or contact the judge, and needs no problem metadata, cookies, or submission
+language ID. Unchanged templates can also be copied. `--clipboard` cannot be
+combined with `--problem` or `--language`.
+
 ## List results of submissions
 
 You can list the results of your submissions.
