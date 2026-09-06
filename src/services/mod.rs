@@ -20,7 +20,7 @@ use std::{
     fs,
     io::{Cursor, ErrorKind, Write},
     os::unix::fs::{DirBuilderExt, PermissionsExt},
-    path::Path,
+    path::{Path, PathBuf},
     sync::{Arc, Mutex},
     thread,
     time::{Duration, Instant},
@@ -45,15 +45,29 @@ pub struct Services {
     yukicoder: YukicoderBackend,
     #[cfg(feature = "mock")]
     mock: mock::MockBackend,
+    missing_cookies: Mutex<HashMap<&'static str, PathBuf>>,
 }
 
 impl Services {
     pub fn new(paths: &Paths) -> Result<Self> {
+        let mut missing_cookies = HashMap::new();
+        let mut load_cookies = |service: ServiceId| -> Result<Vec<u8>> {
+            let name = service.as_str();
+            let path = paths.cookies.join(format!("{name}.txt"));
+            match fs::read(&path) {
+                Ok(raw) => Ok(raw),
+                Err(error) if error.kind() == ErrorKind::NotFound => {
+                    missing_cookies.insert(name, path);
+                    Ok(Vec::new())
+                }
+                Err(error) => Err(error.into()),
+            }
+        };
         let atcoder = AtCoderBackend {
-            http: Http::new(&paths.cookies.join("atcoder.txt"), ServiceId::Atcoder)?,
+            http: Http::from_cookies(&load_cookies(ServiceId::Atcoder)?, ServiceId::Atcoder)?,
         };
         let yukicoder = YukicoderBackend {
-            http: Http::new(&paths.cookies.join("yukicoder.txt"), ServiceId::Yukicoder)?,
+            http: Http::from_cookies(&load_cookies(ServiceId::Yukicoder)?, ServiceId::Yukicoder)?,
         };
         Ok(Self {
             problems: AtCoderProblemsBackend {
@@ -63,22 +77,33 @@ impl Services {
             yukicoder,
             #[cfg(feature = "mock")]
             mock: mock::MockBackend {
-                cookies: cookie_jar(
-                    &read_cookies(&paths.cookies.join("mock.txt"))?,
-                    "mock.local",
-                )?,
+                cookies: cookie_jar(&load_cookies(ServiceId::Mock)?, "mock.local")?,
             },
+            missing_cookies: Mutex::new(missing_cookies),
         })
     }
 
     pub fn backend(&self, service: ServiceId) -> &dyn ServiceBackend {
-        match service {
+        let backend: &dyn ServiceBackend = match service {
             ServiceId::Atcoder => &self.atcoder,
             ServiceId::AtcoderProblems => &self.problems,
             ServiceId::Yukicoder => &self.yukicoder,
             #[cfg(feature = "mock")]
             ServiceId::Mock => &self.mock,
+        };
+        let auth_service = backend.auth_service().as_str();
+        if let Some(path) = self
+            .missing_cookies
+            .lock()
+            .expect("missing cookies lock poisoned")
+            .remove(auth_service)
+        {
+            tracing::warn!(
+                "Missing cookies for {auth_service}: {}; import them with cpg login {auth_service} --cookie-file <path>",
+                path.display()
+            );
         }
+        backend
     }
 
     pub fn resolve(&self, url: &Url) -> Result<ResourceRef> {
@@ -132,14 +157,6 @@ impl Services {
     }
 }
 
-fn read_cookies(path: &Path) -> Result<Vec<u8>> {
-    match fs::read(path) {
-        Ok(raw) => Ok(raw),
-        Err(e) if e.kind() == ErrorKind::NotFound => Ok(Vec::new()),
-        Err(e) => Err(e.into()),
-    }
-}
-
 fn cookie_jar(raw: &[u8], host: &str) -> Result<Arc<Jar>> {
     let jar = Arc::new(Jar::default());
     for record in netscape_cookie_file_parser::parse(Cursor::new(raw))
@@ -180,11 +197,6 @@ pub(super) struct Http {
 }
 
 impl Http {
-    fn new(path: &Path, service: ServiceId) -> Result<Self> {
-        let raw = read_cookies(path)?;
-        Self::from_cookies(&raw, service)
-    }
-
     fn from_cookies(raw: &[u8], service: ServiceId) -> Result<Self> {
         let host = match service {
             ServiceId::Atcoder | ServiceId::AtcoderProblems => "atcoder.jp",

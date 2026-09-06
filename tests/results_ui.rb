@@ -110,10 +110,10 @@ begin
   ]
   Terminal.new(binary, *interactive_args) do |term|
     term.finish(0, ui: false)
-    check(term.output.include?("\e[32m? question"), 'Missing judge output color')
-    check(term.output.include?("\e[33m! answer"), 'Missing solution output color')
+    check(term.output.include?("\e[32m< question"), 'Missing judge output color')
+    check(term.output.include?("\e[33m> answer"), 'Missing solution output color')
     plain = term.output.gsub(/\e\[[\d;]*m/, '')
-    check(plain.include?("? question\r\n! answer\r\n"), 'Extra interaction newlines')
+    check(plain.include?("< question\r\n> answer\r\n"), 'Extra interaction newlines')
     check(!plain.include?('(no eol)'), 'Colored interaction lost its final newline')
   end
 
@@ -127,7 +127,7 @@ begin
   [ [['--no-color'], {}], [[], { 'NO_COLOR' => '1' }] ].each do |flags, env|
     Terminal.new(binary, *flags, *interactive_args, env: env) do |term|
       term.finish(0, ui: false)
-      check(term.output.include?('? question') && term.output.include?('! answer') &&
+      check(term.output.include?('< question') && term.output.include?('> answer') &&
             !term.output.include?("\e"), 'Interaction colors were not disabled')
     end
     Terminal.new(binary, 'test', *flags, '--', 'cat', env: env) do |term|

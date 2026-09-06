@@ -442,6 +442,41 @@ fn open_url_only() {
 }
 
 #[test]
+fn missing_cookies_warning() {
+    for (url, service, host) in [
+        ("https://atcoder.jp/invalid", "atcoder", "atcoder.jp"),
+        ("https://kenkoooo.com/invalid", "atcoder", "atcoder.jp"),
+        ("https://yukicoder.me/invalid", "yukicoder", "yukicoder.me"),
+    ] {
+        let directory = tempfile::tempdir().unwrap();
+        let output = run(&directory, &["download", url], 2);
+        let logs = String::from_utf8_lossy(&output.stderr);
+        let path = directory.path().join(format!("cookies/{service}.txt"));
+        assert!(
+            logs.contains(&format!(
+                "Missing cookies for {service}: {}",
+                path.display()
+            )),
+            "{logs}"
+        );
+        assert!(logs.contains(&format!("cpg login {service} --cookie-file <path>")));
+        assert_eq!(logs.matches("Missing cookies").count(), 1, "{logs}");
+        assert!(output.stdout.is_empty());
+        assert!(!path.exists());
+
+        fs::create_dir(directory.path().join("cookies")).unwrap();
+        fs::write(
+            &path,
+            format!("{host}\tFALSE\t/\tTRUE\t0\tsession\ttest-session\n"),
+        )
+        .unwrap();
+        let output = run(&directory, &["download", url], 2);
+        let logs = String::from_utf8_lossy(&output.stderr);
+        assert!(!logs.contains("Missing cookies"), "{logs}");
+    }
+}
+
+#[test]
 fn cli_contract_and_local_judging() {
     let directory = tempfile::tempdir().unwrap();
     run(&directory, &["--version"], 0);
@@ -1610,6 +1645,8 @@ mock = "ruby"
     let logs = String::from_utf8_lossy(&output.stderr);
     assert!(logs.contains("setup stdout"));
     assert!(logs.contains("setup stderr"));
+    assert!(logs.contains("Missing cookies for mock:"));
+    assert_eq!(logs.matches("Missing cookies").count(), 1, "{logs}");
     assert_eq!(
         fs::read_to_string(echo.join("setup.log")).unwrap(),
         "workspace\nproblem\nsingle\n"
@@ -1653,6 +1690,7 @@ mock = "ruby"
     );
     let logs = String::from_utf8_lossy(&output.stderr);
     assert!(logs.contains("i) [cpg::workspace] <download{"));
+    assert_eq!(logs.matches("Missing cookies").count(), 1, "{logs}");
     assert!(!logs.contains('\u{1b}'));
     let contest = root.join("mock/contests/practice");
     assert_eq!(
