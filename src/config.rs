@@ -1,4 +1,5 @@
 use anyhow::{Context, Result, ensure};
+use console::Style;
 use serde::Deserialize;
 use std::{
     collections::BTreeMap,
@@ -61,7 +62,15 @@ impl Paths {
 }
 
 fn prompt(message: &str, interrupted: &AtomicBool) -> Result<String> {
-    eprint!("{message}");
+    eprint!(
+        "{}",
+        Style::new()
+            .for_stderr()
+            .blue()
+            .bright()
+            .bold()
+            .apply_to(message)
+    );
     io::stderr().flush()?;
     let (sender, receiver) = mpsc::channel();
     thread::spawn(move || {
@@ -203,15 +212,18 @@ pub fn init(paths: &Paths, args: &crate::cli::Init, interrupted: &AtomicBool) ->
             .with_context(|| format!("Cannot create {}", destination.display()))?;
         tracing::info!("Imported template: {}", destination.display());
     }
+    let heading = Style::new().blue().bright().bold();
     println!(
-        "Workspace root: {}\n\nTemplate directories:",
-        root.display()
+        "{} {}\n\n{}",
+        heading.apply_to("Workspace root:"),
+        root.display(),
+        heading.apply_to("Template directories:")
     );
     for (name, description) in templates {
         println!("  {}\n    {description}", paths.config.join(name).display());
     }
     println!(
-        "\nNext steps:\n\
+        "\n{}\n\
          1. Add language settings to {}. For example:\n\n\
          [language.cpp]\n\
          extensions = [\"cpp\"]\n\
@@ -229,6 +241,7 @@ pub fn init(paths: &Paths, args: &crate::cli::Init, interrupted: &AtomicBool) ->
          \x20 cpg results --ui\n\n\
          Save submission language IDs in [language.<name>.submit], keyed by service.\n\
          Run cpg submit without a configured language to list the available IDs.",
+        heading.apply_to("Next steps:"),
         config_path.display()
     );
     Ok(())

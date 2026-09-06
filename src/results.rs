@@ -29,14 +29,12 @@ pub fn run(
     args: &Results,
     paths: Paths,
     scope: SubmissionScope,
-    no_color: bool,
     interrupted: &AtomicBool,
 ) -> Result<()> {
     let terminal = io::stdout().is_terminal();
-    let color = terminal && !no_color && std::env::var_os("NO_COLOR").is_none();
     if args.ui && terminal {
         ensure!(io::stdin().is_terminal(), "--ui requires terminal input");
-        return monitor(paths, scope, args.limit.get(), color, interrupted);
+        return monitor(paths, scope, args.limit.get(), interrupted);
     }
     ensure!(!interrupted.load(Ordering::Relaxed), "Interrupted");
     let url = match &scope {
@@ -51,7 +49,7 @@ pub fn run(
     tracing::info!("Fetched {} submission(s)", submissions.len());
     let mut output = io::stdout().lock();
     if terminal {
-        for (index, line) in table(&submissions, color).iter().enumerate() {
+        for (index, line) in table(&submissions).iter().enumerate() {
             writeln!(output, "  {line}")?;
             if index > 0 {
                 writeln!(output, "    {}", submissions[index - 1].url)?;
@@ -77,8 +75,8 @@ pub fn run(
     Ok(())
 }
 
-pub(crate) fn color_status(status: &str, color: bool) -> String {
-    if !color {
+pub(crate) fn color_status(status: &str) -> String {
+    if !console::colors_enabled() {
         return status.to_owned();
     }
     // ANSI foreground approximations of AtCoder Error Colorizer by iiko11 (MIT):
@@ -97,7 +95,7 @@ pub(crate) fn color_status(status: &str, color: bool) -> String {
     format!("\x1b[{code}m{status}\x1b[0m")
 }
 
-fn table(submissions: &[Submission], color: bool) -> Vec<String> {
+fn table(submissions: &[Submission]) -> Vec<String> {
     let mut rows = vec![HEADERS.map(str::to_owned)];
     rows.extend(submissions.iter().map(|s| {
         [
@@ -130,12 +128,8 @@ fn table(submissions: &[Submission], color: bool) -> Vec<String> {
                     };
                     let padded = pad_str(text, widths[column], alignment, None);
                     match (index, column) {
-                        (0, _) => Style::new()
-                            .bold()
-                            .apply_to(padded)
-                            .force_styling(color)
-                            .to_string(),
-                        (_, 0) => color_status(&padded, color),
+                        (0, _) => Style::new().bold().apply_to(padded).to_string(),
+                        (_, 0) => color_status(&padded),
                         _ => padded.into_owned(),
                     }
                 })
@@ -167,7 +161,6 @@ fn monitor(
     paths: Paths,
     scope: SubmissionScope,
     limit: usize,
-    color: bool,
     interrupted: &AtomicBool,
 ) -> Result<()> {
     let title = match &scope {
@@ -200,7 +193,7 @@ fn monitor(
     let mut paused = false;
     let mut refresh_at = Instant::now();
     let mut submissions = Vec::new();
-    let mut rows = table(&submissions, color);
+    let mut rows = table(&submissions);
     let mut offset = 0usize;
     let mut message = String::new();
     let mut previous_frame = Vec::new();
@@ -209,7 +202,7 @@ fn monitor(
         match update_rx.try_recv() {
             Ok(result) => {
                 submissions = result?;
-                rows = table(&submissions, color);
+                rows = table(&submissions);
                 fetching = false;
                 refresh_at = Instant::now() + REFRESH_INTERVAL;
             }
@@ -242,14 +235,7 @@ fn monitor(
             }
             Ok(())
         };
-        line(
-            0,
-            &Style::new()
-                .bold()
-                .apply_to(&title)
-                .force_styling(color)
-                .to_string(),
-        )?;
+        line(0, &Style::new().bold().apply_to(&title).to_string())?;
         if height >= 3 {
             line(1, &format!("    {}", rows[0]))?;
             if submissions.is_empty() && visible > 0 {
@@ -343,6 +329,7 @@ mod tests {
 
     #[test]
     fn colors_and_unicode_columns() {
+        let original_color = console::colors_enabled();
         for (status, color) in [
             ("AC", 32),
             ("WA", 33),
@@ -357,10 +344,12 @@ mod tests {
             ("1 / 20", 90),
             ("unknown", 90),
         ] {
-            let text = color_status(status, true);
+            console::set_colors_enabled(true);
+            let text = color_status(status);
             assert_eq!(text, format!("\x1b[{color}m{status}\x1b[0m"));
             assert_eq!(console::strip_ansi_codes(&text), status);
-            assert_eq!(color_status(status, false), status);
+            console::set_colors_enabled(false);
+            assert_eq!(color_status(status), status);
         }
         let first = Submission {
             id: "10".into(),
@@ -376,8 +365,10 @@ mod tests {
             status: "TLE".into(),
             ..first.clone()
         };
-        let plain = table(&[first.clone(), second.clone()], false);
-        let colored = table(&[first, second], true);
+        console::set_colors_enabled(false);
+        let plain = table(&[first.clone(), second.clone()]);
+        console::set_colors_enabled(true);
+        let colored = table(&[first, second]);
         for (plain, colored) in plain.iter().zip(&colored) {
             assert_eq!(console::strip_ansi_codes(colored), plain.as_str());
             assert!(!plain.chars().any(char::is_control));
@@ -391,6 +382,7 @@ mod tests {
             })
             .collect();
         assert_eq!(column_ends, vec![column_ends[0]; 3]);
-        assert_eq!(table(&[], false).len(), 1);
+        assert_eq!(table(&[]).len(), 1);
+        console::set_colors_enabled(original_color);
     }
 }

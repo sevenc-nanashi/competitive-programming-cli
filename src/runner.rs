@@ -7,7 +7,7 @@ use console::Style;
 use std::{
     ffi::{OsStr, OsString},
     fs::{self, File},
-    io::{self, IsTerminal, Read, Write},
+    io::{self, Read, Write},
     os::unix::process::CommandExt,
     path::{Path, PathBuf},
     process::{Child, Command, ExitStatus, Stdio},
@@ -625,13 +625,7 @@ fn print_io(label: &str, path: &Path, style: Style) -> Result<()> {
     Ok(())
 }
 
-pub fn test(
-    config: &Config,
-    options: &Test,
-    no_color: bool,
-    interrupted: &AtomicBool,
-) -> Result<bool> {
-    let color = io::stdout().is_terminal() && !no_color && std::env::var_os("NO_COLOR").is_none();
+pub fn test(config: &Config, options: &Test, interrupted: &AtomicBool) -> Result<bool> {
     let program = Program::prepare(config, &options.program, interrupted)?;
     let directory = match &options.test_dir {
         Some(dir) => std::path::absolute(expand_path(dir)?)?,
@@ -752,7 +746,7 @@ pub fn test(
         println!(
             "{}: {} ({} ms, {} KiB)",
             name,
-            crate::results::color_status(&result.verdict.to_string(), color),
+            crate::results::color_status(&result.verdict.to_string()),
             result.elapsed.as_millis(),
             result.memory / 1024
         );
@@ -761,7 +755,7 @@ pub fn test(
             ShowIo::Failure => result.verdict != Verdict::Ac,
             ShowIo::Never => false,
         } {
-            let style = Style::new().bold().force_styling(color);
+            let style = Style::new().bold();
             if let Some(input) = &input {
                 print_io("Input", input, style.clone())?;
             }

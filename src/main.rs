@@ -46,30 +46,36 @@ fn run(cli: Cli, interrupted: &AtomicBool) -> Result<bool> {
                     println!("{}", path.display());
                 }
                 None => {
-                    println!(
-                        concat!(
-                            "Workspace root: {}\n",
-                            "Configuration directory: {}\n",
-                            "Cookies directory: {}\n",
-                            "Workspace template directory: {}\n",
-                            "Problem template directory: {}\n",
-                            "Contest template directory: {}\n",
-                            "Single problem template directory: {}"
+                    let style = console::Style::new().blue().bright().bold();
+                    for (label, path) in [
+                        ("Workspace root:", Config::load(&paths)?.root()?),
+                        ("Configuration directory:", config_dir.clone()),
+                        ("Cookies directory:", std::path::absolute(&paths.cookies)?),
+                        (
+                            "Workspace template directory:",
+                            config_dir.join("workspace_template"),
                         ),
-                        Config::load(&paths)?.root()?.display(),
-                        config_dir.display(),
-                        std::path::absolute(&paths.cookies)?.display(),
-                        config_dir.join("workspace_template").display(),
-                        config_dir.join("problem_template").display(),
-                        config_dir.join("contest_template").display(),
-                        config_dir.join("single_problem_template").display()
-                    );
+                        (
+                            "Problem template directory:",
+                            config_dir.join("problem_template"),
+                        ),
+                        (
+                            "Contest template directory:",
+                            config_dir.join("contest_template"),
+                        ),
+                        (
+                            "Single problem template directory:",
+                            config_dir.join("single_problem_template"),
+                        ),
+                    ] {
+                        println!("{} {}", style.apply_to(label), path.display());
+                    }
                 }
             }
         }
         Commands::Login(args) => Services::login(&paths, args.service, &args.cookie_file)?,
         Commands::Test(args) => {
-            return runner::test(&Config::load(&paths)?, &args, cli.no_color, interrupted);
+            return runner::test(&Config::load(&paths)?, &args, interrupted);
         }
         Commands::Generate(args) => runner::generate(&Config::load(&paths)?, &args, interrupted)?,
         Commands::Open(args) => {
@@ -208,7 +214,7 @@ fn run(cli: Cli, interrupted: &AtomicBool) -> Result<bool> {
         }
         Commands::Results(args) => {
             let scope = workspace::locate(&std::env::current_dir()?)?;
-            results::run(&args, paths, scope, cli.no_color, interrupted)?;
+            results::run(&args, paths, scope, interrupted)?;
         }
     }
     Ok(true)

@@ -65,11 +65,12 @@ where
 }
 
 pub fn init(no_color: bool) {
-    let color =
-        !no_color && std::env::var_os("NO_COLOR").is_none() && std::io::stderr().is_terminal();
-    colored::control::set_override(color);
+    let color = !no_color && std::env::var_os("NO_COLOR").is_none();
+    console::set_colors_enabled(color && std::io::stdout().is_terminal());
+    console::set_colors_enabled_stderr(color && std::io::stderr().is_terminal());
+    colored::control::set_override(console::colors_enabled_stderr());
     tracing_subscriber::fmt()
-        .with_ansi(color)
+        .with_ansi(console::colors_enabled_stderr())
         .event_format(LogFormatter)
         .with_writer(std::io::stderr)
         .with_max_level(tracing::Level::INFO)
