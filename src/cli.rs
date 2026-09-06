@@ -107,7 +107,9 @@ pub struct Open {
 
 #[derive(Debug, usage::Args)]
 pub struct ProgramArgs {
-    /// Source file to compile/run using language configuration.
+    /// Source or executable file to compile/run using language configuration.
+    ///
+    /// Executable files without a matching extension use the executable language.
     #[usage(conflicts("command"), required_unless("command"))]
     pub file: Option<PathBuf>,
     /// Command and arguments after --, passed through unchanged.
@@ -184,7 +186,7 @@ pub struct Test {
     /// Error comparison used with --float-error; both accepts either absolute or relative error.
     #[usage(long, value_enum, default = "both")]
     pub float_error_type: FloatErrorType,
-    /// Judge source file or shell command.
+    /// Judge source file, executable file, or shell command.
     #[usage(long, short = 'j')]
     pub judge: Option<String>,
     /// Connect the solution and judge through stdin/stdout for interactive testing; requires --judge.

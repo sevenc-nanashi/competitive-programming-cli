@@ -5,8 +5,10 @@ use std::{
     collections::BTreeMap,
     env, fs,
     io::{self, ErrorKind, Write},
+    os::unix::fs::PermissionsExt,
     path::{Component, Path, PathBuf},
     sync::{
+        LazyLock,
         atomic::{AtomicBool, Ordering},
         mpsc,
     },
@@ -339,6 +341,16 @@ pub struct Language {
     pub submit: BTreeMap<String, String>,
 }
 
+static EXECUTABLE: LazyLock<Language> = LazyLock::new(|| Language {
+    extensions: Vec::new(),
+    preprocess: None,
+    presubmit: None,
+    compile: None,
+    run: "{input}".into(),
+    profile: BTreeMap::new(),
+    submit: BTreeMap::new(),
+});
+
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Profile {
@@ -372,18 +384,25 @@ impl Config {
     }
 
     pub fn match_language(&self, path: &Path) -> Result<Option<&Language>> {
-        let Some(extension) = path.extension().and_then(|v| v.to_str()) else {
-            return Ok(None);
-        };
-        let mut matches = self
-            .language
-            .values()
-            .filter(|v| v.extensions.iter().any(|e| e == extension));
-        let language = matches.next();
-        ensure!(
-            matches.next().is_none(),
-            "Multiple languages are configured for .{extension}"
-        );
-        Ok(language)
+        if let Some(extension) = path.extension().and_then(|v| v.to_str()) {
+            let mut matches = self
+                .language
+                .values()
+                .filter(|v| v.extensions.iter().any(|e| e == extension));
+            let language = matches.next();
+            ensure!(
+                matches.next().is_none(),
+                "Multiple languages are configured for .{extension}"
+            );
+            if language.is_some() {
+                return Ok(language);
+            }
+        }
+        let metadata = fs::metadata(path)?;
+        if metadata.is_file() && metadata.permissions().mode() & 0o111 != 0 {
+            Ok(Some(self.language.get("executable").unwrap_or(&EXECUTABLE)))
+        } else {
+            Ok(None)
+        }
     }
 }

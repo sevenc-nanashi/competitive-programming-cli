@@ -22,6 +22,28 @@ compile = "ruby -c {input}"
 run = "ruby {input}"
 ```
 
+If no configured extension matches, executable files use the built-in
+`executable` language, which runs `{input}` without compilation. This works
+with extensionless binaries and scripts with execute permission and a shebang:
+
+```bash
+cpg test ./a.out
+cpg generate --count 10 ./generator
+```
+
+The same fallback applies to judge files. Commands run in the executable's
+directory. Non-executable files still require a matching language configuration.
+To customize the fallback, define `[language.executable]` in `config.toml`:
+
+```toml
+[language.executable]
+extensions = []
+run = "{input}"
+
+[language.executable.profile.debug]
+run = "env DEBUG=1 {input}"
+```
+
 Optional `language.<name>.preprocess` runs before compilation (or execution for
 interpreted languages) and before submission. `language.<name>.presubmit` runs
 only for submission, after `preprocess`. Each command receives the current

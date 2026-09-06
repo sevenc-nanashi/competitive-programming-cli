@@ -761,6 +761,66 @@ fn missing_expected_outputs() {
 }
 
 #[test]
+fn executable_fallback() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let directory = tempfile::tempdir().unwrap();
+    let source = "#!/bin/sh\nprintf 'sample\\n'\n";
+    case(&directory, b"sample\n", b"sample\n");
+    for name in ["solution", "space ' name.bin"] {
+        let path = directory.path().join(name);
+        fs::write(&path, source).unwrap();
+        fs::set_permissions(&path, fs::Permissions::from_mode(0o755)).unwrap();
+        run(&directory, &["test", name], 0);
+        fs::set_permissions(&path, fs::Permissions::from_mode(0o644)).unwrap();
+        let output = run(&directory, &["test", name], 2);
+        assert!(String::from_utf8_lossy(&output.stderr).contains("No language configured"));
+        fs::set_permissions(&path, fs::Permissions::from_mode(0o755)).unwrap();
+    }
+    run(&directory, &["generate", "--count", "1", "solution"], 0);
+    assert_eq!(
+        fs::read_to_string(directory.path().join("random/random-0001.in")).unwrap(),
+        "sample\n"
+    );
+    fs::create_dir(directory.path().join("config")).unwrap();
+    let config_path = directory.path().join("config/config.toml");
+    let config = r#"
+[language.executable]
+extensions = []
+run = "printf 'override\\n'"
+[language.executable.profile.debug]
+run = "printf 'profile\\n'"
+[language.executable.profile.compile]
+compile = "printf overwritten > {binary}"
+[language.configured]
+extensions = ["bin"]
+run = "printf 'configured\\n'"
+"#;
+    fs::write(&config_path, config).unwrap();
+    for (args, expected) in [
+        (vec!["test", "solution"], "override\n"),
+        (vec!["test", "--profile", "debug", "solution"], "profile\n"),
+        (vec!["test", "space ' name.bin"], "configured\n"),
+    ] {
+        case(&directory, b"sample\n", expected.as_bytes());
+        run(&directory, &args, 0);
+    }
+    let output = run(&directory, &["test", "--profile", "compile", "solution"], 2);
+    assert!(String::from_utf8_lossy(&output.stderr).contains("overwrite the source file"));
+    assert_eq!(
+        fs::read_to_string(directory.path().join("solution")).unwrap(),
+        source
+    );
+    fs::write(
+        config_path,
+        format!("{config}\n[language.duplicate]\nextensions = ['bin']\nrun = 'false'\n"),
+    )
+    .unwrap();
+    let output = run(&directory, &["test", "space ' name.bin"], 2);
+    assert!(String::from_utf8_lossy(&output.stderr).contains("Multiple languages"));
+}
+
+#[test]
 fn configured_programs_and_generation() {
     let directory = tempfile::tempdir().unwrap();
     fs::create_dir(directory.path().join("config")).unwrap();
@@ -808,6 +868,7 @@ run = "{binary}"
     )
     .unwrap();
     run(&directory, &["test", "solution.cpp"], 0);
+    run(&directory, &["test", "solution"], 0);
     run(
         &directory,
         &[

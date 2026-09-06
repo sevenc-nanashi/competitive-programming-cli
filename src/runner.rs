@@ -70,7 +70,7 @@ impl Program {
                 .to_owned();
             let binary = file.with_extension("");
             ensure!(
-                binary != file,
+                compile.is_none() || binary != file,
                 "Compiled output would overwrite the source file"
             );
             let prepared_source = prepare_source(language, &file, false, interrupted)?;
