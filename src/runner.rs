@@ -630,7 +630,11 @@ fn print_io(label: &str, path: &Path, style: Style) -> Result<()> {
     if contents.is_empty() {
         println!("{}", Style::new().dim().apply_to("(empty)"));
     } else {
-        println!("{}", String::from_utf8_lossy(&contents));
+        print!("{}", String::from_utf8_lossy(&contents));
+        if !contents.ends_with(b"\n") {
+            print!(" {}", Style::new().dim().apply_to("(no eol)"));
+        }
+        println!();
     }
     Ok(())
 }

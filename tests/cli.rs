@@ -797,8 +797,8 @@ fn show_io() {
     for mode in [None, Some("always"), Some("failure"), Some("never")] {
         for (solution, judge, actual, verdict) in [
             ("printf 'answer\\n'", None, "answer\n", "AC"),
-            ("printf wrong", None, "wrong", "WA"),
-            ("printf partial; exit 7", None, "partial", "RE"),
+            ("printf wrong", None, "wrong (no eol)", "WA"),
+            ("printf partial; exit 7", None, "partial (no eol)", "RE"),
             ("printf 'answer\\n'", Some("false"), "answer\n", "WA"),
         ] {
             let mut args = vec!["test"];
@@ -869,7 +869,14 @@ fn show_io() {
         }
     }
 
-    for (contents, displayed) in [("", "(empty)"), (" \n", " \n")] {
+    for (contents, displayed) in [
+        ("", "(empty)"),
+        (" \n", " \n"),
+        ("answer", "answer (no eol)"),
+        ("answer\n", "answer\n"),
+        ("answer\r\n", "answer\r\n"),
+        ("first\nlast", "first\nlast (no eol)"),
+    ] {
         case(&directory, contents.as_bytes(), contents.as_bytes());
         let output = run(&directory, &["test", "--show-io", "always", "--", "cat"], 0);
         let stdout = String::from_utf8_lossy(&output.stdout);

@@ -134,6 +134,8 @@ Use `--show-io` to choose when to display each case's input, expected output
 
 Verdicts and the summary are always shown. Standard error from the solution
 and judge is still streamed directly.
+Empty I/O is displayed as a dimmed `(empty)`. Non-empty I/O without a final
+newline has a dimmed `(no eol)` appended to its last line.
 
 ```bash
 cpg test --show-io always ./solution.cpp
