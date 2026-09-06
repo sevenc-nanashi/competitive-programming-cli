@@ -62,7 +62,7 @@ configured root; run `cpg init` or set `root` first. All directory flags also wo
 before initialization. Template directories are located within the configuration
 directory, including when `$CPG_CONFIG_HOME` is set.
 
-[Language settings](./testing.md) belong in the same file. Path settings and CLI
+[Language settings](#language-settings) belong in the same file. Path settings and CLI
 path arguments expand a leading `~` or `~/` to `$HOME`, including `root`, source
 files, test/generation directories, judge files, and configuration/Cookie paths.
 For example, `root = "~/competitive-programming"` is supported.
@@ -146,3 +146,192 @@ AtCoder Problems uses the AtCoder session; both `login atcoder` and
 # Login to an online judge
 cpg login atcoder --cookie-file /path/to/cookies.txt
 ```
+
+## Language settings
+
+Add `[language.<name>]` tables to `$config/config.toml`. cpg selects a language
+by the source file's extension. Names such as `cpp` and `ruby` are yours to
+choose; each extension must match at most one language. These settings apply to
+solutions, generators, reference solutions, and judge files.
+
+| Key          | Required | Purpose                                                                     |
+| ------------ | -------- | --------------------------------------------------------------------------- |
+| `extensions` | Yes      | File extensions without the leading dot, such as `["cpp", "cc"]`.           |
+| `run`        | Yes      | Shell command to execute the solution or script.                            |
+| `compile`    | No       | Shell command to compile or check the source before running it.             |
+| `preprocess` | No       | Transform the source before local execution and submission.                 |
+| `presubmit`  | No       | Transform the source only for submission, after `preprocess`.               |
+| `profile`    | No       | Named overrides for `compile` and `run`, selected with `--profile`.         |
+| `submit`     | No       | Submission language IDs keyed by service, such as `atcoder` or `yukicoder`. |
+
+Commands run through `sh -c` in the source file's directory. In `compile` and
+`run`, `{input}` expands to the source path and `{binary}` to the same path with
+its final extension removed. cpg shell-quotes both paths; leave the placeholders
+unquoted in the command. When preprocessing is configured, `{input}` points to
+the transformed source. Omit `compile` for interpreted languages that need no
+compilation or syntax check. Compilation runs once before testing or generation.
+Direct commands after `--` do not use these language settings.
+
+### Build profiles
+
+Use `[language.<name>.profile.<profile>]` to override `compile`, `run`, or both.
+Omitted commands inherit the language's settings; a profile replaces the whole
+command rather than appending flags. Select one with `cpg test --profile fast
+./solution.cpp` or `cpg generate --profile fast ./generator.cpp`. The
+[C++ recipe](#c-with-debugging-and-a-fast-profile) enables debugging by default
+and defines a `fast` profile.
+
+### Executable files
+
+If no configured extension matches, executable files use the built-in
+`executable` language, which runs `{input}` without compilation. This works
+with extensionless binaries and scripts with execute permission and a shebang:
+
+```bash
+cpg test ./a.out
+cpg generate --count 10 ./generator
+```
+
+The same fallback applies to judge files. Commands run in the executable's
+directory. Non-executable files still require a matching language configuration.
+To customize the fallback, define `[language.executable]` in `config.toml`:
+
+```toml
+[language.executable]
+extensions = []
+run = "{input}"
+
+[language.executable.profile.debug]
+run = "env DEBUG=1 {input}"
+```
+
+### Source transformations
+
+Optional `language.<name>.preprocess` runs before compilation (or execution for
+interpreted languages) and before submission. `language.<name>.presubmit` runs
+only for submission, after `preprocess`. Each command receives the current
+source on stdin and as the shell-quoted `{input}` path, runs in the source
+directory, and must write the transformed UTF-8 source to stdout. A failed
+command or empty output stops the operation.
+
+Use `presubmit` instead of `preprocess` to apply a transformation only when
+submitting. In a two-stage pipeline, `presubmit` receives the output of
+`preprocess`. Transformations run once per source, preserve the original file,
+and use temporary files with the same extension in the source directory so
+relative includes keep working. The template checksum check runs before both
+stages. See the [ACL recipe](#expand-atcoder-library-headers) for an example.
+
+### Submission language IDs
+
+Add the judge's language ID to an existing language's `submit` table. For C++23:
+
+```toml
+[language.cpp.submit]
+atcoder = "6017"
+yukicoder = "cpp23"
+```
+
+IDs must be quoted strings, including numeric IDs. AtCoder Problems uses the
+`atcoder` entry. cpg fetches the available languages and displays their IDs if
+the configured ID is missing or invalid. Copy the ID for your judge's language
+and compiler version into this table, or override it for one submission with
+`cpg submit ./solution.cpp --language ID`. Local compiler commands and profiles
+do not select the judge's compiler. See [submitting solutions](./submissions.md).
+
+## Recipes
+
+Copy the settings you need into `$config/config.toml` and install the compilers
+or interpreters used by their commands. If a language table already exists,
+merge the settings into it instead of declaring the same table twice.
+
+The submission IDs below were checked on 2026-09-06 against the
+[AtCoder language-test submission form](https://atcoder.jp/contests/language-test-202505/submit)
+and [yukicoder's language API](https://yukicoder.me/api/v1/languages).
+If a contest uses a different language environment, use the IDs cpg displays
+for that contest.
+
+### C++ with debugging and a fast profile
+
+This configuration uses GCC with C++23. The default build enables debug symbols and
+[UndefinedBehaviorSanitizer](https://gcc.gnu.org/onlinedocs/gcc/Instrumentation-Options.html).
+`-fno-sanitize-recover=all` makes a detected error stop the program so the test
+reports `RE`. The `fast` profile enables optimization and defines `ONLINE_JUDGE`.
+
+```toml
+[language.cpp]
+extensions = ["cpp", "cc"]
+compile = "g++ -std=c++23 -O0 -g -Wall -Wextra -fsanitize=undefined -fno-sanitize-recover=all -o {binary} {input}"
+run = "{binary}"
+
+[language.cpp.profile.fast]
+compile = "g++ -std=c++23 -O2 -Wall -Wextra -DONLINE_JUDGE -o {binary} {input}"
+
+[language.cpp.submit]
+atcoder = "6017" # C++23 (GCC 15.2.0)
+yukicoder = "cpp23"
+# If you prefer Clang:
+#
+# atcoder = "6116" # C++23 (Clang 21.1.0)
+# yukicoder = "cpp-clang"
+#
+# But note that Clang on yukicoder is C++17, so you may need to change -std=c++23 to -std=c++17 in the compile commands.
+```
+
+### Ruby
+
+The compile command checks syntax with `ruby -c`. The run command executes the script.
+
+```toml
+[language.ruby]
+extensions = ["rb"]
+compile = "ruby -c {input}"
+run = "ruby {input}"
+
+[language.ruby.submit]
+atcoder = "6087" # Ruby 3.4 (ruby 3.4.5)
+yukicoder = "ruby"
+```
+
+### Python
+
+The run command executes the script with Python 3.
+
+```toml
+[language.python]
+extensions = ["py"]
+run = "python3 {input}"
+
+[language.python.submit]
+atcoder = "6082" # Python (CPython 3.13.7)
+yukicoder = "python3"
+
+# Or if you prefer PyPy:
+#
+# atcoder = "6083" # PyPy 3.11-v7.3.20
+# yukicoder = "pypy3"
+```
+
+### Expand AtCoder Library headers
+
+With [ac-library](https://github.com/atcoder/ac-library) checked out at
+`~/ac-library`, use its [expander](https://github.com/atcoder/ac-library/blob/master/expander.py)
+to inline ACL headers before local compilation and submission. This requires
+Python 3 and GCC. `--console` writes the expanded source to stdout, as required
+by `preprocess`.
+
+```toml
+[language.cpp]
+extensions = ["cpp"]
+preprocess = "python3 ~/ac-library/expander.py --console --lib ~/ac-library {input}"
+compile = "g++ -std=c++23 -O2 -o {binary} {input}"
+run = "{binary}"
+
+[language.cpp.submit]
+atcoder = "6017" # C++23 (GCC 15.2.0)
+yukicoder = "cpp23"
+```
+
+To expand only for submission, rename `preprocess` to `presubmit` and add
+`-I "$HOME/ac-library"` to your compilation command so local tests can find
+the headers without expansion. Configure the appropriate
+[submission language ID](#submission-language-ids) before submitting.

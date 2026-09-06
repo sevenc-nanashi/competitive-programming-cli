@@ -93,7 +93,7 @@ template files are kept. Directory patterns and other oj-prepare settings are
 not imported. cpg does not resolve oj-template's built-in templates or render
 Mako expressions; imported templates must be usable as ordinary source files.
 
-After importing, add [language settings](./testing.md) and
+After importing, add [language settings](./configuration.md#language-settings) and
 [import browser cookies](./configuration.md#login). Move shared project files
 into `workspace_template` if they should live at the contest root.
 

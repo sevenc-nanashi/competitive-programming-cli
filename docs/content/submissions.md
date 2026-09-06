@@ -21,16 +21,11 @@ You can also specify the problem URL using `--problem`.
 cpg submit ./solution.cpp --problem https://atcoder.jp/contests/abc473/tasks/abc473_f
 ```
 
-Configure the judge's language ID for each file type, or pass `--language ID`:
-
-```toml
-[language.cpp.submit]
-atcoder = "<AtCoder language ID>"
-yukicoder = "<yukicoder language ID>"
-```
+Configure the judge's [submission language ID](./configuration.md#submission-language-ids)
+for each file type, or pass `--language ID`.
 
 cpg fetches the available languages and displays their IDs if the configured
-ID is missing or invalid. AtCoder Problems uses the `atcoder` language setting.
+ID is missing or invalid.
 A successful submission prints its ID and URL. If the judge's response is
 ambiguous, cpg reports that the outcome is unknown; check `results` before
 submitting again.

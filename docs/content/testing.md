@@ -2,88 +2,24 @@
 
 ## Test a solution
 
-You can test a solution against the sample test cases.
-This command will execute the command specified in the configuration file for the language of the solution file if single argument is given:
-
-```toml
-# Example configuration for C++
-[language.cpp]
-extensions = ["cpp"]
-compile = "g++ -std=c++23 -Wall -Wextra -o {binary} {input}"
-run = "{binary}"
-
-[language.cpp.profile.fast]
-compile = "g++ -std=c++23 -O2 -Wall -Wextra -DONLINE_JUDGE -o {binary} {input}"
-
-# Example configuration for Ruby
-[language.ruby]
-extensions = ["rb"]
-compile = "ruby -c {input}"
-run = "ruby {input}"
-```
-
-If no configured extension matches, executable files use the built-in
-`executable` language, which runs `{input}` without compilation. This works
-with extensionless binaries and scripts with execute permission and a shebang:
-
-```bash
-cpg test ./a.out
-cpg generate --count 10 ./generator
-```
-
-The same fallback applies to judge files. Commands run in the executable's
-directory. Non-executable files still require a matching language configuration.
-To customize the fallback, define `[language.executable]` in `config.toml`:
-
-```toml
-[language.executable]
-extensions = []
-run = "{input}"
-
-[language.executable.profile.debug]
-run = "env DEBUG=1 {input}"
-```
-
-Optional `language.<name>.preprocess` runs before compilation (or execution for
-interpreted languages) and before submission. `language.<name>.presubmit` runs
-only for submission, after `preprocess`. Each command receives the current
-source on stdin and as the shell-quoted `{input}` path, runs in the source
-directory, and must write the transformed UTF-8 source to stdout. A failed
-command or empty output stops the operation.
-
-For example, [ACL's expander](https://github.com/atcoder/ac-library/blob/master/expander.py)
-can expand headers before both local compilation and submission:
-
-```toml
-[language.cpp]
-extensions = ["cpp"]
-preprocess = "python3 ~/ac-library/expander.py --console --lib ~/ac-library {input}"
-compile = "g++ -std=c++23 -o {binary} {input}"
-run = "{binary}"
-```
-
-Use `presubmit` instead of `preprocess` to apply that command only when
-submitting. In a two-stage pipeline, `presubmit` receives the output of
-`preprocess`. Transformations run once per source, preserve the original file,
-and use temporary files with the same extension in the source directory so
-relative includes keep working. The template checksum check runs before both
-stages. Direct commands after `--` do not use language transformations.
+Test a solution against the sample cases with `cpg test`. When you pass a source
+file, cpg uses its configured language's compile and run commands. Set up
+[language settings](./configuration.md#language-settings) first, or use the
+[configuration recipes](./configuration.md#recipes). Executable files can also
+run without a language configuration; see [executable files](./configuration.md#executable-files).
 
 ```bash
 # Test a solution against the sample test cases
 cpg test ./solution.cpp
-# -> g++ -std=c++23 -Wall -Wextra -o solution ./solution.cpp && ./solution < ./test/sample-1.in
 
 # Or shortcut
 cpg t ./solution.cpp
 
 # Or specify the test case directory
 cpg test --test-dir ./random ./solution.cpp
-# -> g++ -std=c++23 -Wall -Wextra -o solution ./solution.cpp && ./solution < ./random/sample-1.in
 
 # Or specify the profile to use for compilation
 cpg test --profile fast ./solution.cpp
-# -> g++ -std=c++23 -O2 -Wall -Wextra -o solution ./solution.cpp && ./solution < ./test/sample-1.in
 ```
 
 Or you can specify the command to execute directly after `--`:
