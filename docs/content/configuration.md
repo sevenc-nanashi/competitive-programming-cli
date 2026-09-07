@@ -70,6 +70,7 @@ Other environment variables in TOML paths are not expanded. Arguments after
 `--` are passed directly to the command; use your shell's expansion when needed.
 
 - `$config/config.toml`: Configuration file.
+- `$config/config.local.toml`: Optional machine-specific overrides for `config.toml`.
 - `$config/workspace_template`: Template for workspace directory.
   - Files and directories within this directory is called "workspace template".
   - This should contain root files for your workspace, such as `Gemfile`, `Cargo.toml`, etc.
@@ -82,6 +83,37 @@ Other environment variables in TOML paths are not expanded. Arguments after
 - `$config/single_problem_template`: Template for single problem directory.
   - Files and directories within this directory is called "single problem template".
   - This should contain files that makes single problem directory self-contained, such as overwriting `Cargo.toml` with one without workspace dependencies, etc.
+
+## Local overrides
+
+Create `config.local.toml` next to `config.toml` to override settings for the
+current machine. Both files are read from `$CPG_CONFIG_HOME` when it is set,
+otherwise from the configuration directory described above.
+
+```toml
+# config.local.toml
+root = "~/local-competitive-programming"
+
+[language.cpp]
+compile = "clang++ -std=c++23 -O2 -o {binary} {input}"
+
+[clipboard]
+kind = "command"
+command = "/mnt/c/Windows/System32/clip.exe"
+```
+
+cpg reads `config.toml` first, then applies `config.local.toml`. Tables merge
+recursively, so the example inherits `language.cpp.extensions`, `run`, and
+other language settings. Scalars and arrays replace the corresponding values;
+an empty array clears an inherited list. Changing `clipboard.kind` replaces
+the entire clipboard table, while keeping the same kind allows individual
+fields to be overridden.
+
+Either file may be absent. The merged configuration must satisfy the normal
+configuration requirements; syntax errors, unknown fields, and invalid types
+are reported. `cpg config` and `cpg init` use the merged settings. Initialization
+preserves existing files and does not create `config.local.toml`. Keep the local
+file out of version control when sharing your configuration.
 
 ## Clipboard
 

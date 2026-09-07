@@ -112,10 +112,35 @@ checksum = "sha256:865ad7dbf0ada7d908544ecd54d7e894fd327eca61256b10ef0d1203978e4
 url = "https://github.com/EmbarkStudios/cargo-about/releases/download/0.7.1/cargo-about-0.7.1-aarch64-unknown-linux-musl.tar.gz"
 url_api = "https://api.github.com/repos/EmbarkStudios/cargo-about/releases/assets/239197301"
 
+[tools."github:EmbarkStudios/cargo-about"."platforms.linux-arm64-musl"]
+checksum = "sha256:865ad7dbf0ada7d908544ecd54d7e894fd327eca61256b10ef0d1203978e4050"
+url = "https://github.com/EmbarkStudios/cargo-about/releases/download/0.7.1/cargo-about-0.7.1-aarch64-unknown-linux-musl.tar.gz"
+url_api = "https://api.github.com/repos/EmbarkStudios/cargo-about/releases/assets/239197301"
+
 [tools."github:EmbarkStudios/cargo-about"."platforms.linux-x64"]
 checksum = "sha256:395cde37f70a77f2bdb0eeaded96e294b0338482b937b0e813f61d1221f06642"
 url = "https://github.com/EmbarkStudios/cargo-about/releases/download/0.7.1/cargo-about-0.7.1-x86_64-unknown-linux-musl.tar.gz"
 url_api = "https://api.github.com/repos/EmbarkStudios/cargo-about/releases/assets/239197223"
+
+[tools."github:EmbarkStudios/cargo-about"."platforms.linux-x64-musl"]
+checksum = "sha256:395cde37f70a77f2bdb0eeaded96e294b0338482b937b0e813f61d1221f06642"
+url = "https://github.com/EmbarkStudios/cargo-about/releases/download/0.7.1/cargo-about-0.7.1-x86_64-unknown-linux-musl.tar.gz"
+url_api = "https://api.github.com/repos/EmbarkStudios/cargo-about/releases/assets/239197223"
+
+[tools."github:EmbarkStudios/cargo-about"."platforms.macos-arm64"]
+checksum = "sha256:4fede12feedc8e50ab636714a62b5abe03fd70fbd68c7dbafcbcff41671ccb99"
+url = "https://github.com/EmbarkStudios/cargo-about/releases/download/0.7.1/cargo-about-0.7.1-aarch64-apple-darwin.tar.gz"
+url_api = "https://api.github.com/repos/EmbarkStudios/cargo-about/releases/assets/239197273"
+
+[tools."github:EmbarkStudios/cargo-about"."platforms.macos-x64"]
+checksum = "sha256:63d26a1ec55b62dcc9030da9fd1fcb572185d37ecca79a977dae09193ced2fde"
+url = "https://github.com/EmbarkStudios/cargo-about/releases/download/0.7.1/cargo-about-0.7.1-x86_64-apple-darwin.tar.gz"
+url_api = "https://api.github.com/repos/EmbarkStudios/cargo-about/releases/assets/239197617"
+
+[tools."github:EmbarkStudios/cargo-about"."platforms.windows-x64"]
+checksum = "sha256:FFB60FC16F8D6928A76AE0398DBCB11EA80E48D0B64FD2D3779DB989771DB9C9"
+url = "https://github.com/EmbarkStudios/cargo-about/releases/download/0.7.1/cargo-about-0.7.1-x86_64-pc-windows-msvc.tar.gz"
+url_api = "https://api.github.com/repos/EmbarkStudios/cargo-about/releases/assets/239197724"
 
 [[tools."github:asciinema/agg"]]
 version = "1.9.0"

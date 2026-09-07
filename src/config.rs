@@ -106,13 +106,9 @@ fn prompt(message: &str, interrupted: &AtomicBool) -> Result<String> {
 pub fn init(paths: &Paths, args: &crate::cli::Init, interrupted: &AtomicBool) -> Result<()> {
     let config_path = paths.config.join("config.toml");
     let existing = config_path.try_exists()?;
-    let root = if existing {
-        Config::load(paths)?.root().with_context(|| {
-            format!(
-                "Configuration already exists: {}; set its root manually",
-                config_path.display()
-            )
-        })?
+    let config = Config::load(paths)?;
+    let root = if existing || config.root.is_some() {
+        config.root()?
     } else {
         let input = prompt("Workspace root [~/cpg]: ", interrupted)?;
         let root = match input.as_str() {
@@ -316,7 +312,7 @@ fn read_oj_templates(config_path: &Path) -> Result<Vec<OjTemplate>> {
         .collect()
 }
 
-/// Configuration for cpg (config.toml).
+/// Effective cpg configuration after merging config.toml and config.local.toml.
 #[derive(Debug, Default, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 #[schemars(title = "cpg configuration", extend("$id" = SCHEMA_URL))]
@@ -434,6 +430,22 @@ pub struct Profile {
 
 const SCHEMA_PATTERN: &str = "#:schema https://raw.githubusercontent.com/sevenc-nanashi/competitive-programming-cli/refs/tags/v";
 
+fn merge_config(base: &mut toml::Value, local: toml::Value) {
+    match (base, local) {
+        (toml::Value::Table(base), toml::Value::Table(local)) => {
+            for (key, value) in local {
+                match base.get_mut(&key) {
+                    Some(existing) => merge_config(existing, value),
+                    None => {
+                        base.insert(key, value);
+                    }
+                }
+            }
+        }
+        (base, local) => *base = local,
+    }
+}
+
 impl Config {
     pub fn schema() -> schemars::Schema {
         schemars::generate::SchemaSettings::draft07()
@@ -442,28 +454,46 @@ impl Config {
     }
 
     pub fn load(paths: &Paths) -> Result<Self> {
-        let path = paths.config.join("config.toml");
-        let text = match fs::read_to_string(&path) {
-            Ok(text) => text,
-            Err(e) if e.kind() == ErrorKind::NotFound => return Ok(Self::default()),
-            Err(e) => return Err(e).with_context(|| format!("Cannot read {}", path.display())),
-        };
-        if text.contains(SCHEMA_PATTERN) && !text.contains(env!("CARGO_PKG_VERSION")) {
-            tracing::warn!("Configuration schema version does not match the current version.");
-            tracing::warn!(
-                "Consider updating your configuration to match the current schema: {}",
-                SCHEMA_URL
-            );
+        let mut config = toml::Value::Table(toml::Table::new());
+        let mut loaded = Vec::new();
+        for name in ["config.toml", "config.local.toml"] {
+            let path = paths.config.join(name);
+            let text = match fs::read_to_string(&path) {
+                Ok(text) => text,
+                Err(e) if e.kind() == ErrorKind::NotFound => continue,
+                Err(e) => return Err(e).with_context(|| format!("Cannot read {}", path.display())),
+            };
+            if text.contains(SCHEMA_PATTERN) && !text.contains(env!("CARGO_PKG_VERSION")) {
+                tracing::warn!(
+                    "Configuration schema version does not match the current version: {}",
+                    path.display()
+                );
+                tracing::warn!(
+                    "Consider updating your configuration to match the current schema: {}",
+                    SCHEMA_URL
+                );
+            }
+            let value: toml::Value = toml::from_str(&text)
+                .with_context(|| format!("Invalid configuration: {}", path.display()))?;
+            // Changing clipboard backends must not retain fields from the previous kind.
+            if let (Some(base), Some(local)) = (config.get_mut("clipboard"), value.get("clipboard"))
+                && let (Some(previous), Some(kind)) = (base.get("kind"), local.get("kind"))
+                && previous != kind
+            {
+                *base = local.clone();
+            }
+            merge_config(&mut config, value);
+            loaded.push(path.display().to_string());
         }
-
-        toml::from_str(&text).with_context(|| format!("Invalid configuration: {}", path.display()))
+        config
+            .try_into()
+            .with_context(|| format!("Invalid configuration: {}", loaded.join(", ")))
     }
 
     pub fn root(&self) -> Result<PathBuf> {
-        let root = self
-            .root
-            .as_ref()
-            .context("Set root in config.toml before downloading or listing problems")?;
+        let root = self.root.as_ref().context(
+            "Set root in config.toml or config.local.toml before downloading or listing problems",
+        )?;
         ensure!(!root.as_os_str().is_empty(), "root must not be empty");
         Ok(std::path::absolute(expand_path(root)?)?)
     }
@@ -494,5 +524,108 @@ impl Config {
         } else {
             Ok(None)
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn local_overrides() {
+        let directory = tempfile::tempdir().unwrap();
+        let paths = Paths {
+            config: directory.path().to_owned(),
+            cookies: directory.path().join("cookies"),
+        };
+        let base_path = paths.config.join("config.toml");
+        let local_path = paths.config.join("config.local.toml");
+        let base = r#"
+root = "~/base"
+[setup]
+workspace = ["git init", "bundle install"]
+problem = "echo problem"
+[clipboard]
+kind = "command"
+command = "xclip -selection clipboard"
+[language.cpp]
+extensions = ["cpp", "cc"]
+compile = "g++ {input} -o {binary}"
+run = "{binary}"
+[language.cpp.profile.debug]
+compile = "g++ -g {input} -o {binary}"
+run = "env DEBUG=1 {binary}"
+[language.cpp.submit]
+atcoder = "6017"
+yukicoder = "cpp23"
+"#;
+        let local = r#"
+root = "~/local"
+[setup]
+workspace = []
+[clipboard]
+command = "wl-copy"
+[language.cpp]
+extensions = ["cpp"]
+compile = "clang++ {input} -o {binary}"
+[language.cpp.profile.debug]
+compile = "clang++ -g {input} -o {binary}"
+[language.cpp.submit]
+atcoder = "6116"
+"#;
+        fs::write(&base_path, base).unwrap();
+        fs::write(&local_path, local).unwrap();
+        let config = Config::load(&paths).unwrap();
+        assert_eq!(config.root.unwrap(), PathBuf::from("~/local"));
+        assert!(config.setup.workspace.is_empty());
+        assert_eq!(config.setup.problem, ["echo problem"]);
+        assert!(matches!(config.clipboard, Clipboard::Command { command } if command == "wl-copy"));
+        let cpp = &config.language["cpp"];
+        assert_eq!(cpp.extensions, ["cpp"]);
+        assert_eq!(cpp.compile.as_deref(), Some("clang++ {input} -o {binary}"));
+        assert_eq!(cpp.run, "{binary}");
+        assert_eq!(
+            cpp.profile["debug"].compile.as_deref(),
+            Some("clang++ -g {input} -o {binary}")
+        );
+        assert_eq!(
+            cpp.profile["debug"].run.as_deref(),
+            Some("env DEBUG=1 {binary}")
+        );
+        assert_eq!(cpp.submit["atcoder"], "6116");
+        assert_eq!(cpp.submit["yukicoder"], "cpp23");
+        assert_eq!(fs::read_to_string(&base_path).unwrap(), base);
+        assert_eq!(fs::read_to_string(&local_path).unwrap(), local);
+
+        fs::write(&local_path, "[clipboard]\nkind = 'arboard'\n").unwrap();
+        assert!(matches!(
+            Config::load(&paths).unwrap().clipboard,
+            Clipboard::Arboard {}
+        ));
+        for invalid in [
+            "[",
+            "unknown = true",
+            "root = 42",
+            "[language.cpp]\nrun = false",
+        ] {
+            fs::write(&local_path, invalid).unwrap();
+            let error = Config::load(&paths).unwrap_err();
+            assert!(
+                error.to_string().contains(local_path.to_str().unwrap()),
+                "{error:#}"
+            );
+        }
+        fs::remove_file(&local_path).unwrap();
+        assert_eq!(
+            Config::load(&paths).unwrap().root.unwrap(),
+            PathBuf::from("~/base")
+        );
+        fs::create_dir(&local_path).unwrap();
+        assert!(
+            Config::load(&paths)
+                .unwrap_err()
+                .to_string()
+                .contains("Cannot read")
+        );
     }
 }

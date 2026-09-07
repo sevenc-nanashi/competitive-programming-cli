@@ -164,6 +164,35 @@ fn interactive_initialization() {
 }
 
 #[test]
+fn initialize_local_configuration() {
+    for base in [None, Some("root = '~/base'\n")] {
+        let directory = tempfile::tempdir().unwrap();
+        fs::create_dir(directory.path().join("config")).unwrap();
+        let base_path = directory.path().join("config/config.toml");
+        if let Some(base) = base {
+            fs::write(&base_path, base).unwrap();
+        }
+        let local_path = directory.path().join("config/config.local.toml");
+        let local = "root = '~/local workspace'\n";
+        fs::write(&local_path, local).unwrap();
+        let output = run(&directory, &["config", "--root"], 0);
+        assert_eq!(
+            String::from_utf8(output.stdout).unwrap(),
+            format!("{}\n", directory.path().join("local workspace").display())
+        );
+        let output = run(&directory, &["init"], 0);
+        assert!(!String::from_utf8_lossy(&output.stderr).contains("Workspace root ["));
+        assert!(directory.path().join("local workspace").is_dir());
+        assert!(!directory.path().join("base").exists());
+        assert!(base_path.is_file());
+        if let Some(base) = base {
+            assert_eq!(fs::read_to_string(&base_path).unwrap(), base);
+        }
+        assert_eq!(fs::read_to_string(&local_path).unwrap(), local);
+    }
+}
+
+#[test]
 fn migrate_oj_templates() {
     use std::os::unix::fs::{PermissionsExt, symlink};
 
