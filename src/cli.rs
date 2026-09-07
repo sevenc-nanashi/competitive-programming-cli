@@ -175,7 +175,7 @@ pub struct Test {
     /// Wall-clock limit per case, in milliseconds.
     #[usage(long, short = 't')]
     pub time_limit: Option<NonZeroU64>,
-    /// Sampled process-group RSS limit, in MiB.
+    /// Sampled solution and child-process RSS limit, in MiB.
     #[usage(long, short = 'm')]
     pub memory_limit: Option<NonZeroU64>,
     /// Ignore trailing spaces and tabs on each line and whitespace at the end of output.

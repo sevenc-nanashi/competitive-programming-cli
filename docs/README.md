@@ -1,6 +1,6 @@
 # Documentation
 
-To build the documentation locally on Linux, install Rust 1.91 or newer and the
+To build the documentation locally, install Rust 1.91 or newer and the
 tools in `mise.toml`, then run:
 
 ```bash

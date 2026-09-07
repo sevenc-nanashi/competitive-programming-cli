@@ -22,22 +22,18 @@ permissions:
 jobs:
   check:
     uses: ./.github/workflows/ci.yml
-  release:
+  prepare:
     needs: check
     runs-on: ubuntu-24.04
-    environment: publish
-    permissions:
-      contents: write
-      id-token: write
+    outputs:
+      prerelease: ${{ steps.version.outputs.prerelease }}
     env:
       RELEASE_VERSION: ${{ inputs.version }}
     steps:
       - uses: actions/checkout@v7
         with:
-          fetch-depth: 0
+          persist-credentials: false
       - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: x86_64-unknown-linux-gnu
       - uses: taiki-e/install-action@v2
         with:
           tool: cargo-edit,cargo-about@0.7.1
@@ -54,15 +50,108 @@ jobs:
           else
             echo "prerelease=false" >> "$GITHUB_OUTPUT"
           fi
-      - run: cargo build --locked --release --target x86_64-unknown-linux-gnu
+      - run: cargo build --locked
       - name: Generate command reference
         run: |
-          target/x86_64-unknown-linux-gnu/release/cpg __usage_spec__ > target/cpg.usage.kdl
+          target/debug/cpg __usage_spec__ > target/cpg.usage.kdl
           usage generate markdown --file target/cpg.usage.kdl --out-file target/command-reference.md
       - name: Generate configuration schema
-        run: target/x86_64-unknown-linux-gnu/release/cpg config --schema > docs/public/config.schema.json
+        run: target/debug/cpg config --schema > docs/public/config.schema.json
       - name: Generate third-party notices
         run: cargo about generate --locked --fail about.hbs --output-file target/notice.md
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-metadata
+          path: |
+            Cargo.toml
+            Cargo.lock
+            docs/public/config.schema.json
+            target/notice.md
+            target/command-reference.md
+
+  build:
+    needs: prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            target: x86_64-unknown-linux-gnu
+            extension: ""
+          - os: macos-15
+            target: aarch64-apple-darwin
+            extension: ""
+          - os: macos-15-intel
+            target: x86_64-apple-darwin
+            extension: ""
+          - os: windows-2022
+            target: x86_64-pc-windows-msvc
+            extension: .exe
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: ilammy/setup-nasm@v1
+        if: runner.os == 'Windows'
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-metadata
+          path: ${{ runner.temp }}/metadata
+      - name: Apply release version
+        run: cp "$RUNNER_TEMP/metadata/Cargo.toml" "$RUNNER_TEMP/metadata/Cargo.lock" .
+      - run: cargo build --locked --release --target ${{ matrix.target }}
+      - name: Package
+        env:
+          RELEASE_TARGET: ${{ matrix.target }}
+          EXE_EXTENSION: ${{ matrix.extension }}
+        run: |
+          mkdir "$RUNNER_TEMP/dist"
+          cp "target/$RELEASE_TARGET/release/cpg$EXE_EXTENSION" README.md LICENSE "$RUNNER_TEMP/metadata/target/notice.md" "$RUNNER_TEMP/metadata/target/command-reference.md" "$RUNNER_TEMP/metadata/docs/public/config.schema.json" "$RUNNER_TEMP/dist/"
+          cd "$RUNNER_TEMP"
+          tar -C dist -czf "cpg-$RELEASE_TARGET.tar.gz" "cpg$EXE_EXTENSION" README.md LICENSE notice.md command-reference.md config.schema.json
+          if [[ "$RUNNER_OS" == "macOS" ]]; then
+            shasum -a 256 "cpg-$RELEASE_TARGET.tar.gz" > "cpg-$RELEASE_TARGET.tar.gz.sha256"
+          else
+            sha256sum "cpg-$RELEASE_TARGET.tar.gz" > "cpg-$RELEASE_TARGET.tar.gz.sha256"
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cpg-${{ matrix.target }}
+          path: |
+            ${{ runner.temp }}/cpg-*.tar.gz
+            ${{ runner.temp }}/cpg-*.tar.gz.sha256
+
+  release:
+    needs: [prepare, build]
+    runs-on: ubuntu-24.04
+    environment: publish
+    permissions:
+      contents: write
+      id-token: write
+    env:
+      RELEASE_VERSION: ${{ inputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-metadata
+          path: ${{ runner.temp }}/metadata
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: cpg-*
+          merge-multiple: true
+          path: ${{ runner.temp }}/assets
+      - name: Apply release metadata
+        run: |
+          cp "$RUNNER_TEMP/metadata/Cargo.toml" "$RUNNER_TEMP/metadata/Cargo.lock" .
+          cp "$RUNNER_TEMP/metadata/docs/public/config.schema.json" docs/public/config.schema.json
       - name: Commit release
         run: |
           git config user.name "github-actions[bot]"
@@ -71,12 +160,6 @@ jobs:
           git commit -m "chore: release v$RELEASE_VERSION"
           git tag "v$RELEASE_VERSION"
       - run: cargo publish --locked --dry-run
-      - name: Package
-        run: |
-          mkdir "$RUNNER_TEMP/dist"
-          cp target/x86_64-unknown-linux-gnu/release/cpg README.md LICENSE target/notice.md target/command-reference.md docs/public/config.schema.json "$RUNNER_TEMP/dist/"
-          cd "$RUNNER_TEMP"
-          tar -C dist -czf cpg-x86_64-unknown-linux-gnu.tar.gz cpg README.md LICENSE notice.md command-reference.md config.schema.json
       - name: Authenticate to crates.io
         uses: rust-lang/crates-io-auth-action@v1
         id: crates-io-auth
@@ -91,11 +174,11 @@ jobs:
       - uses: softprops/action-gh-release@v3
         with:
           tag_name: v${{ inputs.version }}
-          prerelease: ${{ steps.version.outputs.prerelease }}
+          prerelease: ${{ needs.prepare.outputs.prerelease }}
           fail_on_unmatched_files: true
           generate_release_notes: true
           files: |
-            ${{ runner.temp }}/cpg-x86_64-unknown-linux-gnu.tar.gz
-            ${{ runner.temp }}/dist/notice.md
-            ${{ runner.temp }}/dist/command-reference.md
-            ${{ runner.temp }}/dist/config.schema.json
+            ${{ runner.temp }}/assets/*
+            ${{ runner.temp }}/metadata/target/notice.md
+            ${{ runner.temp }}/metadata/target/command-reference.md
+            ${{ runner.temp }}/metadata/docs/public/config.schema.json

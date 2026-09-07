@@ -4,7 +4,6 @@
 > This project is in early development.
 >
 > - Configuration and metadata formats may change.
-> - Only Linux is supported for now.
 
 cpg is a command-line interface tool for competitive programming.
 
@@ -24,7 +23,8 @@ Currently supported online judges:
 - AtCoder Problems (Virtual Contests)
 - Yukicoder
 
-cpg currently supports Linux. Building requires Rust 1.91 or newer.
+cpg supports Linux, macOS, and Windows. Building requires Rust 1.91 or newer.
+Configuration commands use `sh` on Linux/macOS and `cmd` on Windows.
 
 Refer the [Documentation](https://sevenc7c.com/competitive-programming-cli/installation/index.html) for installation.
 

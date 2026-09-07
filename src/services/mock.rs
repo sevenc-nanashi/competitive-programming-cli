@@ -235,7 +235,12 @@ impl ServiceBackend for MockBackend {
             return Ok(Vec::new());
         }
         // ponytail: serialize mock judging; use per-submission locks if parallel judges are needed.
-        let lock = fs::File::open(&directory)?;
+        let lock = fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .truncate(false)
+            .open(root()?.join("submissions.lock"))?;
         lock.lock()?;
         let mut submissions = Vec::new();
         for entry in fs::read_dir(&directory)? {

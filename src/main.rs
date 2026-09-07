@@ -1,10 +1,11 @@
-#[cfg(not(target_os = "linux"))]
-compile_error!("cpg currently supports Linux only");
+#[cfg(not(any(target_os = "linux", target_os = "macos", windows)))]
+compile_error!("cpg supports Linux, macOS, and Windows");
 
 mod cli;
 mod config;
 mod log_writer;
 mod model;
+mod platform;
 mod results;
 mod runner;
 mod services;

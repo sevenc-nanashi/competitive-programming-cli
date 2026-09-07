@@ -29,3 +29,25 @@ jobs:
           tool: cargo-about@0.7.1
       - run: cargo about generate --locked --fail about.hbs --output-file target/notice.md
       - run: cargo package --locked
+
+  platforms:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15, macos-15-intel, windows-2022]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: ilammy/setup-nasm@v1
+        if: runner.os == 'Windows'
+      - run: cargo clippy --locked --all-targets --all-features -- -D warnings
+      - run: cargo test --locked
+      - run: cargo test --locked --all-features

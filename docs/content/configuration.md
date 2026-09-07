@@ -63,7 +63,7 @@ before initialization. Template directories are located within the configuration
 directory, including when `$CPG_CONFIG_HOME` is set.
 
 [Language settings](#language-settings) belong in the same file. Path settings and CLI
-path arguments expand a leading `~` or `~/` to `$HOME`, including `root`, source
+path arguments expand a leading `~` or `~/` to `$HOME` (`USERPROFILE` on Windows), including `root`, source
 files, test/generation directories, judge files, and configuration/Cookie paths.
 For example, `root = "~/competitive-programming"` is supported.
 Other environment variables in TOML paths are not expanded. Arguments after
@@ -152,7 +152,7 @@ kind = "command"
 command = "wl-copy"
 ```
 
-`command` is required for this backend and runs through `sh -c` in the current
+`command` is required for this backend and runs through `sh -c` (`cmd /C` on Windows) in the current
 directory. The complete UTF-8 text is piped to its standard input without adding
 a newline. Command stdout and stderr go to cpg's stderr. A nonzero exit status
 fails the copy; Ctrl-C stops the command and its process group.
@@ -198,7 +198,7 @@ directory. Samples and template checksums are written after the problem's setup
 commands. Files created or changed by setup are included in the
 unchanged-template check.
 
-Commands run through `sh -c` in the temporary directory being prepared, which is
+Commands run through `sh -c` (`cmd /C` on Windows) in the temporary directory being prepared, which is
 renamed to the final workspace path on success. Use relative paths in generated
 files rather than embedding the temporary absolute path. Standard input is
 closed; command stdout and stderr go to cpg's stderr so stdout contains only the
@@ -218,8 +218,10 @@ For example, you can use [cookies.txt](https://addons.mozilla.org/ja/firefox/add
 
 The cookies file should be saved in `$XDG_DATA_HOME/cpg/cookies` by default.
 Overridable with `$CPG_COOKIES_HOME` environment variable.
-`login` verifies the session before saving `<service>.txt` with mode `600` in a
-directory with mode `700`. An unsuccessful login leaves the previous cookies intact.
+`login` verifies the session before saving `<service>.txt`. On Linux and macOS,
+the file has mode `600` and its directory mode `700`. On Windows, PowerShell sets
+the directory ACL to allow only the current user; new cookie files inherit it.
+An unsuccessful login leaves the previous cookies intact.
 AtCoder Problems uses the AtCoder session; both `login atcoder` and
 `login atcoder-problems` save `atcoder.txt`. Expired sessions require a fresh export.
 
@@ -260,9 +262,12 @@ solutions, generators, reference solutions, and judge files.
 | `profile`    | No       | Named overrides for `compile` and `run`, selected with `--profile`.         |
 | `submit`     | No       | Submission language IDs keyed by service, such as `atcoder` or `yukicoder`. |
 
-Commands run through `sh -c` in the source file's directory. In `compile` and
+Commands run through `sh -c` on Linux/macOS and `cmd /C` on Windows, in the
+source file's directory. Use the syntax of the corresponding shell;
+[Windows examples](./installation.md#windows) describe the differences. In `compile` and
 `run`, `{input}` expands to the source path and `{binary}` to the same path with
-its final extension removed. cpg shell-quotes both paths; leave the placeholders
+its final extension removed on Linux/macOS or replaced with `.exe` on Windows.
+cpg shell-quotes both paths; leave the placeholders
 unquoted in the command. When preprocessing is configured, `{input}` points to
 the transformed source. Omit `compile` for interpreted languages that need no
 compilation or syntax check. Compilation runs once before testing or generation.
@@ -281,7 +286,8 @@ and defines a `fast` profile.
 
 If no configured extension matches, executable files use the built-in
 `executable` language, which runs `{input}` without compilation. This works
-with extensionless binaries and scripts with execute permission and a shebang:
+with extensionless binaries and scripts with execute permission and a shebang
+on Linux/macOS, and `.exe` or `.com` files on Windows:
 
 ```bash
 cpg test ./a.out

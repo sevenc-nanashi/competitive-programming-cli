@@ -9,10 +9,8 @@ use anyhow::{Context, Result, ensure};
 use sha2::{Digest, Sha256};
 use std::{
     collections::BTreeMap,
-    ffi::CString,
     fs,
     io::ErrorKind,
-    os::unix::ffi::OsStrExt,
     path::{Component, Path, PathBuf},
     sync::atomic::{AtomicBool, Ordering},
 };
@@ -293,21 +291,8 @@ pub fn download(
         }
     }
     ensure!(!interrupted.load(Ordering::Relaxed), "Interrupted");
-    let from = CString::new(staging.path().as_os_str().as_bytes())?;
-    let to = CString::new(destination.as_os_str().as_bytes())?;
-    // RENAME_NOREPLACE also protects a destination created while the download was running.
-    let result = unsafe {
-        libc::renameat2(
-            libc::AT_FDCWD,
-            from.as_ptr(),
-            libc::AT_FDCWD,
-            to.as_ptr(),
-            libc::RENAME_NOREPLACE,
-        )
-    };
-    if result != 0 {
-        return Err(std::io::Error::last_os_error()).context("Cannot publish downloaded directory");
-    }
+    crate::platform::publish_directory(staging.path(), &destination)
+        .context("Cannot publish downloaded directory")?;
     tracing::info!("Created workspace: {}", destination.display());
     Ok(destination)
 }
@@ -335,7 +320,9 @@ pub fn list(config: &Config, mode: ListMode) -> Result<Vec<PathBuf>> {
         }
         for entry in fs::read_dir(path)? {
             let entry = entry?;
-            if entry.file_type()?.is_dir() && !entry.file_name().as_bytes().starts_with(b".") {
+            if entry.file_type()?.is_dir()
+                && !entry.file_name().as_encoded_bytes().starts_with(b".")
+            {
                 visit(&entry.path(), mode, found)?;
             }
         }

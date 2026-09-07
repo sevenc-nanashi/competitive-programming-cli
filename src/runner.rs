@@ -4,13 +4,13 @@ use crate::{
 };
 use anyhow::{Context, Result, ensure};
 use console::Style;
+use process_wrap::std::{ChildWrapper, CommandWrap};
 use std::{
     ffi::{OsStr, OsString},
     fs::{self, File},
     io::{self, Read, Write},
-    os::unix::process::CommandExt,
     path::{Path, PathBuf},
-    process::{Child, Command, ExitStatus, Stdio},
+    process::{Command, ExitStatus, Stdio},
     sync::{
         Arc, Mutex,
         atomic::{AtomicBool, Ordering},
@@ -70,7 +70,7 @@ impl Program {
                 .parent()
                 .context("Source file has no parent")?
                 .to_owned();
-            let binary = file.with_extension("");
+            let binary = file.with_extension(std::env::consts::EXE_EXTENSION);
             ensure!(
                 compile.is_none() || binary != file,
                 "Compiled output would overwrite the source file"
@@ -125,7 +125,21 @@ fn quote(value: &OsStr) -> Result<String> {
     let value = value.to_str().context(
         "Shell placeholders require UTF-8 paths; use a direct command for non-UTF-8 paths",
     )?;
-    Ok(shlex::try_quote(value)?.into_owned())
+    #[cfg(unix)]
+    {
+        Ok(shlex::try_quote(value)?.into_owned())
+    }
+    #[cfg(windows)]
+    {
+        let value = dunce::simplified(Path::new(value))
+            .to_str()
+            .context("Shell paths must be UTF-8")?;
+        // Expand literal percent signs once, without interpreting path components as variables.
+        Ok(format!(
+            "\"{}\"",
+            value.replace('%', "%CPG_LITERAL_PERCENT%")
+        ))
+    }
 }
 
 pub fn prepare_source(
@@ -227,7 +241,7 @@ fn transform_source(
 }
 
 struct ManagedChild {
-    child: Child,
+    child: Box<dyn ChildWrapper>,
     status: Option<ExitStatus>,
     kill_group: bool,
 }
@@ -236,9 +250,22 @@ impl ManagedChild {
     fn spawn(program: &Program, stdin: Stdio, stdout: Stdio) -> Result<Self> {
         let mut command = match &program.invocation {
             Invocation::Shell(script) => {
-                let mut command = Command::new("sh");
-                command.args(["-c", script]);
-                command
+                #[cfg(unix)]
+                {
+                    let mut command = Command::new("sh");
+                    command.args(["-c", script]);
+                    command
+                }
+                #[cfg(windows)]
+                {
+                    use std::os::windows::process::CommandExt;
+                    let mut command = Command::new("cmd.exe");
+                    command
+                        .args(["/D", "/E:ON", "/V:OFF", "/S", "/C"])
+                        .raw_arg(format!("\"{script}\""))
+                        .env("CPG_LITERAL_PERCENT", "%");
+                    command
+                }
             }
             Invocation::Direct(argv) => {
                 let (executable, args) = argv.split_first().context("Empty command")?;
@@ -248,16 +275,24 @@ impl ManagedChild {
             }
         };
         let executable = command.get_program().to_owned();
-        let child = command
-            .current_dir(&program.cwd)
+        let cwd = &program.cwd;
+        #[cfg(windows)]
+        let cwd = dunce::simplified(cwd);
+        command
+            .current_dir(cwd)
             .stdin(stdin)
             .stdout(stdout)
             .stderr(if program.quiet {
                 Stdio::null()
             } else {
                 Stdio::inherit()
-            })
-            .process_group(0)
+            });
+        let mut command = CommandWrap::from(command);
+        #[cfg(unix)]
+        command.wrap(process_wrap::std::ProcessGroup::leader());
+        #[cfg(windows)]
+        command.wrap(process_wrap::std::JobObject);
+        let child = command
             .spawn()
             .with_context(|| format!("Cannot start {}", executable.to_string_lossy()))?;
         Ok(Self {
@@ -269,7 +304,7 @@ impl ManagedChild {
 
     fn poll(&mut self) -> Result<Option<ExitStatus>> {
         if self.status.is_none() {
-            self.status = self.child.try_wait()?;
+            self.status = self.child.inner_mut().try_wait()?;
         }
         Ok(self.status)
     }
@@ -279,11 +314,11 @@ impl Drop for ManagedChild {
     fn drop(&mut self) {
         // The shell and all children inheriting its process group are owned by this run.
         if self.kill_group {
-            unsafe {
-                libc::kill(-(self.child.id() as i32), libc::SIGKILL);
-            }
+            let _ = self.child.start_kill();
+            let _ = self.child.wait();
+        } else {
+            let _ = self.child.inner_mut().wait();
         }
-        let _ = self.child.wait();
     }
 }
 
@@ -320,25 +355,6 @@ struct RunResult {
     memory: u64,
 }
 
-fn memory_usage(group: u32) -> Result<u64> {
-    let mut memory = 0;
-    // ponytail: /proc polling misses brief peaks and scans all processes; use delegated cgroups for strict accounting.
-    for process in procfs::process::all_processes()? {
-        // Processes may disappear between enumeration and reading stat; other users may hide theirs.
-        let stat = match process.and_then(|p| p.stat()) {
-            Ok(stat) => stat,
-            Err(procfs::ProcError::NotFound(_)) | Err(procfs::ProcError::PermissionDenied(_)) => {
-                continue;
-            }
-            Err(e) => return Err(e.into()),
-        };
-        if stat.pgrp == group as i32 {
-            memory += stat.rss * procfs::page_size();
-        }
-    }
-    Ok(memory)
-}
-
 fn monitor(
     children: &mut [&mut ManagedChild],
     limits: Limits,
@@ -346,9 +362,10 @@ fn monitor(
 ) -> Result<RunResult> {
     let started = Instant::now();
     let mut peak = 0;
+    let mut memory = crate::platform::MemoryMonitor::default();
     let verdict = loop {
         ensure!(!interrupted.load(Ordering::Relaxed), "Interrupted");
-        peak = peak.max(memory_usage(children[0].child.id())?);
+        peak = peak.max(memory.usage(children[0].child.id())?);
         if limits.memory.is_some_and(|limit| peak > limit) {
             break Verdict::Mle;
         }
@@ -403,7 +420,7 @@ pub fn judge_samples(
 ) -> Result<(String, Duration)> {
     ensure!(!samples.is_empty(), "No sample test cases to judge");
     let directory = source.parent().context("Source file has no parent")?;
-    let binary = source.with_extension("");
+    let binary = source.with_extension(std::env::consts::EXE_EXTENSION);
     let program = |command: &str| -> Result<Program> {
         let command = command
             .replace("{input}", &quote(source.as_os_str())?)
@@ -496,7 +513,7 @@ pub fn copy_to_clipboard(
             let mut child = ManagedChild::spawn(&program, Stdio::piped(), io::stderr().into())?;
             let mut stdin = child
                 .child
-                .stdin
+                .stdin()
                 .take()
                 .context("Missing clipboard command stdin")?;
             thread::scope(|scope| {
@@ -561,10 +578,10 @@ fn interactive(
 ) -> Result<RunResult> {
     let mut solution = ManagedChild::spawn(program, Stdio::piped(), Stdio::piped())?;
     let mut judge = ManagedChild::spawn(judge, Stdio::piped(), Stdio::piped())?;
-    let solution_out = solution.child.stdout.take().expect("piped stdout");
-    let judge_in = judge.child.stdin.take().expect("piped stdin");
-    let judge_out = judge.child.stdout.take().expect("piped stdout");
-    let solution_in = solution.child.stdin.take().expect("piped stdin");
+    let solution_out = solution.child.stdout().take().expect("piped stdout");
+    let judge_in = judge.child.stdin().take().expect("piped stdin");
+    let judge_out = judge.child.stdout().take().expect("piped stdout");
+    let solution_in = solution.child.stdin().take().expect("piped stdin");
     let transcript = transcript.map(|file| Arc::new(Mutex::new(file)));
     let forward_transcript = transcript.clone();
     let forward = thread::spawn(move || {
@@ -1094,7 +1111,15 @@ pub fn generate(config: &Config, options: &Generate, interrupted: &AtomicBool) -
 
 pub fn install_signal_handler() -> Result<Arc<AtomicBool>> {
     let interrupted = Arc::new(AtomicBool::new(false));
-    signal_hook::flag::register(signal_hook::consts::SIGINT, interrupted.clone())?;
-    signal_hook::flag::register(signal_hook::consts::SIGTERM, interrupted.clone())?;
+    #[cfg(unix)]
+    {
+        signal_hook::flag::register(signal_hook::consts::SIGINT, interrupted.clone())?;
+        signal_hook::flag::register(signal_hook::consts::SIGTERM, interrupted.clone())?;
+    }
+    #[cfg(windows)]
+    {
+        let flag = interrupted.clone();
+        ctrlc::set_handler(move || flag.store(true, Ordering::Relaxed))?;
+    }
     Ok(interrupted)
 }

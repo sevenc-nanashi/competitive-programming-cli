@@ -19,7 +19,6 @@ use std::{
     collections::HashMap,
     fs,
     io::{Cursor, ErrorKind, Write},
-    os::unix::fs::{DirBuilderExt, PermissionsExt},
     path::{Path, PathBuf},
     sync::{Arc, Mutex},
     thread,
@@ -140,15 +139,15 @@ impl Services {
             }
             .whoami()?,
         };
-        fs::DirBuilder::new()
-            .recursive(true)
-            .mode(0o700)
-            .create(&paths.cookies)?;
-        fs::set_permissions(&paths.cookies, fs::Permissions::from_mode(0o700))?;
+        crate::platform::private_directory(&paths.cookies)?;
         let mut staging = tempfile::NamedTempFile::new_in(&paths.cookies)?;
-        staging
-            .as_file()
-            .set_permissions(fs::Permissions::from_mode(0o600))?;
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            staging
+                .as_file()
+                .set_permissions(fs::Permissions::from_mode(0o600))?;
+        }
         staging.write_all(&raw)?;
         staging.as_file().sync_all()?;
         staging.persist(paths.cookies.join(format!("{}.txt", auth_service.as_str())))?;

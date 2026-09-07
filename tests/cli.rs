@@ -1,3 +1,5 @@
+#![cfg(target_os = "linux")]
+
 use std::{
     fs,
     io::{BufRead, BufReader, Write},
@@ -1591,7 +1593,9 @@ run = "{binary}"
         .output()
         .unwrap();
     assert_eq!(output.status.code(), Some(2));
-    assert!(String::from_utf8_lossy(&output.stderr).contains("HOME must be set to expand ~"));
+    assert!(
+        String::from_utf8_lossy(&output.stderr).contains("Home directory must be set to expand ~")
+    );
 
     let config_path = directory.path().join("config/config.toml");
     let mut config: toml::Value =

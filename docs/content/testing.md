@@ -37,10 +37,14 @@ cpg test --time-limit 2000 --memory-limit 256 ./solution.cpp
 ```
 
 The time limit measures wall-clock time. The memory limit is in MiB and uses
-the solution process group's resident memory, sampled from `/proc` every 10 ms.
-Short memory peaks may be missed; shared pages may be counted more than once.
+sampled resident memory of the solution and its children: process-group memory
+from `/proc` on Linux, process-group memory on macOS, and descendant-process
+memory on Windows. Sampling pauses for 10 ms between scans. Short memory peaks
+may be missed; shared pages may be counted more than once. On Windows, descendants
+orphaned between samples may also be missed.
 Compilation runs once before testing and is outside these limits. Limits and
-Ctrl-C terminate the process group, including children that inherit that group.
+Ctrl-C terminate the process group on Linux/macOS or the Job Object on Windows,
+including children that belong to it.
 
 Use `--jobs N` (`-j N`) to run up to N cases concurrently; the default is `1`.
 Compilation and preprocessing still run once before testing. This also applies

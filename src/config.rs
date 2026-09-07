@@ -6,7 +6,6 @@ use std::{
     collections::BTreeMap,
     env, fs,
     io::{self, ErrorKind, Write},
-    os::unix::fs::PermissionsExt,
     path::{Component, Path, PathBuf},
     sync::{
         LazyLock,
@@ -34,8 +33,11 @@ pub fn expand_path(path: impl AsRef<Path>) -> Result<PathBuf> {
     let Ok(suffix) = path.strip_prefix("~") else {
         return Ok(path.to_owned());
     };
-    let home = PathBuf::from(env::var_os("HOME").context("HOME must be set to expand ~")?);
-    ensure!(home.is_absolute(), "HOME must be absolute to expand ~");
+    let home = crate::platform::home().context("Home directory must be set to expand ~")?;
+    ensure!(
+        home.is_absolute(),
+        "Home directory must be absolute to expand ~"
+    );
     Ok(home.join(suffix))
 }
 
@@ -50,7 +52,7 @@ fn directory(override_var: &str, xdg_var: &str, default: &str, suffix: &str) -> 
 fn xdg_directory(xdg_var: &str, default: &str, suffix: &str) -> Result<PathBuf> {
     let base = match env::var_os(xdg_var).filter(|v| !v.is_empty()) {
         Some(value) => expand_path(PathBuf::from(value))?,
-        None => PathBuf::from(env::var_os("HOME").context("HOME is not set")?).join(default),
+        None => crate::platform::home()?.join(default),
     };
     ensure!(base.is_absolute(), "{xdg_var} must be absolute");
     Ok(base.join(suffix))
@@ -519,7 +521,7 @@ impl Config {
             }
         }
         let metadata = fs::metadata(path)?;
-        if metadata.is_file() && metadata.permissions().mode() & 0o111 != 0 {
+        if metadata.is_file() && crate::platform::is_executable(path, &metadata) {
             Ok(Some(self.language.get("executable").unwrap_or(&EXECUTABLE)))
         } else {
             Ok(None)

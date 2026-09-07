@@ -1,6 +1,6 @@
 # Installation
 
-cpg supports Linux and requires Rust 1.91 or newer when building from source.
+cpg supports Linux, macOS, and Windows. Building from source requires Rust 1.91 or newer and a native C/C++ toolchain (Xcode Command Line Tools on macOS, Visual Studio Build Tools and NASM on Windows).
 
 To install the current checkout:
 
@@ -18,8 +18,9 @@ cargo install competitive-programming-cli
 cargo binstall competitive-programming-cli
 ```
 
-Tagged releases provide `cpg-x86_64-unknown-linux-gnu.tar.gz` and a SHA-256
-checksum on the [releases page](https://github.com/sevenc-nanashi/competitive-programming-cli/releases).
+The release workflow builds the following archives, each with a SHA-256 checksum,
+for the [releases page](https://github.com/sevenc-nanashi/competitive-programming-cli/releases).
+
 You can install those binaries manually or using package managers like `mise`.
 Each archive includes `command-reference.md` with the generated command reference,
 `config.schema.json` with the configuration schema, and `notice.md` with dependency
@@ -29,6 +30,13 @@ licenses. All three are also available as separate release downloads.
 # Using mise
 mise use -g github:sevenc-nanashi/competitive-programming-cli
 ```
+
+## Windows
+
+Configuration commands, including setup and language commands, run through
+`cmd /C` on Windows. Use CMD syntax, such as `type` instead of `cat` and
+`%VARIABLE%` instead of `$VARIABLE`.
+Install the compilers and runtimes referenced by your configuration separately.
 
 ## Shell completion
 
