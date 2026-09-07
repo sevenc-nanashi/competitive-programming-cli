@@ -185,8 +185,24 @@ fn run(cli: Cli, interrupted: &AtomicBool) -> Result<bool> {
                 None => source,
             };
             if args.clipboard {
+                let problem_url = if args.open {
+                    let (_, Metadata::Problem { reference, .. }) = local.as_ref().context(
+                        "No .cpg.toml found for the source; --open requires problem metadata",
+                    )?
+                    else {
+                        bail!("--open requires a problem directory");
+                    };
+                    Some(&reference.url)
+                } else {
+                    None
+                };
                 runner::copy_to_clipboard(&config.clipboard, &source, interrupted)?;
                 tracing::info!("Copied {} bytes to the clipboard", source.len());
+                if let Some(url) = problem_url {
+                    println!("{url}");
+                    open_browser(url)
+                        .context("Source copied, but opening the problem page failed")?;
+                }
                 return Ok(true);
             }
             let services = Services::new(&paths)?;

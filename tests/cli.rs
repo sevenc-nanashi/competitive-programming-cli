@@ -353,6 +353,66 @@ fn configuration_schema() {
 }
 
 #[test]
+fn clipboard_open_problem() {
+    use std::os::unix::fs::{PermissionsExt, symlink};
+
+    let directory = tempfile::tempdir().unwrap();
+    fs::create_dir(directory.path().join("config")).unwrap();
+    fs::write(
+        directory.path().join("config/config.toml"),
+        "[clipboard]\nkind = 'command'\ncommand = '/bin/cat > copied'\n",
+    )
+    .unwrap();
+    fs::write(directory.path().join("solution.txt"), "source\n").unwrap();
+    let args = ["submit", "solution.txt", "--clipboard", "--open"];
+    let output = run(&directory, &args, 2);
+    assert!(String::from_utf8_lossy(&output.stderr).contains("requires problem metadata"));
+    assert!(!directory.path().join("copied").exists());
+
+    let url = "https://atcoder.jp/contests/practice/tasks/practice_1";
+    fs::write(directory.path().join(".cpg.toml"), format!(
+        "kind = 'problem'\nservice = 'atcoder'\nid = 'practice_1'\nurl = {url:?}\ntitle = 'Practice'\n"
+    )).unwrap();
+    symlink("/bin/sh", directory.path().join("sh")).unwrap();
+    let opener = directory.path().join("xdg-open");
+    fs::write(
+        &opener,
+        "#!/bin/sh\nprintf '%s\\n' \"$1\" > opened\nexit \"$CPG_OPEN_EXIT\"\n",
+    )
+    .unwrap();
+    fs::set_permissions(&opener, fs::Permissions::from_mode(0o755)).unwrap();
+    for (browser_exit, expected) in [("0", 0), ("7", 2)] {
+        let output = command(&directory)
+            .args(args)
+            .env("PATH", directory.path())
+            .env("CPG_OPEN_EXIT", browser_exit)
+            .env_remove("BROWSER")
+            .output()
+            .unwrap();
+        assert_eq!(output.status.code(), Some(expected), "{output:?}");
+        assert_eq!(
+            String::from_utf8(output.stdout).unwrap(),
+            format!("{url}\n")
+        );
+        assert_eq!(
+            fs::read_to_string(directory.path().join("opened")).unwrap(),
+            format!("{url}\n")
+        );
+        assert_eq!(
+            fs::read_to_string(directory.path().join("copied")).unwrap(),
+            "source\n"
+        );
+        if expected != 0 {
+            assert!(
+                String::from_utf8_lossy(&output.stderr)
+                    .contains("Source copied, but opening the problem page failed")
+            );
+        }
+    }
+    assert!(!directory.path().join("cookies").exists());
+}
+
+#[test]
 fn clipboard() {
     let directory = tempfile::Builder::new()
         .prefix("cpg ' {input} {processed} ")
@@ -854,16 +914,6 @@ fn cli_contract_and_local_judging() {
     }
     let help = run(&directory, &["results", "--help"], 0);
     assert!(String::from_utf8_lossy(&help.stdout).contains("--ui"));
-    let output = run(
-        &directory,
-        &["submit", "solution.rb", "--clipboard", "--open"],
-        2,
-    );
-    let error = String::from_utf8_lossy(&output.stderr);
-    assert!(
-        error.contains("--clipboard") && error.contains("--open"),
-        "{error}"
-    );
     run(&directory, &["results", "--watch"], 2);
     for options in [
         vec!["--time-limit", "0"],

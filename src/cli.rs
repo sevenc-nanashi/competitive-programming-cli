@@ -246,7 +246,9 @@ pub struct Submit {
     #[usage(long, short = 'c', conflicts("--problem", "--language"))]
     pub clipboard: bool,
     /// Open the submission page in your browser after a successful submission.
-    #[usage(long, short = 'o', conflicts("--clipboard"))]
+    /// With --clipboard, open the problem page instead of the submission page so you can paste the
+    /// copied source.
+    #[usage(long, short = 'o')]
     pub open: bool,
     /// Submit to this problem URL instead of detecting it from the source's .cpg.toml.
     #[usage(long, value_hint = usage::ValueHint::Url)]
