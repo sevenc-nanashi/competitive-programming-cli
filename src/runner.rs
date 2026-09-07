@@ -29,7 +29,7 @@ enum Invocation {
 pub struct Program {
     invocation: Invocation,
     pub cwd: PathBuf,
-    prepared_source: Option<Arc<tempfile::NamedTempFile>>,
+    prepared_source: Option<Arc<tempfile::TempPath>>,
     quiet: bool,
 }
 
@@ -76,8 +76,8 @@ impl Program {
                 "Compiled output would overwrite the source file"
             );
             let prepared_source = prepare_source(language, &file, false, interrupted)?;
-            let input = match &prepared_source {
-                Some(source) => source.path(),
+            let input: &Path = match &prepared_source {
+                Some(source) => source,
                 None => &file,
             };
             let expand = |command: &str| -> Result<String> {
@@ -147,8 +147,8 @@ pub fn prepare_source(
     input: &Path,
     for_submission: bool,
     interrupted: &AtomicBool,
-) -> Result<Option<Arc<tempfile::NamedTempFile>>> {
-    let mut output: Option<Arc<tempfile::NamedTempFile>> = None;
+) -> Result<Option<Arc<tempfile::TempPath>>> {
+    let mut output: Option<Arc<tempfile::TempPath>> = None;
     let stages = [
         ("preprocess", language.preprocess.as_deref()),
         (
@@ -162,8 +162,8 @@ pub fn prepare_source(
     ];
     for (stage, command) in stages {
         if let Some(command) = command {
-            let input = match &output {
-                Some(source) => source.path(),
+            let input: &Path = match &output {
+                Some(source) => source,
                 None => input,
             };
             output = Some(Arc::new(transform_source(
@@ -182,7 +182,7 @@ fn transform_source(
     command: &str,
     input: &Path,
     interrupted: &AtomicBool,
-) -> Result<tempfile::NamedTempFile> {
+) -> Result<tempfile::TempPath> {
     let cwd = input
         .parent()
         .context("Source file has no parent")?
@@ -200,9 +200,11 @@ fn transform_source(
     let output = tempfile::Builder::new()
         .prefix("cpg_preprocessed_")
         .suffix(&suffix)
-        .tempfile_in(&cwd)?;
+        .tempfile_in(&cwd)?
+        // Close the handle so Windows commands can open the output for exclusive writing.
+        .into_temp_path();
     let uses_processed = command.contains("{processed}");
-    let processed = quote(output.path().as_os_str())?;
+    let processed = quote(output.as_os_str())?;
     let command = command
         .split("{input}")
         .map(|part| part.replace("{processed}", &processed))
@@ -216,7 +218,7 @@ fn transform_source(
         if uses_processed {
             io::stderr().into()
         } else {
-            output.reopen()?.into()
+            File::create(&output)?.into()
         },
         Limits::default(),
         interrupted,
@@ -226,8 +228,8 @@ fn transform_source(
         "{stage} failed ({})",
         result.verdict.on_compile()
     );
-    let source = fs::read_to_string(output.path())
-        .with_context(|| format!("{stage} output must be UTF-8"))?;
+    let source =
+        fs::read_to_string(&output).with_context(|| format!("{stage} output must be UTF-8"))?;
     ensure!(
         !source.trim().is_empty(),
         "{stage} produced empty output; configure it to write source code to {}",

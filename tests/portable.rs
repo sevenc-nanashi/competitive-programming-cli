@@ -163,8 +163,9 @@ fn paths_completion_and_direct_judging() {
 #[test]
 fn compile_transform_generate_and_interactive() {
     let directory = directory();
+    let config_path = directory.path().join("config/config.toml");
     fs::write(
-        directory.path().join("config/config.toml"),
+        &config_path,
         r#"
 root = '~/workspace'
 [language.rust]
@@ -197,6 +198,20 @@ run = '{binary} copy'
     )
     .unwrap();
     run(command(&directory).args(["test", "solution.rs"]), 0);
+    let config = fs::read_to_string(&config_path).unwrap();
+    fs::write(&config_path, config.replace(" > {processed}", "")).unwrap();
+    run(command(&directory).args(["test", "solution.rs"]), 0);
+    assert_eq!(
+        fs::read_to_string(directory.path().join("solution.rs")).unwrap(),
+        include_str!("fixtures/portable.rs")
+    );
+    assert!(fs::read_dir(directory.path()).unwrap().all(|entry| {
+        !entry
+            .unwrap()
+            .file_name()
+            .to_string_lossy()
+            .starts_with("cpg_preprocessed_")
+    }));
     let executable = format!("solution{}", std::env::consts::EXE_SUFFIX);
     assert!(directory.path().join(&executable).is_file());
     run(
@@ -310,8 +325,19 @@ fn download_login_and_submission() {
         command(&directory).args(["download", "https://mock.local/problems/echo"]),
         2,
     );
+    let module = directory
+        .path()
+        .join("modules/Microsoft.PowerShell.Security");
+    fs::create_dir_all(&module).unwrap();
+    fs::write(
+        module.join("Microsoft.PowerShell.Security.psm1"),
+        "function Set-Acl { throw 'Inherited PSModulePath must not be used' }",
+    )
+    .unwrap();
     run(
-        command(&directory).args(["login", "mock", "--cookie-file", "mock_service/cookies.txt"]),
+        command(&directory)
+            .env("PSModulePath", directory.path().join("modules"))
+            .args(["login", "mock", "--cookie-file", "mock_service/cookies.txt"]),
         0,
     );
     let cookies = fs::read(directory.path().join("cookies/mock.txt")).unwrap();

@@ -181,7 +181,7 @@ fn run(cli: Cli, interrupted: &AtomicBool) -> Result<bool> {
                 .transpose()?
                 .flatten();
             let source = match &prepared_source {
-                Some(prepared) => fs::read_to_string(prepared.path())?,
+                Some(prepared) => fs::read_to_string(prepared.as_ref())?,
                 None => source,
             };
             if args.clipboard {

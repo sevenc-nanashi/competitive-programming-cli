@@ -52,6 +52,8 @@ $acl.AddAccessRule([System.Security.AccessControl.FileSystemAccessRule]::new($si
 Set-Acl -LiteralPath $env:CPG_PRIVATE_DIRECTORY -AclObject $acl
 "#])
             .env("CPG_PRIVATE_DIRECTORY", path)
+            // Windows PowerShell cannot load PowerShell 7's modules.
+            .env_remove("PSModulePath")
             .output().context("Cannot secure the cookie directory using PowerShell")?;
         anyhow::ensure!(
             output.status.success(),
