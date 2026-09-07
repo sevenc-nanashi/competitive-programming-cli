@@ -1,14 +1,14 @@
 [tools]
-aube = "latest"
-bat = "latest"
-eza = "latest"
+aube = { version = "latest", os = ["linux"] }
+bat = { version = "latest", os = ["linux"] }
+eza = { version = "latest", os = ["linux"] }
 "github:EmbarkStudios/cargo-about" = "0.7.1"
-"github:asciinema/agg" = "latest"
-"github:asciinema/asciinema" = "latest"
-node = "24"
-ttyd = "latest"
+"github:asciinema/agg" = { version = "latest", os = ["linux"] }
+"github:asciinema/asciinema" = { version = "latest", os = ["linux"] }
+node = { version = "24", os = ["linux"] }
+ttyd = { version = "latest", os = ["linux"] }
 usage = "latest"
-vhs = "0.10.0"
+vhs = { version = "0.10.0", os = ["linux"] }
 
 [tasks.demo]
 description = "Record the demo GIF and asciinema cast"

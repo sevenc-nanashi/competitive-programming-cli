@@ -99,7 +99,7 @@ impl Program {
                 ensure!(
                     result.verdict == Verdict::Ac,
                     "Compilation failed ({})",
-                    result.verdict
+                    result.verdict.on_compile()
                 );
             }
             let mut program = Self::shell(expand(run)?, cwd);
@@ -224,7 +224,7 @@ fn transform_source(
     ensure!(
         result.verdict == Verdict::Ac,
         "{stage} failed ({})",
-        result.verdict
+        result.verdict.on_compile()
     );
     let source = fs::read_to_string(output.path())
         .with_context(|| format!("{stage} output must be UTF-8"))?;
@@ -335,6 +335,15 @@ enum Verdict {
     Re,
     Tle,
     Mle,
+    Ce,
+}
+impl Verdict {
+    fn on_compile(&self) -> Self {
+        match self {
+            Self::Ac => Self::Ac,
+            _ => Self::Ce,
+        }
+    }
 }
 
 impl std::fmt::Display for Verdict {
@@ -345,6 +354,7 @@ impl std::fmt::Display for Verdict {
             Self::Re => "RE",
             Self::Tle => "TLE",
             Self::Mle => "MLE",
+            Self::Ce => "CE",
         })
     }
 }
