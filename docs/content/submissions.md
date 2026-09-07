@@ -10,6 +10,9 @@ cpg submit ./solution.cpp
 
 # Or shortcut
 cpg s ./solution.cpp
+
+# Submit and open the submission page in your browser
+cpg submit ./solution.cpp --open
 ```
 
 The problem is detected using the nearest `.cpg.toml` in the solution file's
@@ -30,6 +33,10 @@ A successful submission prints its ID and URL. If the judge's response is
 ambiguous, cpg reports that the outcome is unknown; check `results` before
 submitting again.
 
+With `--open`, cpg opens the returned submission URL after submitting. If the
+browser cannot be opened, the submission is still saved on the judge and its URL
+is printed; cpg reports the browser error and exits with code 2.
+
 `submit` warns and stops if the source is identical to its saved template, including
 when `--problem` is specified. To intentionally submit the unchanged file:
 
@@ -47,7 +54,7 @@ This runs the configured `preprocess` and `presubmit` commands, then copies the
 result using the [clipboard backend](./configuration.md#clipboard). It does not
 submit or contact the judge, and needs no problem metadata, cookies, or submission
 language ID. Unchanged templates can also be copied. `--clipboard` cannot be
-combined with `--problem` or `--language`.
+combined with `--problem`, `--language`, or `--open`.
 
 ## List results of submissions
 

@@ -237,6 +237,10 @@ fn run(cli: Cli, interrupted: &AtomicBool) -> Result<bool> {
                 source: &source,
             })?;
             println!("Submitted {}: {}", submission.id, submission.url);
+            if args.open {
+                open_browser(&submission.url)
+                    .context("Submission succeeded, but opening its page failed")?;
+            }
         }
         Commands::Results(args) => {
             let scope = workspace::locate(&std::env::current_dir()?)?;

@@ -663,6 +663,7 @@ fn shell_completion() {
         ("cpg generate --dir ", vec!["\u{1}dirs"]),
         ("cpg login atcoder --cookie-file ", vec!["\u{1}files"]),
         ("cpg submit sol", vec!["\u{1}files"]),
+        ("cpg submit solution.rb --op", vec!["--open"]),
         ("cpg download https:", vec![]),
     ] {
         let output = command(&directory)
@@ -807,6 +808,16 @@ fn cli_contract_and_local_judging() {
     }
     let help = run(&directory, &["results", "--help"], 0);
     assert!(String::from_utf8_lossy(&help.stdout).contains("--ui"));
+    let output = run(
+        &directory,
+        &["submit", "solution.rb", "--clipboard", "--open"],
+        2,
+    );
+    let error = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        error.contains("--clipboard") && error.contains("--open"),
+        "{error}"
+    );
     run(&directory, &["results", "--watch"], 2);
     for options in [
         vec!["--time-limit", "0"],
@@ -2272,9 +2283,10 @@ mock = "ruby"
         .unwrap();
     assert_eq!(output.status.code(), Some(2));
     assert!(String::from_utf8_lossy(&output.stderr).contains("Cannot open"));
-    fs::remove_file(opener).unwrap();
+    let empty_browser_bin = directory.path().join("empty-browser-bin");
+    fs::create_dir(&empty_browser_bin).unwrap();
     let output = open_command(&echo, "o")
-        .env("PATH", &browser_bin)
+        .env("PATH", &empty_browser_bin)
         .output()
         .unwrap();
     assert_eq!(output.status.code(), Some(2));
@@ -2610,6 +2622,44 @@ mock = "ruby"
                 .to_string_lossy()
                 .starts_with("cpg_preprocessed_")
         }));
+    }
+    for (open, language, browser_exit, code) in [
+        (false, "ruby", "0", 0),
+        (true, "ruby", "0", 0),
+        (true, "invalid", "0", 2),
+        (true, "ruby", "7", 2),
+    ] {
+        fs::write(&opened, "").unwrap();
+        let mut cmd = open_command(directory.path(), "s");
+        cmd.args([
+            "source.unknown",
+            "--problem",
+            "https://mock.local/problems/echo",
+            "--language",
+            language,
+        ])
+        .env("CPG_OPEN_EXIT", browser_exit);
+        if open {
+            cmd.arg("--open");
+        }
+        let before = fs::read_dir(mock.join("submissions")).unwrap().count();
+        let output = cmd.output().unwrap();
+        assert_eq!(output.status.code(), Some(code), "{output:?}");
+        let stdout = String::from_utf8(output.stdout).unwrap();
+        let expected = if open && language == "ruby" {
+            assert!(stdout.starts_with("Submitted "), "{stdout}");
+            format!("{}\n", stdout.split_whitespace().last().unwrap())
+        } else {
+            String::new()
+        };
+        assert_eq!(fs::read_to_string(&opened).unwrap(), expected);
+        assert_eq!(
+            fs::read_dir(mock.join("submissions")).unwrap().count(),
+            before + usize::from(language == "ruby")
+        );
+        if browser_exit == "7" {
+            assert!(String::from_utf8_lossy(&output.stderr).contains("Submission succeeded"));
+        }
     }
     let settings = fs::read_to_string(mock.join("service.toml"))
         .unwrap()
