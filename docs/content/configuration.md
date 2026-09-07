@@ -84,6 +84,20 @@ Other environment variables in TOML paths are not expanded. Arguments after
   - Files and directories within this directory is called "single problem template".
   - This should contain files that makes single problem directory self-contained, such as overwriting `Cargo.toml` with one without workspace dependencies, etc.
 
+## Logging
+
+`CPG_LOG` accepts [tracing-subscriber](https://docs.rs/tracing-subscriber/latest/tracing_subscriber/filter/struct.EnvFilter.html)'s
+`EnvFilter` syntax: log levels (`off`, `error`, `warn`, `info`, `debug`, `trace`),
+comma-separated `target=level` directives, and span/field filters such as `cpg[request{method=GET}]=trace`.
+The default is `info` when the variable is unset or empty. Invalid filters cause
+cpg to exit with code 2. Logs go to stderr; command output on stdout is unchanged.
+
+```bash
+CPG_LOG=debug cpg download https://atcoder.jp/contests/abc473/tasks/abc473_f
+CPG_LOG=info,cpg=debug,reqwest=warn cpg download https://atcoder.jp/contests/abc473/tasks/abc473_f
+CPG_LOG=off cpg list
+```
+
 ## Local overrides
 
 Create `config.local.toml` next to `config.toml` to override settings for the

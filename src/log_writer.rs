@@ -1,7 +1,8 @@
+use anyhow::{Context, Result};
 use colored::Colorize;
 use std::io::IsTerminal;
 use tracing_log::NormalizeEvent;
-use tracing_subscriber::fmt::FormatFields;
+use tracing_subscriber::{EnvFilter, filter::LevelFilter, fmt::FormatFields};
 
 pub struct LogFormatter;
 
@@ -64,7 +65,12 @@ where
     }
 }
 
-pub fn init(no_color: bool) {
+pub fn init(no_color: bool) -> Result<()> {
+    let filter = EnvFilter::builder()
+        .with_default_directive(LevelFilter::INFO.into())
+        .with_env_var("CPG_LOG")
+        .from_env()
+        .context("Invalid CPG_LOG filter")?;
     let color = !no_color && std::env::var_os("NO_COLOR").is_none();
     console::set_colors_enabled(color && std::io::stdout().is_terminal());
     console::set_colors_enabled_stderr(color && std::io::stderr().is_terminal());
@@ -73,6 +79,7 @@ pub fn init(no_color: bool) {
         .with_ansi(console::colors_enabled_stderr())
         .event_format(LogFormatter)
         .with_writer(std::io::stderr)
-        .with_max_level(tracing::Level::INFO)
+        .with_env_filter(filter)
         .init();
+    Ok(())
 }

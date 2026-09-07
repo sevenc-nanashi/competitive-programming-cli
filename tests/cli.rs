@@ -13,6 +13,7 @@ fn command(directory: &TempDir) -> Command {
         .current_dir(directory.path())
         .env("HOME", directory.path())
         .env("CARGO_MANIFEST_DIR", directory.path())
+        .env("CPG_LOG", "")
         .env("CPG_CONFIG_HOME", "~/config")
         .env("CPG_COOKIES_HOME", "~/cookies");
     command
@@ -381,6 +382,49 @@ fn clipboard() {
         assert!(!directory.path().join("injected").exists());
     }
     fs::write(directory.path().join("solution.txt"), "hello\n").unwrap();
+    for (level, info, error) in [
+        ("off", false, false),
+        ("error", false, true),
+        ("warn", false, true),
+        ("info", true, true),
+        ("debug", true, true),
+        ("trace", true, true),
+        ("", true, true),
+        ("off,cpg=info", true, true),
+        ("info,cpg=off", false, false),
+        ("info,cpg=error", false, true),
+        ("off,cpg[request{method=GET}]=trace", false, false),
+    ] {
+        let output = command(&directory)
+            .args(args)
+            .env("CPG_LOG", level)
+            .output()
+            .unwrap();
+        assert!(output.status.success(), "{level}: {output:?}");
+        assert!(output.stdout.is_empty());
+        assert_eq!(
+            String::from_utf8_lossy(&output.stderr).contains("Copied 6 bytes"),
+            info,
+            "{level}: {output:?}"
+        );
+        let output = command(&directory)
+            .arg("open")
+            .env("CPG_LOG", level)
+            .output()
+            .unwrap();
+        assert_eq!(output.status.code(), Some(2));
+        assert_eq!(output.stderr.is_empty(), !error, "{level}: {output:?}");
+    }
+    for level in ["cpg=invalid", "info,cpg=invalid"] {
+        let output = command(&directory)
+            .args(args)
+            .env("CPG_LOG", level)
+            .output()
+            .unwrap();
+        assert_eq!(output.status.code(), Some(2));
+        assert!(output.stdout.is_empty());
+        assert!(String::from_utf8_lossy(&output.stderr).contains("Invalid CPG_LOG"));
+    }
     for preprocess in [
         "tr a-z A-Z",
         "tr a-z A-Z > {processed}; echo preprocess-log",

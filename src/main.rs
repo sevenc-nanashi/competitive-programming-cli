@@ -252,7 +252,10 @@ fn run(cli: Cli, interrupted: &AtomicBool) -> Result<bool> {
 
 fn main() {
     let cli = Cli::parse();
-    log_writer::init(cli.no_color);
+    if let Err(error) = log_writer::init(cli.no_color) {
+        eprintln!("{error:#}");
+        std::process::exit(2);
+    }
     let interrupted = match runner::install_signal_handler() {
         Ok(interrupted) => interrupted,
         Err(error) => {
