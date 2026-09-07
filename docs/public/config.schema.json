@@ -1,5 +1,5 @@
 {
-  "$id": "https://raw.githubusercontent.com/sevenc-nanashi/competitive-programming-cli/refs/tags/v0.1.0-preview.5/docs/public/config.schema.json",
+  "$id": "https://raw.githubusercontent.com/sevenc-nanashi/competitive-programming-cli/refs/tags/v0.1.0-preview.6/docs/public/config.schema.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "cpg configuration",
   "description": "Effective cpg configuration after merging config.toml and config.local.toml.",
