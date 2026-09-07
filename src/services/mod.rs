@@ -30,7 +30,7 @@ use url::Url;
 pub trait ServiceBackend {
     fn service(&self) -> ServiceId;
     fn auth_service(&self) -> ServiceId;
-    fn check_auth(&self) -> Result<()>;
+    fn whoami(&self) -> Result<(String, Url)>;
     fn resolve_url(&self, url: &Url) -> Result<ResourceRef>;
     fn fetch_problem(&self, problem: &ProblemRef) -> Result<Problem>;
     fn fetch_contest(&self, contest: &ContestRef) -> Result<Contest>;
@@ -124,22 +124,22 @@ impl Services {
             auth_service.as_str(),
             source.display()
         );
-        match auth_service {
+        let (user, _) = match auth_service {
             ServiceId::Atcoder => AtCoderBackend {
                 http: Http::from_cookies(&raw, auth_service)?,
             }
-            .check_auth()?,
+            .whoami()?,
             ServiceId::Yukicoder => YukicoderBackend {
                 http: Http::from_cookies(&raw, auth_service)?,
             }
-            .check_auth()?,
+            .whoami()?,
             ServiceId::AtcoderProblems => unreachable!(),
             #[cfg(feature = "mock")]
             ServiceId::Mock => mock::MockBackend {
                 cookies: cookie_jar(&raw, "mock.local")?,
             }
-            .check_auth()?,
-        }
+            .whoami()?,
+        };
         fs::DirBuilder::new()
             .recursive(true)
             .mode(0o700)
@@ -152,7 +152,7 @@ impl Services {
         staging.write_all(&raw)?;
         staging.as_file().sync_all()?;
         staging.persist(paths.cookies.join(format!("{}.txt", auth_service.as_str())))?;
-        tracing::info!("Logged in to {}", auth_service.as_str());
+        tracing::info!("Logged in to {} as {user}", auth_service.as_str());
         Ok(())
     }
 }

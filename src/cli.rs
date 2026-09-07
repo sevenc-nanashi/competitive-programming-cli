@@ -25,7 +25,7 @@ pub enum Commands {
     Init(Init),
     /// Show the workspace root and configuration, cookies, and template directories.
     Config(Config),
-    /// Import a Netscape cookie file and verify the session.
+    /// Import a Netscape cookie file or inspect the saved session.
     Login(Login),
     /// Download one problem and its samples.
     #[usage(alias = "d")]
@@ -95,12 +95,15 @@ pub enum ConfigField {
 
 #[derive(Debug, usage::Args)]
 pub struct Login {
-    /// Online judge whose session should be imported and verified.
+    /// Online judge whose session should be imported or inspected.
     #[usage(value_enum)]
     pub service: ServiceId,
-    /// Netscape-format cookie file to import.
-    #[usage(long, value_hint = usage::ValueHint::FilePath)]
-    pub cookie_file: PathBuf,
+    /// Netscape-format cookie file to import; required unless --info is given.
+    #[usage(long, required_unless("--info"), value_hint = usage::ValueHint::FilePath)]
+    pub cookie_file: Option<PathBuf>,
+    /// Verify saved cookies and print the username and profile URL on separate lines.
+    #[usage(long, conflicts("--cookie-file"))]
+    pub info: bool,
 }
 
 #[derive(Debug, usage::Args)]

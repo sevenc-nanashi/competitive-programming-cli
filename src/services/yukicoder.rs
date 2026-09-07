@@ -67,16 +67,17 @@ impl YukicoderBackend {
         })
     }
 
-    fn authenticated(document: &Html) -> Result<()> {
+    fn authenticated(document: &Html) -> Result<(String, Url)> {
         let header = required(document, "#header")?;
-        ensure!(
-            header
-                .select(&selector("a[href^='/users/']"))
-                .next()
-                .is_some(),
-            "yukicoder session expired; import fresh cookies"
-        );
-        Ok(())
+        let link = header
+            .select(&selector("a[href^='/users/']"))
+            .next()
+            .context("yukicoder session expired; import fresh cookies")?;
+        let user = text(link);
+        ensure!(!user.is_empty(), "yukicoder profile link has no username");
+        let url = Url::parse("https://yukicoder.me/")?
+            .join(link.value().attr("href").expect("selected href"))?;
+        Ok((user, url))
     }
 
     fn parse_submissions(&self, document: &Html, page: &Url) -> Result<Vec<Submission>> {
@@ -128,7 +129,7 @@ impl ServiceBackend for YukicoderBackend {
         ServiceId::Yukicoder
     }
 
-    fn check_auth(&self) -> Result<()> {
+    fn whoami(&self) -> Result<(String, Url)> {
         let (_, document) = self.http.get(&Url::parse("https://yukicoder.me/")?)?;
         Self::authenticated(&document)
     }
@@ -333,7 +334,9 @@ mod tests {
         let document = Html::parse_document(
             "<div id=header><a href='/users/1'>User</a></div><table><tbody><tr><td><a href='/submissions/42'>42</a></td><td>2026-01-01 12:00:00</td><td>User</td><td></td><td><a href='/problems/no/1586'>Problem</a></td><td>Ruby</td><td>AC</td><td>10 ms</td><td>32 KB</td></tr></tbody></table><a href='?page=2'>Next</a>",
         );
-        YukicoderBackend::authenticated(&document).unwrap();
+        let (user, url) = YukicoderBackend::authenticated(&document).unwrap();
+        assert_eq!(user, "User");
+        assert_eq!(url.as_str(), "https://yukicoder.me/users/1");
         let results = backend.parse_submissions(&document, &page).unwrap();
         assert_eq!(results.len(), 1);
         assert_eq!(
@@ -353,6 +356,12 @@ mod tests {
             ))
             .is_err()
         );
+        let (user, url) = YukicoderBackend::authenticated(&Html::parse_document(
+            "<div id=header><a href='/users/1'><span>競プロ &amp; User</span></a></div>",
+        ))
+        .unwrap();
+        assert_eq!(user, "競プロ & User");
+        assert_eq!(url.as_str(), "https://yukicoder.me/users/1");
         let sample = Html::parse_document("<pre>1 &lt; 2<br>3\n</pre>");
         assert_eq!(pre_text(required(&sample, "pre").unwrap()), "1 < 2\n3\n");
     }

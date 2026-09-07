@@ -13,6 +13,21 @@ pub(super) struct AtCoderBackend {
 }
 
 impl AtCoderBackend {
+    fn authenticated_user(document: &Html) -> Result<(String, Url)> {
+        let link = required(document, "#header a[href^='/users/']")?;
+        let url = Url::parse("https://atcoder.jp/")?
+            .join(link.value().attr("href").expect("selected href"))?;
+        let user = url
+            .path()
+            .strip_prefix("/users/")
+            .context("Invalid AtCoder profile URL")?
+            .split('/')
+            .next()
+            .filter(|user| !user.is_empty())
+            .context("AtCoder profile link has no username")?;
+        Ok((user.to_owned(), url))
+    }
+
     fn submission_page(&self, problem: &ProblemRef) -> Result<(Url, Html)> {
         let contest = problem
             .contest_id
@@ -45,13 +60,13 @@ impl ServiceBackend for AtCoderBackend {
         ServiceId::Atcoder
     }
 
-    fn check_auth(&self) -> Result<()> {
-        let (url, _) = self.http.get(&Url::parse("https://atcoder.jp/settings")?)?;
+    fn whoami(&self) -> Result<(String, Url)> {
+        let (url, document) = self.http.get(&Url::parse("https://atcoder.jp/settings")?)?;
         ensure!(
             url.path().starts_with("/settings"),
             "AtCoder session expired; import fresh cookies"
         );
-        Ok(())
+        Self::authenticated_user(&document)
     }
 
     fn resolve_url(&self, url: &Url) -> Result<ResourceRef> {
@@ -360,6 +375,22 @@ fn parse_submissions(document: &Html, page: &Url) -> Result<Vec<Submission>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn authenticated_username() {
+        let document = Html::parse_document(
+            "<a href='/users/other'>Other user</a><header id='header'><nav><a href='/users/sevenc_nanashi'>My Profile</a></nav></header>",
+        );
+        let (user, url) = AtCoderBackend::authenticated_user(&document).unwrap();
+        assert_eq!(user, "sevenc_nanashi");
+        assert_eq!(url.as_str(), "https://atcoder.jp/users/sevenc_nanashi");
+        for html in [
+            "<header id='header'><a href='/login'>Sign In</a></header><a href='/users/other'>Other user</a>",
+            "<header id='header'><a href='/users/'>My Profile</a></header>",
+        ] {
+            assert!(AtCoderBackend::authenticated_user(&Html::parse_document(html)).is_err());
+        }
+    }
 
     #[test]
     fn title_excludes_links_and_their_children() {

@@ -36,8 +36,8 @@ impl ServiceBackend for AtCoderProblemsBackend {
     fn auth_service(&self) -> ServiceId {
         self.atcoder.auth_service()
     }
-    fn check_auth(&self) -> Result<()> {
-        self.atcoder.check_auth()
+    fn whoami(&self) -> Result<(String, Url)> {
+        self.atcoder.whoami()
     }
 
     fn resolve_url(&self, url: &Url) -> Result<ResourceRef> {

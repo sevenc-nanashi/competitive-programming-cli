@@ -82,7 +82,18 @@ fn run(cli: Cli, interrupted: &AtomicBool) -> Result<bool> {
                 }
             }
         }
-        Commands::Login(args) => Services::login(&paths, args.service, &args.cookie_file)?,
+        Commands::Login(args) => {
+            if args.info {
+                let (user, url) = Services::new(&paths)?.backend(args.service).whoami()?;
+                println!("{user}\n{url}");
+            } else {
+                Services::login(
+                    &paths,
+                    args.service,
+                    &args.cookie_file.expect("required unless --info"),
+                )?;
+            }
+        }
         Commands::Test(args) => {
             return runner::test(&Config::load(&paths)?, &args, interrupted);
         }

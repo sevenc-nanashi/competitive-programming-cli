@@ -102,8 +102,14 @@ impl ServiceBackend for MockBackend {
     fn auth_service(&self) -> ServiceId {
         ServiceId::Mock
     }
-    fn check_auth(&self) -> Result<()> {
-        self.authenticated().map(|_| ())
+    fn whoami(&self) -> Result<(String, Url)> {
+        let user = self.authenticated()?.user;
+        let mut url = Url::parse("https://mock.local/users/")?;
+        url.path_segments_mut()
+            .expect("base URL")
+            .pop_if_empty()
+            .push(&user);
+        Ok((user, url))
     }
 
     fn resolve_url(&self, url: &Url) -> Result<ResourceRef> {

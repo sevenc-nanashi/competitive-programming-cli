@@ -657,6 +657,7 @@ fn shell_completion() {
         ("cpg test --show-io=f", vec!["--show-io=failure"]),
         ("cpg test --no-ig", vec!["--no-ignore-line-ending"]),
         ("cpg login a", vec!["atcoder", "atcoder-problems"]),
+        ("cpg login atcoder --in", vec!["--info"]),
         ("cpg config --co", vec!["--config-dir", "--cookies-dir"]),
         ("cpg test --test-dir ", vec!["\u{1}dirs"]),
         ("cpg generate --dir ", vec!["\u{1}dirs"]),
@@ -783,6 +784,26 @@ fn cli_contract_and_local_judging() {
         "completion",
     ] {
         run(&directory, &[name, "--help"], 0);
+    }
+    let help = run(&directory, &["login", "--help"], 0);
+    assert!(String::from_utf8_lossy(&help.stdout).contains("--info"));
+    run(&directory, &["login"], 2);
+    run(&directory, &["login", "--info"], 2);
+    run(&directory, &["login", "invalid", "--info"], 2);
+    let output = run(&directory, &["login", "atcoder"], 2);
+    assert!(String::from_utf8_lossy(&output.stderr).contains("--cookie-file"));
+    let output = run(
+        &directory,
+        &["login", "atcoder", "--info", "--cookie-file", "cookies.txt"],
+        2,
+    );
+    let error = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        error.contains("--info") && error.contains("--cookie-file"),
+        "{error}"
+    );
+    for name in ["service", "whoami"] {
+        run(&directory, &[name, "--help"], 2);
     }
     let help = run(&directory, &["results", "--help"], 0);
     assert!(String::from_utf8_lossy(&help.stdout).contains("--ui"));
@@ -2336,6 +2357,9 @@ mock = "ruby"
     let output = run(&directory, &["s", nested.to_str().unwrap()], 2);
     assert!(String::from_utf8_lossy(&output.stderr).contains("unchanged from its template"));
     assert!(!mock.join("submissions").exists());
+    let output = run(&directory, &["login", "mock", "--info"], 2);
+    assert!(output.stdout.is_empty());
+    assert!(String::from_utf8_lossy(&output.stderr).contains("cpg login mock"));
     run(
         &directory,
         &[
@@ -2360,6 +2384,13 @@ mock = "ruby"
         0o700
     );
     let original = fs::read(&saved).unwrap();
+    let output = run(&directory, &["login", "mock", "--info"], 0);
+    assert_eq!(
+        output.stdout,
+        b"mock-user\nhttps://mock.local/users/mock-user\n"
+    );
+    assert!(output.stderr.is_empty());
+    assert_eq!(fs::read(&saved).unwrap(), original);
     for raw in [
         "invalid",
         "mock.local\tFALSE\t/\tTRUE\t1\tsession\tmock-session\n",
@@ -2584,6 +2615,9 @@ mock = "ruby"
         .unwrap()
         .replace("mock-session", "expired-session");
     fs::write(mock.join("service.toml"), settings).unwrap();
+    let output = run(&directory, &["login", "mock", "--info"], 2);
+    assert!(output.stdout.is_empty());
+    assert!(String::from_utf8_lossy(&output.stderr).contains("Mock session expired"));
     let output = command(&directory)
         .current_dir(&echo)
         .arg("results")
