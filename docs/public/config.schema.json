@@ -95,14 +95,14 @@
           }
         },
         "preprocess": {
-          "description": "Shell command before compilation, execution, or submission. Receives source on stdin and via {input}; writes transformed UTF-8 source to stdout.",
+          "description": "Shell command before compilation, execution, or submission. Receives source on stdin and via {input}; writes transformed UTF-8 source to {processed} when present, otherwise stdout. Paths are shell-quoted.",
           "type": [
             "string",
             "null"
           ]
         },
         "presubmit": {
-          "description": "Shell command before submission, after preprocess. Receives source on stdin and via {input}; writes transformed UTF-8 source to stdout.",
+          "description": "Shell command before submission, after preprocess. Receives source on stdin and via {input}; writes transformed UTF-8 source to {processed} when present, otherwise stdout. Paths are shell-quoted.",
           "type": [
             "string",
             "null"

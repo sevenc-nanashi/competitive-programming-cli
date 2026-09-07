@@ -187,12 +187,23 @@ fn transform_source(
         .prefix("cpg_preprocessed_")
         .suffix(&suffix)
         .tempfile_in(&cwd)?;
-    let program = Program::shell(command.replace("{input}", &quote(input.as_os_str())?), cwd);
+    let uses_processed = command.contains("{processed}");
+    let processed = quote(output.path().as_os_str())?;
+    let command = command
+        .split("{input}")
+        .map(|part| part.replace("{processed}", &processed))
+        .collect::<Vec<_>>()
+        .join(&quote(input.as_os_str())?);
+    let program = Program::shell(command, cwd);
     tracing::info!("Running {stage} for {}", input.display());
     let result = execute(
         &program,
         File::open(input)?.into(),
-        output.reopen()?.into(),
+        if uses_processed {
+            io::stderr().into()
+        } else {
+            output.reopen()?.into()
+        },
         Limits::default(),
         interrupted,
     )?;
@@ -205,7 +216,12 @@ fn transform_source(
         .with_context(|| format!("{stage} output must be UTF-8"))?;
     ensure!(
         !source.trim().is_empty(),
-        "{stage} produced empty output; configure it to write source code to stdout"
+        "{stage} produced empty output; configure it to write source code to {}",
+        if uses_processed {
+            "{processed}"
+        } else {
+            "stdout"
+        }
     );
     Ok(output)
 }

@@ -112,7 +112,8 @@ a newline. Command stdout and stderr go to cpg's stderr. A nonzero exit status
 fails the copy; Ctrl-C stops the command and its process group.
 For X11, you can use `command = "xclip -selection clipboard"`.
 
-On WSL, you might want to use `command = "/mnt/c/Windows/System32/clip.exe"` to copy to the Windows clipboard.
+On WSL, you might want to use `command = "/mnt/c/Windows/System32/clip.exe"` to,
+copy the content to the Windows clipboard, in case arboard fails to work.
 
 ## Commands after copying templates
 
@@ -245,8 +246,24 @@ Optional `language.<name>.preprocess` runs before compilation (or execution for
 interpreted languages) and before submission. `language.<name>.presubmit` runs
 only for submission, after `preprocess`. Each command receives the current
 source on stdin and as the shell-quoted `{input}` path, runs in the source
-directory, and must write the transformed UTF-8 source to stdout. A failed
-command or empty output stops the operation.
+directory, and writes the transformed UTF-8 source to stdout by default.
+
+If the command contains `{processed}`, cpg expands it to a temporary output
+file and reads the transformed source from that file instead of stdout. Leave
+`{input}` and `{processed}` unquoted because cpg shell-quotes both paths. For
+example, a script that accepts input and output paths can use:
+
+```toml
+[language.cpp]
+extensions = ["cpp"]
+preprocess = "ruby ~/expand.rb {input} {processed}"
+compile = "g++ -std=c++23 -O2 -o {binary} {input}"
+run = "{binary}"
+```
+
+The same placeholder is available in `presubmit`. In this mode, command stdout
+goes to cpg's stderr for diagnostics. A failed command, missing or empty output
+file, or non-UTF-8 output stops the operation; stdout is never used as a fallback.
 
 Use `presubmit` instead of `preprocess` to apply a transformation only when
 submitting. In a two-stage pipeline, `presubmit` receives the output of

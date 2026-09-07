@@ -322,7 +322,10 @@ fn configuration_schema() {
 
 #[test]
 fn clipboard() {
-    let directory = tempfile::tempdir().unwrap();
+    let directory = tempfile::Builder::new()
+        .prefix("cpg ' {input} {processed} ")
+        .tempdir()
+        .unwrap();
     fs::create_dir(directory.path().join("config")).unwrap();
     let config_path = directory.path().join("config/config.toml");
     let configure = |script: &str| {
@@ -348,13 +351,35 @@ fn clipboard() {
         );
         assert!(!directory.path().join("injected").exists());
     }
-    fs::write(&config_path, "[clipboard]\nkind = 'command'\ncommand = \"cat > 'copied text'\"\n[language.text]\nextensions = ['txt']\nrun = 'cat {input}'\npreprocess = \"tr a-z A-Z\"\npresubmit = \"cat; printf '!done'\"\n").unwrap();
     fs::write(directory.path().join("solution.txt"), "hello\n").unwrap();
-    run(&directory, &args, 0);
-    assert_eq!(
-        fs::read_to_string(directory.path().join("copied text")).unwrap(),
-        "HELLO\n!done"
-    );
+    for preprocess in [
+        "tr a-z A-Z",
+        "tr a-z A-Z > {processed}; echo preprocess-log",
+    ] {
+        for presubmit in [
+            "cat; printf '!done'",
+            "cat {input} > {processed}; printf '!done' >> {processed}; echo presubmit-log",
+        ] {
+            fs::write(&config_path, format!("[clipboard]\nkind = 'command'\ncommand = \"cat > 'copied text'\"\n[language.text]\nextensions = ['txt']\nrun = 'cat {{input}}'\npreprocess = {preprocess:?}\npresubmit = {presubmit:?}\n")).unwrap();
+            let output = run(&directory, &args, 0);
+            assert!(output.stdout.is_empty());
+            for (stage, script) in [("preprocess", preprocess), ("presubmit", presubmit)] {
+                if script.contains("{processed}") {
+                    assert!(
+                        String::from_utf8_lossy(&output.stderr).contains(&format!("{stage}-log"))
+                    );
+                }
+            }
+            assert_eq!(
+                fs::read_to_string(directory.path().join("copied text")).unwrap(),
+                "HELLO\n!done"
+            );
+            assert_eq!(
+                fs::read_to_string(directory.path().join("solution.txt")).unwrap(),
+                "hello\n"
+            );
+        }
+    }
 
     // Clipboard commands may keep a background process alive to serve the copied text.
     configure(
@@ -1510,7 +1535,14 @@ run = "{binary}"
         &["test", "--judge", "~/judge.rb", "~/space ' name.rb"],
         0,
     );
-    for preprocess in ["printf partial; exit 1", "true"] {
+    for preprocess in [
+        "printf partial; exit 1",
+        "true",
+        "printf partial > {processed}; exit 1",
+        "echo diagnostic; : {processed}",
+        "rm {processed}; echo diagnostic",
+        "ruby -e 'File.binwrite(ARGV.fetch(0), [255].pack(\"C\"))' {processed}",
+    ] {
         config["language"]["ruby"]["preprocess"] = preprocess.into();
         fs::write(&config_path, toml::to_string(&config).unwrap()).unwrap();
         run(&directory, &["test", "space ' name.rb"], 2);

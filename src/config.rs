@@ -397,9 +397,9 @@ fn setup_commands<'de, D: serde::Deserializer<'de>>(
 pub struct Language {
     /// File extensions without the leading dot. Use [] for the executable fallback.
     pub extensions: Vec<String>,
-    /// Shell command before compilation, execution, or submission. Receives source on stdin and via {input}; writes transformed UTF-8 source to stdout.
+    /// Shell command before compilation, execution, or submission. Receives source on stdin and via {input}; writes transformed UTF-8 source to {processed} when present, otherwise stdout. Paths are shell-quoted.
     pub preprocess: Option<String>,
-    /// Shell command before submission, after preprocess. Receives source on stdin and via {input}; writes transformed UTF-8 source to stdout.
+    /// Shell command before submission, after preprocess. Receives source on stdin and via {input}; writes transformed UTF-8 source to {processed} when present, otherwise stdout. Paths are shell-quoted.
     pub presubmit: Option<String>,
     /// Compilation shell command with shell-quoted {input} and {binary} paths. Omit for interpreted languages.
     pub compile: Option<String>,
