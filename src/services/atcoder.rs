@@ -245,7 +245,8 @@ impl ServiceBackend for AtCoderBackend {
             concat!(
                 "AtCoder did not confirm submission; check results before submitting again. ",
                 "Note that AtCoder has captchas for past contests, which cannot be bypassed by cpg. ",
-                "Please submit manually if this is the case."
+                "Please submit manually if this is the case. ",
+                "Note that you can use submit --clipboard to copy the processed source code to the clipboard for manual submission."
             )
         );
         let submissions = parse_submissions(&document, &url)?;
