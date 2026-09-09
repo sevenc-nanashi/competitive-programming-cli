@@ -27,6 +27,17 @@ You can also set the workspace root manually in `$config/config.toml`:
 root = "/home/your-name/competitive-programming"
 ```
 
+To use lowercase letters for contest problem directory prefixes, add this at the
+top level of `config.toml` (or `config.local.toml`):
+
+```toml
+alphabetic = true
+```
+
+Prefixes are `a`, ..., `z`, `aa`, ... and are left-padded with underscores to
+match the longest prefix. For 27 problems, directories start with `_a_`, ..., `_z_`,
+`aa_`. The default is `false`, which keeps zero-padded numeric prefixes.
+
 The JSON Schema for the configuration file is available on
 `https://raw.githubusercontent.com/sevenc-nanashi/competitive-programming-cli/refs/tags/v{version}/docs/public/config.schema.json`,
 or print it locally with `cpg config --schema`.

@@ -299,6 +299,43 @@ fn download_login_and_submission() {
         Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/mock_service")),
         &directory.path().join("mock_service"),
     );
+    for count in [2, 27] {
+        fs::write(
+            directory
+                .path()
+                .join("mock_service/contests/practice/contest.toml"),
+            format!("title = 'Practice'\nproblems = {:?}\n", vec!["echo"; count]),
+        )
+        .unwrap();
+        for alphabetic in [false, true] {
+            fs::write(
+                directory.path().join("config/config.toml"),
+                format!("root = '~/workspace'\nalphabetic = {alphabetic}\n"),
+            )
+            .unwrap();
+            let mut cmd = command(&directory);
+            cmd.args(["prepare", "https://mock.local/contests/practice"]);
+            run(&mut cmd, 0);
+            let contest = directory.path().join("workspace/mock/contests/practice");
+            let (first, last) = match (alphabetic, count) {
+                (false, 2) => ("1", "2"),
+                (false, _) => ("01", "27"),
+                (true, 2) => ("a", "b"),
+                (true, _) => ("_a", "aa"),
+            };
+            for prefix in [first, last] {
+                assert!(
+                    contest
+                        .join(format!("{prefix}_echo/test/sample-1.in"))
+                        .is_file()
+                );
+            }
+            if alphabetic && count == 27 {
+                assert!(contest.join("_z_echo/.cpg.toml").is_file());
+            }
+            fs::remove_dir_all(contest).unwrap();
+        }
+    }
     fs::write(
         directory.path().join("config/config.toml"),
         "root = '~/workspace'\n[setup]\nproblem = 'echo initialized>ready'\n",

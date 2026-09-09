@@ -18,7 +18,7 @@ I've used them for a long time, but wanted a more integrated workflow for managi
 [configurable directory patterns](https://github.com/online-judge-tools/template-generator#oj-prepare).
 cpg chooses one layout under a configured root: `$root/$host/problems/$problem_id`
 for standalone problems and `$root/$host/contests/$contest_id` for contests.
-Contest problem directories have numeric prefixes padded to the number of digits
+Contest problem directories have prefixes padded to the number of digits
 needed for the problem count.
 
 `workspace_template` supplies shared files at the root of each contest or

@@ -51,7 +51,8 @@ The downloaded problems will be saved in a directory `$root/$host/contests/$cont
 - `$root` is the root directory of your workspace, which is specified in the configuration file.
 - `$host` is the host of the online judge, such as `atcoder`.
 - `$contest_id` is the contest ID, such as `abc473`.
-- `$index` is the 1-indexed and zero-padded index of the problem in the contest, such as `01`.
+- `$index` is the problem index, such as `01`, `02`, ..., or `a`, `b`, ...
+  - Set [`alphabetic`](./configuration.md#configuration) to `true` to use letters instead of numbers.
   - This exists for sorting problems in the order they appear in the contest, for when:
     - The contest contains multiple problems from different contests (e.g. AtCoder Daily Training),
     - The problem IDs are not sorted in the order they appear in the contest (e.g. Yukicoder).

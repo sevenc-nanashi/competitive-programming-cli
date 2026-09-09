@@ -264,7 +264,8 @@ pub fn download(
                 &config.setup.contest,
                 interrupted,
             )?;
-            let zfill_length = contest.problems.len().to_string().len();
+            let alphabetic = config.alphabetic;
+            let width = index_label(contest.problems.len(), alphabetic).len();
             for (i, p) in contest.problems.iter().enumerate() {
                 tracing::info!(
                     "Downloading {} ({}/{})...",
@@ -272,12 +273,13 @@ pub fn download(
                     i + 1,
                     contest.problems.len()
                 );
-                let destination = staging.path().join(format!(
-                    "{:0zfill$}_{}",
-                    i + 1,
-                    safe_id(&p.id)?,
-                    zfill = zfill_length
-                ));
+                let label = index_label(i + 1, alphabetic);
+                let prefix = if alphabetic {
+                    format!("{label:_>width$}")
+                } else {
+                    format!("{label:0>width$}")
+                };
+                let destination = staging.path().join(format!("{prefix}_{}", safe_id(&p.id)?));
                 write_problem(
                     paths,
                     config,
@@ -295,6 +297,19 @@ pub fn download(
         .context("Cannot publish downloaded directory")?;
     tracing::info!("Created workspace: {}", destination.display());
     Ok(destination)
+}
+
+fn index_label(mut index: usize, alphabetic: bool) -> String {
+    if !alphabetic {
+        return index.to_string();
+    }
+    let mut letters = Vec::new();
+    while index > 0 {
+        index -= 1;
+        letters.push((b'a' + (index % 26) as u8) as char);
+        index /= 26;
+    }
+    letters.into_iter().rev().collect()
 }
 
 pub fn list(config: &Config, mode: ListMode) -> Result<Vec<PathBuf>> {
@@ -331,4 +346,23 @@ pub fn list(config: &Config, mode: ListMode) -> Result<Vec<PathBuf>> {
     visit(&root, mode, &mut found)?;
     found.sort();
     Ok(found)
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn alphabetic_indices() {
+        for (index, label) in [
+            (1, "a"),
+            (26, "z"),
+            (27, "aa"),
+            (52, "az"),
+            (53, "ba"),
+            (702, "zz"),
+            (703, "aaa"),
+        ] {
+            assert_eq!(super::index_label(index, true), label);
+            assert_eq!(super::index_label(index, false), index.to_string());
+        }
+    }
 }

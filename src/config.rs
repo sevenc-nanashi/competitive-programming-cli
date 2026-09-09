@@ -322,6 +322,9 @@ pub struct Config {
     /// Workspace root. Expands a leading ~ to HOME; relative paths resolve from the current directory.
     #[schemars(length(min = 1))]
     pub root: Option<PathBuf>,
+    /// Use lowercase a-z, aa, ... contest directory prefixes, left-padded with underscores. Defaults to false (zero-padded numbers).
+    #[serde(default)]
+    pub alphabetic: bool,
     /// Shell commands to run after copying each template.
     #[serde(default)]
     pub setup: Setup,
@@ -544,6 +547,7 @@ mod tests {
         let local_path = paths.config.join("config.local.toml");
         let base = r#"
 root = "~/base"
+alphabetic = true
 [setup]
 workspace = ["git init", "bundle install"]
 problem = "echo problem"
@@ -563,6 +567,7 @@ yukicoder = "cpp23"
 "#;
         let local = r#"
 root = "~/local"
+alphabetic = false
 [setup]
 workspace = []
 [clipboard]
@@ -579,6 +584,7 @@ atcoder = "6116"
         fs::write(&local_path, local).unwrap();
         let config = Config::load(&paths).unwrap();
         assert_eq!(config.root.unwrap(), PathBuf::from("~/local"));
+        assert!(!config.alphabetic);
         assert!(config.setup.workspace.is_empty());
         assert_eq!(config.setup.problem, ["echo problem"]);
         assert!(matches!(config.clipboard, Clipboard::Command { command } if command == "wl-copy"));
@@ -618,6 +624,7 @@ atcoder = "6116"
             );
         }
         fs::remove_file(&local_path).unwrap();
+        assert!(Config::load(&paths).unwrap().alphabetic);
         assert_eq!(
             Config::load(&paths).unwrap().root.unwrap(),
             PathBuf::from("~/base")

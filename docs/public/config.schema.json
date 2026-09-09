@@ -5,6 +5,11 @@
   "description": "Effective cpg configuration after merging config.toml and config.local.toml.",
   "type": "object",
   "properties": {
+    "alphabetic": {
+      "description": "Use lowercase a-z, aa, ... contest directory prefixes, left-padded with underscores. Defaults to false (zero-padded numbers).",
+      "type": "boolean",
+      "default": false
+    },
     "clipboard": {
       "description": "Clipboard backend. Defaults to arboard; command sends the text to a shell command's stdin.",
       "allOf": [
