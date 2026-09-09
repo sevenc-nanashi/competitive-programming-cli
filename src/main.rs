@@ -158,13 +158,12 @@ fn run(cli: Cli, interrupted: &AtomicBool) -> Result<bool> {
                     .parent()
                     .context("Source has no parent directory")?,
             )?;
-            if !args.clipboard
-                && let Some((
-                    directory,
-                    Metadata::Problem {
-                        template_checksums, ..
-                    },
-                )) = &local
+            if let Some((
+                directory,
+                Metadata::Problem {
+                    template_checksums, ..
+                },
+            )) = &local
                 && let Some(expected) = template_checksums.get(source_path.strip_prefix(directory)?)
                 && *expected == workspace::checksum(source.as_bytes())
             {

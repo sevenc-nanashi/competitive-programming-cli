@@ -53,9 +53,9 @@ cpg submit ./solution.cpp --clipboard
 This runs the configured `preprocess` and `presubmit` commands, then copies the
 result using the [clipboard backend](./configuration.md#clipboard). It does not
 submit or contact the judge, and needs no problem metadata, cookies, or submission
-language ID. Unchanged templates can also be copied. Add `--open` to print the
-problem URL and open it in your browser after copying; this requires the source's
-problem metadata. `--clipboard` cannot be combined with `--problem` or `--language`.
+language ID. Add `--open` to print the problem URL and open it in your browser 
+after copying; this requires the source's problem metadata. `--clipboard` cannot
+be combined with `--problem` or `--language`.
 
 ## List results of submissions
 
