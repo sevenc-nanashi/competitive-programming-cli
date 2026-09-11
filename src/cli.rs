@@ -193,7 +193,7 @@ pub struct Test {
     pub panes: Panes,
     /// Number lines relative to expected output, or number interactive exchanges from zero.
     #[usage(long, short = 'n')]
-    pub line_numbers: bool,
+    pub query_numbers: bool,
     /// Highlight expected/actual output differences; cannot be used with --interactive.
     #[usage(long, short = 'H', value_enum, conflicts("--interactive"))]
     pub highlight: Option<Highlight>,

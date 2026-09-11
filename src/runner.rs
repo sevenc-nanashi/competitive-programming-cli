@@ -651,7 +651,7 @@ fn interactive(
     limits: Limits,
     interrupted: &AtomicBool,
     transcript: Option<File>,
-    line_numbers: bool,
+    query_numbers: bool,
 ) -> Result<RunResult> {
     let mut solution = ManagedChild::spawn(program, Stdio::piped(), Stdio::piped())?;
     let mut judge = ManagedChild::spawn(judge, Stdio::piped(), Stdio::piped())?;
@@ -662,7 +662,7 @@ fn interactive(
     let transcript = transcript.map(|file| {
         Arc::new(Mutex::new(Transcript {
             file,
-            numbered: line_numbers,
+            numbered: query_numbers,
             solution: None,
             turn: 0,
             pending: Vec::new(),
@@ -1197,19 +1197,19 @@ fn print_test_io(
     if options.panes != Panes::All {
         print!(
             "{}",
-            input.vertical(options.line_numbers, expected.count, digits)
+            input.vertical(options.query_numbers, expected.count, digits)
         );
     }
     if options.panes == Panes::None {
         if has_expected {
             print!(
                 "{}",
-                expected.vertical(options.line_numbers, expected.count, digits)
+                expected.vertical(options.query_numbers, expected.count, digits)
             );
         }
         print!(
             "{}",
-            actual.vertical(options.line_numbers, actual.count, digits)
+            actual.vertical(options.query_numbers, actual.count, digits)
         );
     } else {
         let width = if io::stdout().is_terminal() {
@@ -1227,7 +1227,7 @@ fn print_test_io(
         } else {
             vec![&expected, &actual]
         };
-        print!("{}", pane_output(&blocks, options.line_numbers, width)?);
+        print!("{}", pane_output(&blocks, options.query_numbers, width)?);
     }
     Ok(())
 }
@@ -1336,7 +1336,7 @@ fn test_case(
             limits,
             interrupted,
             transcript,
-            options.line_numbers,
+            options.query_numbers,
         )?
     } else {
         let mut result = execute(
@@ -1384,7 +1384,7 @@ fn test_case(
         ShowIo::Never => false,
     } {
         if !options.interactive
-            && (options.panes != Panes::None || options.line_numbers || options.highlight.is_some())
+            && (options.panes != Panes::None || options.query_numbers || options.highlight.is_some())
         {
             let expected = match &expected {
                 Some(path) if path.try_exists()? && empty_expected.is_none() => {

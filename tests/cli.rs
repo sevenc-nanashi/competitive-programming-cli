@@ -1269,7 +1269,7 @@ fn show_io() {
 }
 
 #[test]
-fn panes_and_line_numbers() {
+fn panes_and_query_numbers() {
     let directory = tempfile::tempdir().unwrap();
     case(
         &directory,
@@ -1302,7 +1302,7 @@ fn panes_and_line_numbers() {
             );
         }
     }
-    for number_flag in ["--line-numbers", "-n"] {
+    for number_flag in ["--query-numbers", "-n"] {
         for mode in ["none", "outputs", "all"] {
             let output = run(
                 &directory,
@@ -1453,7 +1453,7 @@ fn numbered_interactive_exchanges() {
     let judge =
         "printf 'init\\nextra\\n'; read a; read b; printf 'reply\\n'; read c; test \"$c\" = done";
     let solution = "read a; read b; printf 'query\\nmore\\n'; read c; printf done";
-    for number_flag in ["--line-numbers", "-n"] {
+    for number_flag in ["--query-numbers", "-n"] {
         let output = run(
             &directory,
             &[

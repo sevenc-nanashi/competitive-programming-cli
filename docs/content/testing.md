@@ -92,7 +92,7 @@ Use `--panes` (`-p`) to choose the I/O layout:
   and expected output align at the bottom; expected and actual output align at
   the top. This helps match query inputs to their answers.
 
-Add `--line-numbers` (`-n`) to number lines relative to the expected output.
+Add `--query-numbers` (`-n`) to number lines relative to the expected output.
 Input preamble lines have no number, and extra actual output lines continue the
 numbering. This also applies to the vertical layout. With panes, one shared
 number column appears on the far left.
@@ -224,7 +224,7 @@ Unlike other test commands, this command can be run without test files, and the 
 cpg test --interactive --judge ./judge.rb ./solution.rb
 ```
 
-With `--line-numbers` (`-n`), the initial judge output is numbered `0`. The first
+With `--query-numbers` (`-n`), the initial judge output is numbered `0`. The first
 solution output and the judge's reply are numbered `1`, the next exchange `2`,
 and so on. The number increases when the speaker switches from judge to
 solution. Consecutive lines from the same speaker share a number, including

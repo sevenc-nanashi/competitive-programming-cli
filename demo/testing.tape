@@ -49,7 +49,7 @@ Sleep 3s
 Ctrl+L
 Type "# Compare outputs with query numbers"
 Enter
-Type "cpg test solution.rb --panes outputs --line-numbers --highlight word"
+Type "cpg test solution.rb --panes outputs --query-numbers --highlight word"
 Enter
 Wait+Line /\$$/
 Sleep 5s
