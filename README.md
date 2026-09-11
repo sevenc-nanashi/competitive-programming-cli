@@ -31,7 +31,7 @@ Refer the [Documentation](https://sevenc7c.com/competitive-programming-cli/insta
 
 ## Demo
 
-![cpg preparing a contest, testing a solution, and monitoring a submission](docs/public/demo.gif)
+![cpg preparing a contest, testing a solution, and monitoring a submission](docs/public/demo/overview.gif)
 
 ## Acknowledgements
 

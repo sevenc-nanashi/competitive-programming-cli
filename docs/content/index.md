@@ -1,3 +1,7 @@
+---
+mdx: true
+---
+
 # Competitive Programming CLI (cpg)
 
 > [!WARNING]
@@ -27,7 +31,7 @@ Building requires Rust 1.91 or newer.
 
 ## Demo
 
-<Asciinema src="/competitive-programming-cli/demo.cast" poster="npt:11" />
+<Asciinema src="/competitive-programming-cli/demo/overview.cast" poster="npt:11" />
 
 ## Getting started
 

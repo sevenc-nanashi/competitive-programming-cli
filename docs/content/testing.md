@@ -1,5 +1,7 @@
 # Testing solutions
 
+<Asciinema src="/competitive-programming-cli/demo/testing.cast" poster="npt:15" />
+
 ## Test a solution
 
 Test a solution against the sample cases with `cpg test`. When you pass a source

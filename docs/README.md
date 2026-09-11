@@ -24,23 +24,28 @@ schema is checked into Git and published with the documentation. Releases regene
 it from the release binary, commit it before creating the version tag, and include
 it in the archive and as a separate download.
 
-To update the demo GIF and asciinema recording, run `mise run demo` from the
+To update the demo GIFs and asciinema recordings, run `mise run demo` from the
 repository root. Recording requires Ruby, FFmpeg, and the tools in `mise.toml`.
-Edit `demo/demo.tape` to change the commands and timing. The recording uses local
-mock data and a temporary workspace. Mock submissions start as `WJ`; fetching
+Edit `demo/overview.tape` or `demo/testing.tape` to change the commands and timing.
+To record only the test options demo, run `mise run demo demo/testing.tape`.
+It uses `demo/dijkstra-query.rb` and the `dijkstra-query` mock problem to show an
+unreachable-vertex bug, output display options, and parallel testing.
+Run `ruby tests/demo.rb` to verify the demo's bug and corrected sample answers.
+The recording uses local mock data and a temporary workspace. Mock submissions
+start as `WJ`; fetching
 results at least a few seconds after submission runs the sample tests and caches the
 verdict and maximum runtime. The mock judge uses the commands in
 `mock_service/service.toml`, with a two-second limit per sample and a 30-second
 compilation limit.
 
-Replay the recording with `asciinema play docs/public/demo.cast` from the
+Replay a recording with `asciinema play docs/public/demo/testing.cast` from the
 repository root.
 
 MDX pages can embed it with the globally registered component in
 `components/Asciinema.tsx`. `poster` selects an optional preview time:
 
 ```mdx
-<Asciinema src="/competitive-programming-cli/demo.cast" poster="npt:11" />
+<Asciinema src="/competitive-programming-cli/demo/testing.cast" poster="npt:15" />
 ```
 
 Run `mise run notice` from the repository root to generate `target/notice.md`

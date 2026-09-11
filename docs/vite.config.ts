@@ -13,13 +13,14 @@ export default defineConfig({
       base,
       docs: false,
       highlight: true,
+      mdx: true,
       transformers: [asciinema],
       ssg: {
         siteName: "cpg",
         siteUrl: `https://sevenc-nanashi.github.io${base}`,
         theme: defineTheme({
           sidebar: [
-            { text: "Introduction", link: "/index.mdx" },
+            { text: "Introduction", link: "/index.md" },
             { text: "cpg vs oj + oj-prepare", link: "/cpg-vs-oj.md" },
             { text: "Installation", link: "/installation.md" },
             { text: "Configuration and login", link: "/configuration.md" },

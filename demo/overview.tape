@@ -1,6 +1,5 @@
 # Run from the repository root with `mise run demo`.
-Output docs/public/demo.gif
-
+# Wait for prompts: VHS 0.10.0's Wait+Screen reads old lines after scrolling.
 Require cpg
 Require asciinema
 Require ruby
@@ -9,13 +8,13 @@ Set Shell bash
 Set FontFamily "DejaVu Sans Mono"
 Set FontSize 20
 Set Width 1100
-Set Height 700
+Set Height 500
 Set Padding 20
 Set Theme "Catppuccin Mocha"
 Set TypingSpeed 40ms
 
 Hide
-Type@1ms `export PS1='$ '; cd "$CPG_DEMO_WORKSPACE"; asciinema rec --quiet --overwrite --return --output-format asciicast-v3 --title 'cpg demo' --command 'bash --noprofile --norc' "$CPG_DEMO_CAST"`
+Type@1ms `export PS1='$ '; cd "$CPG_DEMO_WORKSPACE"; asciinema rec --quiet --overwrite --return --output-format asciicast-v3 --title 'cpg demo' --command 'bash --noprofile --norc' "$CPG_DEMO_DESTINATION"`
 Enter
 Wait+Line /\$$/
 Show
@@ -39,7 +38,6 @@ Ctrl+L
 
 Type "cpg prepare https://mock.local/contests/practice"
 Enter
-Wait+Screen /Created workspace:/
 Wait+Line /\$$/
 Sleep 2s
 
@@ -60,37 +58,40 @@ Wait+Line /\$$/
 Sleep 1s
 Type "cpg test solution.rb --fast-fail"
 Enter
-Wait+Screen /WA/
 Wait+Line /\$$/
 Sleep 3s
 
-Type `echo 'puts gets.chomp.split.map(&:to_i).sum' > solution.rb`
+Type `vim solution.rb`
+Enter
+Sleep 1s
+Type@100ms `ggVGc`
+Type 'puts gets.chomp.split.map(&:to_i).sum'
+Sleep 500ms
+Escape
+Type@100ms `:wq`
 Enter
 Wait+Line /\$$/
-Sleep 1s
-Ctrl+L
 
-Type "cpg test solution.rb -j 2"
+Sleep 1s
+Type "cpg test solution.rb"
 Enter
-Wait+Screen /AC/
 Wait+Line /\$$/
 Sleep 3s
 
 Type "cpg submit solution.rb"
 Enter
-Wait+Screen /Submitted [0-9]+:/
 Wait+Line /\$$/
 Sleep 2s
 Type "cpg results --ui"
+Sleep 1s
 Enter
 Wait+Screen /Running/
-Sleep 7s
+Sleep 10s
 Type "q"
 Wait+Line /\$$/
 Sleep 1s
+Ctrl+D
 
 Hide
 Type "exit"
 Enter
-Wait+Line /\$$/
-Sleep 500ms
