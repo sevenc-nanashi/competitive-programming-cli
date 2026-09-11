@@ -160,6 +160,27 @@ pub enum ShowIo {
     Never,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, usage::ValueEnum)]
+pub enum Panes {
+    /// Show input, expected output, and actual output vertically.
+    #[usage(visible_alias = "1")]
+    None,
+    /// Show expected and actual output side by side, below the input.
+    #[usage(visible_alias = "2")]
+    Outputs,
+    /// Show all three side by side, bottom-aligning input with expected output.
+    #[usage(visible_alias = "3")]
+    All,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, usage::ValueEnum)]
+pub enum Highlight {
+    /// Highlight differing lines.
+    Line,
+    /// Highlight differing whitespace-separated words.
+    Word,
+}
+
 #[derive(Debug, usage::Args)]
 pub struct Test {
     #[usage(flatten)]
@@ -167,6 +188,15 @@ pub struct Test {
     /// Show case input, expected output, and actual output (or interactive transcript).
     #[usage(long, value_enum, default = "failure", short = 'v')]
     pub show_io: ShowIo,
+    /// I/O layout; outputs and all cannot be used with --interactive.
+    #[usage(long, short = 'p', value_enum, default = "none")]
+    pub panes: Panes,
+    /// Number lines relative to expected output, or number interactive exchanges from zero.
+    #[usage(long, short = 'n')]
+    pub line_numbers: bool,
+    /// Highlight expected/actual output differences; cannot be used with --interactive.
+    #[usage(long, short = 'H', value_enum, conflicts("--interactive"))]
+    pub highlight: Option<Highlight>,
     /// Directory containing .in and .out test files.
     ///
     /// Defaults to the source directory's test subdirectory, or ./test for a direct command.

@@ -17,9 +17,9 @@ end
 class Terminal
   attr_reader :output
 
-  def initialize(*args, env: {})
+  def initialize(*args, env: {}, columns: 180)
     @master, @slave = PTY.open
-    @master.winsize = [24, 180]
+    @master.winsize = [24, columns]
     @mode = mode
     @errors = Tempfile.new('cpg-results-errors')
     @output = +''
@@ -128,13 +128,70 @@ begin
     check(term.output.include?("    #{expected_url}"), 'Missing indented URL')
   end
 
+  Terminal.new(binary, 'test', '-n', *interactive_args.drop(1)) do |term|
+    term.finish(0, ui: false)
+    plain = term.output.gsub(/\e\[[\d;]*m/, '')
+    check(plain.include?("0 < question\r\n1 > answer\r\n"), 'Wrong exchange numbers')
+    check(term.output.include?("\e[32m") && term.output.include?("\e[33m"), 'Missing exchange colors')
+  end
+
+  Dir.mktmpdir('cpg-panes') do |directory|
+    File.write(File.join(directory, 'case.in'), "abcdefghijklmnopqrstuv\n")
+    File.write(File.join(directory, 'case.out'), "ok\n")
+    args = ['test', '-d', directory, '-p', 'all', '-n', '--', 'printf', "abcdefghijklmnopqrstuvwxy\n"]
+    [40, 15].each do |columns|
+      Terminal.new(binary, *args, columns: columns) do |term|
+        term.finish(columns == 40 ? 1 : 2, ui: false)
+        next if columns == 15
+        plain = term.output.gsub(/\e\[[\d;]*m/, '')
+        rows = plain.lines.map(&:chomp).select { |line| line.include?(' | ') || line.include?(' : ') }
+        check(rows.all? { |line| line.length == 40 }, 'Panes exceeded terminal width')
+        check(rows.any? { |line| line.start_with?('1 | uv') && line.include?('ok') && line.end_with?('abcdefghij') },
+              'Wrapped input and outputs are misaligned')
+      end
+    end
+    File.write(File.join(directory, 'case.out'), "same good end\n")
+    %w[none outputs all].each do |panes|
+      %w[line word].each do |highlight|
+        args = ['test', '-d', directory, '-p', panes, '-H', highlight, '--', 'printf', "same bad end\n"]
+        Terminal.new(binary, *args, columns: 38) do |term|
+          term.finish(1, ui: false)
+          color = nil
+          bold = false
+          highlighted = { 31 => +'', 32 => +'' }
+          term.output.scan(/\e\[([\d;]*)m|([^\e]+)/) do |codes, text|
+            if codes
+              codes.split(';').map(&:to_i).each do |code|
+                color, bold = nil, false if code.zero?
+                color = code if [31, 32].include?(code)
+                bold = true if code == 1
+                check(code != 7 && !(40..49).cover?(code) && !(100..107).cover?(code),
+                      'Highlight used reverse video or a background color')
+              end
+            elsif !bold && highlighted.key?(color)
+              highlighted[color] << text
+            end
+          end
+          check(highlighted[32] == (highlight == 'line' ? 'same good end' : 'good'), 'Wrong expected highlight')
+          check(highlighted[31] == (highlight == 'line' ? 'same bad end' : 'bad'), 'Wrong actual highlight')
+        end
+        [ [['--no-color'], {}], [[], { 'NO_COLOR' => '1' }] ].each do |flags, env|
+          Terminal.new(binary, *flags, *args, env: env) do |term|
+            term.finish(1, ui: false)
+            check(!term.output.include?("\e"), 'Highlight colors were not disabled')
+          end
+        end
+      end
+    end
+  end
+
   [ [['--no-color'], {}], [[], { 'NO_COLOR' => '1' }] ].each do |flags, env|
-    Terminal.new(binary, *flags, *interactive_args, env: env) do |term|
+    Terminal.new(binary, *flags, 'test', '-n', *interactive_args.drop(1), env: env) do |term|
       term.finish(0, ui: false)
       check(term.output.include?('< question') && term.output.include?('> answer') &&
             !term.output.include?("\e"), 'Interaction colors were not disabled')
     end
-    Terminal.new(binary, 'test', *flags, '--', 'cat', env: env) do |term|
+    Terminal.new(binary, 'test', *flags, '-p', 'all', '-n', '-v', 'always', '--', 'cat', env: env) do |term|
       term.finish(0, ui: false)
       check(term.output.include?('sample-1: AC (') && !term.output.include?("\e"),
             'Test verdict colors were not disabled')

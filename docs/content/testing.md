@@ -82,6 +82,69 @@ cpg test --show-io always ./solution.cpp
 cpg test --show-io never -- ruby ./solution.rb
 ```
 
+Use `--panes` (`-p`) to choose the I/O layout:
+
+- `none` (`1`, default): display input, expected output, and actual output vertically.
+- `outputs` (`2`): display input above side-by-side expected and actual output.
+- `all` (`3`): display input, expected output, and actual output side by side. Input
+  and expected output align at the bottom; expected and actual output align at
+  the top. This helps match query inputs to their answers.
+
+Add `--line-numbers` (`-n`) to number lines relative to the expected output.
+Input preamble lines have no number, and extra actual output lines continue the
+numbering. This also applies to the vertical layout. With panes, one shared
+number column appears on the far left.
+
+```bash
+cpg test -p outputs -n ./solution.cpp
+cpg test -p all -n --show-io always ./solution.cpp
+```
+
+```text
+  | Input:  | Expected output: | Actual output:
+  | 2       :                  :
+1 | query A | answer A         | answer A
+2 | query B | answer B         | wrong
+3 :         :                  | extra
+```
+
+Each separator is `:` only when the next pane on its right is padded, including
+padding introduced by wrapping; otherwise it is `|`. The same rule applies
+between a line number and the first pane, regardless of whether the number is
+blank. A real empty line counts as data, not padding.
+
+Panes share the terminal width equally. Long lines wrap inside their pane while
+preserving the alignment of corresponding lines; continuation lines have no
+number. Redirected output uses the width needed by the contents without wrapping.
+An unavailable terminal width or a width too narrow for two columns per pane
+produces an error. Tabs use eight-column stops, CRLF displays as a single line
+ending, and terminal control sequences cannot move text outside its pane.
+These display changes do not affect judging.
+
+An empty expected output is marked `(empty)`; a missing one is marked `(missing)`
+in pane layouts. In both cases input lines have no numbers, actual output starts
+at `1`, and `all` places actual output after the input. `--show-io` still controls
+whether any I/O details appear.
+
+Use `--highlight line` or `--highlight word` (`-H`) to highlight differences on
+both sides: expected output in green and actual output in red. `line` highlights
+the entire differing line; `word` compares whitespace-separated words at the
+same position within each corresponding line. Extra words or lines are
+highlighted on the side where they exist. Input is never highlighted.
+
+```bash
+cpg test -H line ./solution.cpp
+cpg test -p all -n -H word ./solution.cpp
+```
+
+Highlighting works with every layout and survives pane wrapping. It compares
+displayed text, including `(no eol)` markers, independently of judging tolerances
+and stripping options; word mode ignores differences in whitespace separators.
+It is off by default, disabled by `--no-color` or `NO_COLOR`, and omitted when
+output is redirected. Missing expected-output files provide no reference, so
+their actual output is not highlighted. `--highlight` cannot be combined with
+`--interactive`.
+
 For stripping trailing white-space in the output, you can use `--strip` option to ignore trailing white-space differences between the expected output and the actual output.
 
 ```bash
@@ -147,7 +210,7 @@ cpg test --judge "ruby ./judge.rb {test_input} {solution_output} {test_output}" 
 
 You can test interactive problems with custom judge.
 The judge's standard input will receive the output from the solution, and the judge's standard output will be sent to the solution's standard input.
-cpg will prefix `?` for the judge's output and `!` for the solution's output.
+cpg will prefix `<` for the judge's output and `>` for the solution's output.
 On terminals with color enabled, judge output is green and solution output is yellow.
 The transcript is displayed after each case according to `--show-io`.
 If test files exist, the judge will receive the path as `{test_input}` and `{test_output}` arguments, and cpg will run the judge and solution for each test case.
@@ -158,3 +221,26 @@ Unlike other test commands, this command can be run without test files, and the 
 # Test an interactive problem with custom judge
 cpg test --interactive --judge ./judge.rb ./solution.rb
 ```
+
+With `--line-numbers` (`-n`), the initial judge output is numbered `0`. The first
+solution output and the judge's reply are numbered `1`, the next exchange `2`,
+and so on. The number increases when the speaker switches from judge to
+solution. Consecutive lines from the same speaker share a number, including
+output received in separate reads. Partial lines are forwarded immediately and
+marked `(no eol)` in the log when the speaker changes or the interaction ends.
+Input and expected-output files remain unnumbered in interactive mode.
+
+```text
+0 < initial data
+1 > first query
+1 < first reply
+2 > second query
+2 < second reply
+```
+
+```bash
+cpg test --interactive -n --judge ./judge.rb ./solution.rb
+```
+
+Interactive tests support only `--panes none`; `outputs` and `all` are rejected
+before running the solution or judge.

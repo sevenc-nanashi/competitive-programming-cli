@@ -1,14 +1,16 @@
 use crate::{
-    cli::{FloatErrorType, Generate, ProgramArgs, ShowIo, Test},
+    cli::{FloatErrorType, Generate, Highlight, Panes, ProgramArgs, ShowIo, Test},
     config::{Clipboard, Config, Language, expand_path},
 };
 use anyhow::{Context, Result, ensure};
-use console::Style;
+use console::{Alignment, Style, measure_text_width, pad_str};
 use process_wrap::std::{ChildWrapper, CommandWrap};
 use std::{
     ffi::{OsStr, OsString},
+    fmt::Write as _,
     fs::{self, File},
-    io::{self, Read, Write},
+    io::{self, IsTerminal, Read, Write},
+    ops::Range,
     path::{Path, PathBuf},
     process::{Command, ExitStatus, Stdio},
     sync::{
@@ -552,12 +554,75 @@ pub fn copy_to_clipboard(
     }
 }
 
+struct Transcript {
+    file: File,
+    numbered: bool,
+    solution: Option<bool>,
+    turn: usize,
+    pending: Vec<u8>,
+}
+
+impl Transcript {
+    fn flush_line(&mut self, no_eol: bool) -> io::Result<()> {
+        let solution = self.solution.expect("transcript speaker");
+        let (prefix, style) = if solution {
+            (">", Style::new().yellow())
+        } else {
+            ("<", Style::new().green())
+        };
+        write!(
+            self.file,
+            "{} {}",
+            self.turn,
+            style.apply_to(format!(
+                "{prefix} {}",
+                String::from_utf8_lossy(&self.pending)
+            ))
+        )?;
+        if no_eol {
+            writeln!(self.file, " {}", Style::new().dim().apply_to("(no eol)"))?;
+        }
+        self.pending.clear();
+        Ok(())
+    }
+
+    fn record(&mut self, solution: bool, bytes: &[u8]) -> io::Result<()> {
+        if !self.numbered {
+            let (prefix, style) = if solution {
+                ("> ", Style::new().yellow())
+            } else {
+                ("< ", Style::new().green())
+            };
+            return write!(
+                self.file,
+                "{}",
+                style.apply_to(format!("{prefix}{}", String::from_utf8_lossy(bytes)))
+            );
+        }
+        if self.solution != Some(solution) {
+            if !self.pending.is_empty() {
+                self.flush_line(true)?;
+            }
+            if solution {
+                self.turn += 1;
+            }
+            self.solution = Some(solution);
+        }
+        for part in bytes.split_inclusive(|byte| *byte == b'\n') {
+            self.pending.extend_from_slice(part);
+            if part.ends_with(b"\n") {
+                self.flush_line(false)?;
+            }
+        }
+        Ok(())
+    }
+}
+
 fn relay(
     mut input: impl Read,
     mut output: impl Write,
-    prefix: &str,
-    style: Style,
-    transcript: Option<Arc<Mutex<File>>>,
+    solution: bool,
+    transcript: Option<Arc<Mutex<Transcript>>>,
 ) -> io::Result<()> {
     let mut buffer = [0; 4096];
     loop {
@@ -566,11 +631,10 @@ fn relay(
             return Ok(());
         }
         if let Some(transcript) = &transcript {
-            write!(
-                transcript.lock().expect("transcript lock poisoned"),
-                "{}",
-                style.apply_to(format!("{prefix}{}", String::from_utf8_lossy(&buffer[..n])))
-            )?;
+            transcript
+                .lock()
+                .expect("transcript lock poisoned")
+                .record(solution, &buffer[..n])?;
         }
         if let Err(error) = output.write_all(&buffer[..n]).and_then(|()| output.flush()) {
             if error.kind() == io::ErrorKind::BrokenPipe {
@@ -587,6 +651,7 @@ fn interactive(
     limits: Limits,
     interrupted: &AtomicBool,
     transcript: Option<File>,
+    line_numbers: bool,
 ) -> Result<RunResult> {
     let mut solution = ManagedChild::spawn(program, Stdio::piped(), Stdio::piped())?;
     let mut judge = ManagedChild::spawn(judge, Stdio::piped(), Stdio::piped())?;
@@ -594,26 +659,19 @@ fn interactive(
     let judge_in = judge.child.stdin().take().expect("piped stdin");
     let judge_out = judge.child.stdout().take().expect("piped stdout");
     let solution_in = solution.child.stdin().take().expect("piped stdin");
-    let transcript = transcript.map(|file| Arc::new(Mutex::new(file)));
+    let transcript = transcript.map(|file| {
+        Arc::new(Mutex::new(Transcript {
+            file,
+            numbered: line_numbers,
+            solution: None,
+            turn: 0,
+            pending: Vec::new(),
+        }))
+    });
     let forward_transcript = transcript.clone();
-    let forward = thread::spawn(move || {
-        relay(
-            solution_out,
-            judge_in,
-            "> ",
-            Style::new().yellow(),
-            forward_transcript,
-        )
-    });
-    let backward = thread::spawn(move || {
-        relay(
-            judge_out,
-            solution_in,
-            "< ",
-            Style::new().green(),
-            transcript,
-        )
-    });
+    let backward_transcript = transcript.clone();
+    let forward = thread::spawn(move || relay(solution_out, judge_in, true, forward_transcript));
+    let backward = thread::spawn(move || relay(judge_out, solution_in, false, backward_transcript));
     let result = monitor(&mut [&mut solution, &mut judge], limits, interrupted);
     drop(solution);
     drop(judge);
@@ -623,6 +681,12 @@ fn interactive(
     let backwarded = backward
         .join()
         .map_err(|_| anyhow::anyhow!("Judge relay panicked"))?;
+    if let Some(transcript) = &transcript {
+        let mut transcript = transcript.lock().expect("transcript lock poisoned");
+        if !transcript.pending.is_empty() {
+            transcript.flush_line(true)?;
+        }
+    }
     let result = result?;
     forwarded?;
     backwarded?;
@@ -825,6 +889,349 @@ fn print_io(label: &str, path: &Path, style: Style) -> Result<()> {
     Ok(())
 }
 
+struct OutputLine {
+    text: String,
+    marker_start: usize,
+    highlights: Vec<Range<usize>>,
+    highlight_style: Style,
+}
+
+impl OutputLine {
+    fn new(text: &str, marker: &str) -> Self {
+        let mut plain = String::new();
+        for ch in console::strip_ansi_codes(text).chars() {
+            if ch == '\t' {
+                plain.push_str(&" ".repeat(8 - measure_text_width(&plain) % 8));
+            } else if ch.is_control() {
+                plain.extend(ch.escape_default());
+            } else {
+                plain.push(ch);
+            }
+        }
+        let marker_start = plain.len();
+        plain.push_str(marker);
+        Self {
+            text: plain,
+            marker_start,
+            highlights: Vec::new(),
+            highlight_style: Style::new(),
+        }
+    }
+
+    fn highlight(&mut self, other: Option<&Self>, mode: Highlight, style: Style) {
+        self.highlight_style = style;
+        let Some(other) = other else {
+            self.highlights.push(0..self.text.len());
+            return;
+        };
+        if self.text == other.text {
+            return;
+        }
+        if mode == Highlight::Line {
+            self.highlights.push(0..self.text.len());
+            return;
+        }
+        let mut offset = 0;
+        let mut other_words = other.text.split_whitespace();
+        for part in self.text.split_inclusive(char::is_whitespace) {
+            let word = part.trim_end_matches(char::is_whitespace);
+            if !word.is_empty() && other_words.next() != Some(word) {
+                self.highlights.push(offset..offset + word.len());
+            }
+            offset += part.len();
+        }
+    }
+
+    fn wrap(&self, width: usize) -> Vec<String> {
+        assert!(width >= 2, "a pane must fit a wide character");
+        let mut lines = vec![String::new()];
+        let mut columns = 0;
+        let mut highlights = self.highlights.iter().peekable();
+        for (offset, ch) in self.text.char_indices() {
+            let text = ch.to_string();
+            let size = measure_text_width(&text);
+            if columns + size > width {
+                lines.push(String::new());
+                columns = 0;
+            }
+            let line = lines.last_mut().expect("initial line");
+            while highlights.peek().is_some_and(|range| range.end <= offset) {
+                highlights.next();
+            }
+            if highlights
+                .peek()
+                .is_some_and(|range| range.contains(&offset))
+            {
+                write!(line, "{}", self.highlight_style.apply_to(text)).expect("write to string");
+            } else if offset >= self.marker_start {
+                write!(line, "{}", Style::new().dim().apply_to(text)).expect("write to string");
+            } else {
+                line.push(ch);
+            }
+            columns += size;
+        }
+        lines
+    }
+}
+
+struct OutputBlock {
+    label: &'static str,
+    style: Style,
+    lines: Vec<OutputLine>,
+    count: usize,
+}
+
+impl OutputBlock {
+    fn read(label: &'static str, path: Option<&Path>, style: Style) -> Result<Self> {
+        let contents = path.map(fs::read).transpose()?;
+        let mut lines = Vec::new();
+        if let Some(contents) = &contents {
+            let contents = String::from_utf8_lossy(contents);
+            let contents = console::strip_ansi_codes(&contents);
+            for line in contents.split_inclusive('\n') {
+                match line.strip_suffix('\n') {
+                    Some(line) => {
+                        let line = match line.strip_suffix('\r') {
+                            Some(line) => line,
+                            None => line,
+                        };
+                        lines.push(OutputLine::new(line, ""));
+                    }
+                    None => lines.push(OutputLine::new(line, " (no eol)")),
+                }
+            }
+        }
+        let count = lines.len();
+        if lines.is_empty() {
+            lines.push(OutputLine::new(
+                "",
+                if contents.is_some() {
+                    "(empty)"
+                } else {
+                    "(missing)"
+                },
+            ));
+        }
+        Ok(Self {
+            label,
+            style,
+            lines,
+            count,
+        })
+    }
+
+    fn vertical(&self, numbered: bool, expected_count: usize, digits: usize) -> String {
+        let mut output = format!("{}\n", self.style.apply_to(format!("{}:", self.label)));
+        for (index, line) in self.lines.iter().enumerate() {
+            if numbered {
+                let number = if self.count == 0 {
+                    None
+                } else {
+                    (index + expected_count + 1)
+                        .checked_sub(self.count)
+                        .filter(|n| *n > 0)
+                };
+                match number {
+                    Some(number) => write!(output, "{number:>digits$} | "),
+                    None => write!(output, "{} | ", " ".repeat(digits)),
+                }
+                .expect("write to string");
+            }
+            writeln!(output, "{}", line.wrap(usize::MAX)[0]).expect("write to string");
+        }
+        output.push('\n');
+        output
+    }
+}
+
+fn pane_output(
+    blocks: &[&OutputBlock],
+    numbered: bool,
+    terminal_width: Option<usize>,
+) -> Result<String> {
+    let all = blocks.len() == 3;
+    let expected = blocks[blocks.len() - 2];
+    let actual = blocks[blocks.len() - 1];
+    let count = expected.count.max(actual.count);
+    let digits = count.to_string().len();
+    let gutter = if numbered { digits + 3 } else { 0 };
+    let widths = if let Some(width) = terminal_width {
+        let spacing = gutter + (blocks.len() - 1) * 3;
+        ensure!(
+            width >= spacing + blocks.len() * 2,
+            "Terminal is too narrow for the selected panes"
+        );
+        let available = width - spacing;
+        (0..blocks.len())
+            .map(|column| available / blocks.len() + usize::from(column < available % blocks.len()))
+            .collect::<Vec<_>>()
+    } else {
+        blocks
+            .iter()
+            .map(|block| {
+                block
+                    .lines
+                    .iter()
+                    .map(|line| measure_text_width(&line.text))
+                    .chain([block.label.len() + 1, 2])
+                    .max()
+                    .expect("label width")
+            })
+            .collect()
+    };
+    let mut output = String::new();
+    let mut append =
+        |cells: &[Vec<String>], starts: &[usize], number: Option<usize>, number_row: usize| {
+            let height = cells
+                .iter()
+                .zip(starts)
+                .map(|(cell, start)| cell.len() + start)
+                .max()
+                .expect("output columns");
+            for row in 0..height {
+                let number = number.filter(|_| row == number_row);
+                if numbered {
+                    if let Some(number) = number {
+                        write!(output, "{number:>digits$}").expect("write to string");
+                    } else {
+                        output.push_str(&" ".repeat(digits));
+                    }
+                }
+                for (column, cell) in cells.iter().enumerate() {
+                    let text = row
+                        .checked_sub(starts[column])
+                        .and_then(|row| cell.get(row));
+                    if numbered || column > 0 {
+                        output.push_str(if text.is_some() { " | " } else { " : " });
+                    }
+                    let text = match text {
+                        Some(text) => text.as_str(),
+                        None => "",
+                    };
+                    output.push_str(&pad_str(text, widths[column], Alignment::Left, None));
+                }
+                output.push('\n');
+            }
+        };
+    let headers: Vec<_> = blocks
+        .iter()
+        .zip(&widths)
+        .map(|(block, width)| {
+            OutputLine::new(&format!("{}:", block.label), "")
+                .wrap(*width)
+                .into_iter()
+                .map(|line| block.style.apply_to(line).to_string())
+                .collect()
+        })
+        .collect();
+    append(&headers, &vec![0; blocks.len()], None, 0);
+    let expected_start = if all {
+        blocks[0].lines.len().saturating_sub(expected.count)
+    } else {
+        0
+    };
+    let mut offsets = vec![expected_start; blocks.len()];
+    if all {
+        offsets[0] = expected.count.saturating_sub(blocks[0].lines.len());
+    }
+    let rows = blocks
+        .iter()
+        .zip(&offsets)
+        .map(|(block, offset)| block.lines.len() + offset)
+        .max()
+        .expect("output columns");
+    for row in 0..rows {
+        let cells: Vec<_> = blocks
+            .iter()
+            .zip(&offsets)
+            .zip(&widths)
+            .map(|((block, offset), width)| {
+                match row
+                    .checked_sub(*offset)
+                    .and_then(|row| block.lines.get(row))
+                {
+                    Some(line) => line.wrap(*width),
+                    None => Vec::new(),
+                }
+            })
+            .collect();
+        let mut starts = vec![0; blocks.len()];
+        if all {
+            let input_height = cells[0].len();
+            let expected_height = cells[1].len();
+            starts[0] = expected_height.saturating_sub(input_height);
+            starts[1] = input_height.saturating_sub(expected_height);
+            starts[2] = starts[1];
+        }
+        let number = row
+            .checked_sub(expected_start)
+            .filter(|index| *index < count)
+            .map(|index| index + 1);
+        append(&cells, &starts, number, starts[blocks.len() - 2]);
+    }
+    Ok(output)
+}
+
+fn print_test_io(
+    input: &Path,
+    expected: Option<&Path>,
+    actual: &Path,
+    options: &Test,
+) -> Result<()> {
+    let style = Style::new().bold();
+    let has_expected = expected.is_some();
+    let input = OutputBlock::read("Input", Some(input), style.clone())?;
+    let mut expected = OutputBlock::read("Expected output", expected, style.clone().green())?;
+    let mut actual = OutputBlock::read("Actual output", Some(actual), style.yellow())?;
+    if let Some(highlight) = options.highlight
+        && has_expected
+    {
+        for (index, line) in expected.lines.iter_mut().enumerate() {
+            line.highlight(actual.lines.get(index), highlight, Style::new().green());
+        }
+        for (index, line) in actual.lines.iter_mut().enumerate() {
+            line.highlight(expected.lines.get(index), highlight, Style::new().red());
+        }
+    }
+    let digits = expected.count.max(actual.count).to_string().len();
+    if options.panes != Panes::All {
+        print!(
+            "{}",
+            input.vertical(options.line_numbers, expected.count, digits)
+        );
+    }
+    if options.panes == Panes::None {
+        if has_expected {
+            print!(
+                "{}",
+                expected.vertical(options.line_numbers, expected.count, digits)
+            );
+        }
+        print!(
+            "{}",
+            actual.vertical(options.line_numbers, actual.count, digits)
+        );
+    } else {
+        let width = if io::stdout().is_terminal() {
+            Some(usize::from(
+                console::Term::stdout()
+                    .size_checked()
+                    .context("Cannot determine terminal width")?
+                    .1,
+            ))
+        } else {
+            None
+        };
+        let blocks = if options.panes == Panes::All {
+            vec![&input, &expected, &actual]
+        } else {
+            vec![&expected, &actual]
+        };
+        print!("{}", pane_output(&blocks, options.line_numbers, width)?);
+    }
+    Ok(())
+}
+
 fn run_jobs<T: Send>(
     tasks: Vec<T>,
     jobs: usize,
@@ -895,7 +1302,7 @@ fn test_case(
             .into_owned(),
         None => "interactive".into(),
     };
-    let _empty_expected = if let Some(path) = &mut expected
+    let empty_expected = if let Some(path) = &mut expected
         && !path.try_exists()?
     {
         if judge.is_some() {
@@ -923,7 +1330,14 @@ fn test_case(
         } else {
             Some(actual.reopen()?)
         };
-        interactive(program, &judge, limits, interrupted, transcript)?
+        interactive(
+            program,
+            &judge,
+            limits,
+            interrupted,
+            transcript,
+            options.line_numbers,
+        )?
     } else {
         let mut result = execute(
             program,
@@ -969,6 +1383,23 @@ fn test_case(
         ShowIo::Failure => result.verdict != Verdict::Ac,
         ShowIo::Never => false,
     } {
+        if !options.interactive
+            && (options.panes != Panes::None || options.line_numbers || options.highlight.is_some())
+        {
+            let expected = match &expected {
+                Some(path) if path.try_exists()? && empty_expected.is_none() => {
+                    Some(path.as_path())
+                }
+                _ => None,
+            };
+            print_test_io(
+                input.as_deref().expect("regular case"),
+                expected,
+                actual.path(),
+                options,
+            )?;
+            return Ok(result.verdict == Verdict::Ac);
+        }
         let style = Style::new().bold();
         if let Some(input) = &input {
             print_io("Input", input, style.clone())?;
@@ -989,6 +1420,10 @@ fn test_case(
 }
 
 pub fn test(config: &Config, options: &Test, interrupted: &AtomicBool) -> Result<bool> {
+    ensure!(
+        !options.interactive || options.panes == Panes::None,
+        "--interactive cannot be combined with --panes outputs or all"
+    );
     let program = Program::prepare(config, &options.program, interrupted)?;
     let directory = match &options.test_dir {
         Some(dir) => std::path::absolute(expand_path(dir)?)?,
@@ -1134,4 +1569,131 @@ pub fn install_signal_handler() -> Result<Arc<AtomicBool>> {
         ctrlc::set_handler(move || flag.store(true, Ordering::Relaxed))?;
     }
     Ok(interrupted)
+}
+
+#[cfg(test)]
+mod display_tests {
+    use super::*;
+
+    #[test]
+    fn highlights_compare_lines_or_words_without_changing_text() {
+        for (mode, expected_ranges, actual_ranges) in [
+            (Highlight::Line, vec!["same 猫 end"], vec!["same 犬 extra"]),
+            (Highlight::Word, vec!["猫", "end"], vec!["犬", "extra"]),
+        ] {
+            let mut expected = OutputLine::new("same 猫 end", "");
+            let mut actual = OutputLine::new("same 犬 extra", "");
+            expected.highlight(Some(&actual), mode, Style::new().green());
+            actual.highlight(Some(&expected), mode, Style::new().red());
+            for (line, ranges) in [(&expected, expected_ranges), (&actual, actual_ranges)] {
+                assert_eq!(
+                    line.highlights
+                        .iter()
+                        .map(|range| &line.text[range.clone()])
+                        .collect::<Vec<_>>(),
+                    ranges
+                );
+                let wrapped = line.wrap(4);
+                assert!(wrapped.iter().all(|line| measure_text_width(line) <= 4));
+                assert_eq!(console::strip_ansi_codes(&wrapped.concat()), line.text);
+            }
+        }
+        let mut line = OutputLine::new("same", "");
+        line.highlight(
+            Some(&OutputLine::new("same", "")),
+            Highlight::Line,
+            Style::new(),
+        );
+        assert!(line.highlights.is_empty());
+        line.highlight(None, Highlight::Word, Style::new());
+        assert_eq!(line.highlights.len(), 1);
+        assert_eq!(line.highlights[0], 0..4);
+        let mut line = OutputLine::new("same  words", "");
+        line.highlight(
+            Some(&OutputLine::new("same words", "")),
+            Highlight::Word,
+            Style::new(),
+        );
+        assert!(line.highlights.is_empty());
+    }
+
+    #[test]
+    fn wrapped_panes_keep_corresponding_lines() {
+        let block = |label, contents: &str| {
+            let file = tempfile::NamedTempFile::new().unwrap();
+            fs::write(file.path(), contents).unwrap();
+            OutputBlock::read(label, Some(file.path()), Style::new()).unwrap()
+        };
+        let input = block("Input", "abcdefghijklmnopqrstuv\n");
+        let expected = block("Expected output", "ok\n");
+        let actual = block("Actual output", "abcdefghijklmnopqrstuvwxy\n");
+        let blocks = [&input, &expected, &actual];
+        let output = pane_output(&blocks, true, Some(40)).unwrap();
+        assert!(output.lines().all(|line| measure_text_width(line) == 40));
+        let rows: Vec<_> = output.lines().skip(2).map(str::trim_end).collect();
+        assert_eq!(
+            rows,
+            [
+                "  | abcdefghij :            :",
+                "  | klmnopqrst :            :",
+                "1 | uv         | ok         | abcdefghij",
+                "  :            :            | klmnopqrst",
+                "  :            :            | uvwxy",
+            ]
+        );
+        assert!(pane_output(&blocks, true, Some(15)).is_err());
+        assert!(pane_output(&blocks, true, Some(16)).is_ok());
+        let blank = block("Input", "\n");
+        let blank_output = pane_output(&[&blank, &blank, &blank], true, None).unwrap();
+        assert!(blank_output.lines().nth(1).unwrap().starts_with("1 | "));
+        assert_eq!(
+            blank_output.lines().nth(1).unwrap().matches(" | ").count(),
+            3
+        );
+        let colored = block("Expected output", "\x1b[31mok\n\x1b[0m");
+        assert_eq!(colored.count, 1);
+        assert_eq!(colored.lines[0].text, "ok");
+
+        let line = OutputLine::new("界\tA\u{7}\x1b[31mB\x1b[0m", " (no eol)");
+        for width in 2..12 {
+            let wrapped = line.wrap(width);
+            assert!(wrapped.iter().all(|line| measure_text_width(line) <= width));
+            assert_eq!(
+                console::strip_ansi_codes(&wrapped.concat()),
+                "界      A\\u{7}B (no eol)"
+            );
+        }
+    }
+
+    #[test]
+    fn transcript_numbers_exchanges_not_read_chunks() {
+        let file = tempfile::NamedTempFile::new().unwrap();
+        let mut transcript = Transcript {
+            file: file.reopen().unwrap(),
+            numbered: true,
+            solution: None,
+            turn: 0,
+            pending: Vec::new(),
+        };
+        for (solution, bytes) in [
+            (false, b"ini".as_slice()),
+            (false, b"t\nmore\n"),
+            (true, b"\xe3"),
+            (true, b"\x81"),
+            (true, b"\x82\nsecond\npartial"),
+            (false, b"reply\n"),
+            (true, b"done"),
+        ] {
+            transcript.record(solution, bytes).unwrap();
+        }
+        transcript.flush_line(true).unwrap();
+        let output = fs::read_to_string(file.path()).unwrap();
+        assert_eq!(
+            console::strip_ansi_codes(&output),
+            concat!(
+                "0 < init\n0 < more\n1 > あ\n1 > second\n1 > partial (no eol)\n",
+                "1 < reply\n2 > done (no eol)\n",
+            )
+        );
+    }
 }

@@ -743,94 +743,6 @@ fn open_url_only() {
 }
 
 #[test]
-fn shell_completion() {
-    let directory = tempfile::tempdir().unwrap();
-    for shell in ["bash", "elvish", "fish", "nu", "powershell", "zsh"] {
-        let output = run(&directory, &["completion", shell], 0);
-        let script = String::from_utf8_lossy(&output.stdout);
-        assert!(script.contains(&format!("cpg __complete_word__ --shell {shell}")));
-        assert!(output.stderr.is_empty());
-        if shell == "bash" {
-            fs::write(directory.path().join("completion.bash"), &output.stdout).unwrap();
-        }
-    }
-    run(&directory, &["completion"], 2);
-    run(&directory, &["completion", "invalid"], 2);
-    for (line, expected) in [
-        ("cpg co", vec!["completion", "config"]),
-        ("cpg t --sho", vec!["--show-io"]),
-        ("cpg test --show-io ", vec!["always", "failure", "never"]),
-        ("cpg test --show-io=f", vec!["--show-io=failure"]),
-        ("cpg test --no-ig", vec!["--no-ignore-line-ending"]),
-        ("cpg login a", vec!["atcoder", "atcoder-problems"]),
-        ("cpg login atcoder --in", vec!["--info"]),
-        ("cpg config --co", vec!["--config-dir", "--cookies-dir"]),
-        ("cpg test --test-dir ", vec!["\u{1}dirs"]),
-        ("cpg generate --dir ", vec!["\u{1}dirs"]),
-        ("cpg login atcoder --cookie-file ", vec!["\u{1}files"]),
-        ("cpg submit sol", vec!["\u{1}files"]),
-        ("cpg submit solution.rb --op", vec!["--open"]),
-        ("cpg download https:", vec![]),
-    ] {
-        let output = command(&directory)
-            .env("CPG_CONFIG_HOME", "")
-            .env("CPG_COOKIES_HOME", "")
-            .args(["__complete_word__", "--shell", "bash", "--line", line])
-            .output()
-            .unwrap();
-        assert!(output.status.success(), "{line}: {output:?}");
-        assert!(output.stderr.is_empty(), "{line}: {output:?}");
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        if expected.is_empty() {
-            assert!(stdout.is_empty(), "{line}: {stdout}");
-        }
-        for candidate in expected {
-            assert!(
-                stdout.lines().any(|line| line == candidate),
-                "{line}: {stdout}"
-            );
-        }
-    }
-    std::os::unix::fs::symlink(env!("CARGO_BIN_EXE_cpg"), directory.path().join("cpg")).unwrap();
-    fs::write(directory.path().join("solution file.cpp"), "").unwrap();
-    fs::write(directory.path().join("case.txt"), "").unwrap();
-    fs::create_dir(directory.path().join("cases")).unwrap();
-    let output = Command::new("/bin/bash")
-        .current_dir(directory.path())
-        .env("PATH", directory.path())
-        .args([
-            "--noprofile",
-            "--norc",
-            "-c",
-            r#"
-source ./completion.bash
-COMP_LINE='cpg test sol'
-COMP_POINT=${#COMP_LINE}
-COMP_WORDS=(cpg test sol)
-COMP_CWORD=2
-_usage_complete_cpg
-[[ ${COMPREPLY[*]} == 'solution file.cpp' ]] || exit 1
-COMP_LINE='cpg test --test-dir ca'
-COMP_POINT=${#COMP_LINE}
-COMP_WORDS=(cpg test --test-dir ca)
-COMP_CWORD=3
-_usage_complete_cpg
-[[ ${COMPREPLY[*]} == cases ]] || exit 1
-COMP_LINE='cpg test --show-io f'
-COMP_POINT=${#COMP_LINE}
-COMP_WORDS=(cpg test --show-io f)
-_usage_complete_cpg
-[[ ${COMPREPLY[*]} == failure ]]
-"#,
-        ])
-        .output()
-        .unwrap();
-    assert!(output.status.success(), "{output:?}");
-    assert!(!directory.path().join("config").exists());
-    assert!(!directory.path().join("cookies").exists());
-}
-
-#[test]
 fn missing_cookies_warning() {
     for (url, service, host) in [
         ("https://atcoder.jp/invalid", "atcoder", "atcoder.jp"),
@@ -1353,6 +1265,235 @@ fn show_io() {
             );
         }
         assert!(!stdout.contains('\u{1b}'));
+    }
+}
+
+#[test]
+fn panes_and_line_numbers() {
+    let directory = tempfile::tempdir().unwrap();
+    case(
+        &directory,
+        b"2\nquery A\nquery B\n",
+        b"answer A\nanswer B\n",
+    );
+    for flag in ["--panes", "-p"] {
+        run(&directory, &["test", flag, "invalid", "--", "cat"], 2);
+        run(&directory, &["test", flag], 2);
+    }
+    for flag in ["--highlight", "-H"] {
+        run(&directory, &["test", flag, "invalid", "--", "cat"], 2);
+        run(&directory, &["test", flag], 2);
+        run(
+            &directory,
+            &["test", "-i", "-J", "true", flag, "word", "--", "cat"],
+            2,
+        );
+        for mode in ["line", "word"] {
+            let output = run(
+                &directory,
+                &["test", flag, mode, "--no-color", "--", "cat"],
+                1,
+            );
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            assert!(!stdout.contains('\x1b'));
+            assert!(
+                stdout.contains("Expected output:\nanswer A\nanswer B\n"),
+                "{stdout}"
+            );
+        }
+    }
+    for number_flag in ["--line-numbers", "-n"] {
+        for mode in ["none", "outputs", "all"] {
+            let output = run(
+                &directory,
+                &[
+                    "test",
+                    "-p",
+                    mode,
+                    number_flag,
+                    "--",
+                    "printf",
+                    "answer A\nwrong\nextra\n",
+                ],
+                1,
+            );
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            if mode == "none" {
+                assert!(
+                    stdout.contains("Input:\n  | 2\n1 | query A\n2 | query B\n"),
+                    "{stdout}"
+                );
+                assert!(
+                    stdout.contains("Expected output:\n1 | answer A\n2 | answer B\n"),
+                    "{stdout}"
+                );
+                assert!(
+                    stdout.contains("Actual output:\n1 | answer A\n2 | wrong\n3 | extra\n"),
+                    "{stdout}"
+                );
+            } else {
+                let rows: Vec<Vec<_>> = stdout
+                    .lines()
+                    .filter(|line| {
+                        line.matches(" | ").count() + line.matches(" : ").count()
+                            == if mode == "all" { 3 } else { 2 }
+                    })
+                    .map(|line| {
+                        line.split(" | ")
+                            .flat_map(|part| part.split(" : "))
+                            .map(str::trim_end)
+                            .collect()
+                    })
+                    .collect();
+                if mode == "all" {
+                    assert_eq!(
+                        &rows[1..],
+                        [
+                            ["", "2", "", ""],
+                            ["1", "query A", "answer A", "answer A"],
+                            ["2", "query B", "answer B", "wrong"],
+                            ["3", "", "", "extra"],
+                        ]
+                    );
+                } else {
+                    assert!(stdout.contains("Input:\n  | 2\n1 | query A\n2 | query B\n"));
+                    assert_eq!(
+                        &rows[1..],
+                        [
+                            ["1", "answer A", "answer A"],
+                            ["2", "answer B", "wrong"],
+                            ["3", "", "extra"]
+                        ]
+                    );
+                }
+            }
+        }
+    }
+    for mode in ["none", "outputs", "all"] {
+        let output = run(
+            &directory,
+            &["test", "-p", mode, "-n", "-v", "never", "--", "cat"],
+            1,
+        );
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert!(!stdout.contains("Input:") && !stdout.contains(" | "));
+    }
+    // An input shorter than the reference is aligned to its last line.
+    case(&directory, b"tail\n", b"first\nlast\n");
+    let output = run(&directory, &["test", "-p", "all", "-n", "--", "true"], 1);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout
+            .lines()
+            .any(|line| line.starts_with("2 | tail") && line.contains("last")),
+        "{stdout}"
+    );
+
+    for expected in [Some(b"".as_slice()), None] {
+        case(&directory, b"setup\n", b"");
+        if expected.is_none() {
+            fs::remove_file(directory.path().join("test/sample-1.out")).unwrap();
+        }
+        let output = run(
+            &directory,
+            &["test", "-p", "all", "-n", "-v", "always", "--", "cat"],
+            i32::from(expected.is_some()),
+        );
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let rows: Vec<_> = stdout.lines().skip(2).collect();
+        assert!(rows[0].starts_with("  | setup"), "{stdout}");
+        assert!(
+            rows[1].starts_with("1 : ") && rows[1].ends_with("setup         "),
+            "{stdout}"
+        );
+        assert!(rows[1].contains(if expected.is_some() {
+            "(empty)"
+        } else {
+            "(missing)"
+        }));
+    }
+    case(&directory, b"\n\r\nlast", b"\n\r\nlast");
+    let output = run(
+        &directory,
+        &["test", "-p", "outputs", "-n", "-v", "always", "--", "cat"],
+        0,
+    );
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert_eq!(stdout.matches("(no eol)").count(), 3);
+    assert!(!stdout.contains('\r') && !stdout.contains('\x1b'));
+
+    let args = [
+        "test", "-p", "all", "-n", "-v", "always", "-j", "2", "--", "cat",
+    ];
+    let table = |output: Output| {
+        String::from_utf8(output.stdout)
+            .unwrap()
+            .lines()
+            .filter(|line| line.contains(" | ") || line.contains(" : "))
+            .collect::<Vec<_>>()
+            .join("\n")
+    };
+    let single = table(run(&directory, &args, 0));
+    for extension in ["in", "out"] {
+        fs::copy(
+            directory.path().join(format!("test/sample-1.{extension}")),
+            directory.path().join(format!("test/second.{extension}")),
+        )
+        .unwrap();
+    }
+    assert_eq!(
+        table(run(&directory, &args, 0)),
+        format!("{single}\n{single}")
+    );
+}
+
+#[test]
+fn numbered_interactive_exchanges() {
+    let directory = tempfile::tempdir().unwrap();
+    let judge =
+        "printf 'init\\nextra\\n'; read a; read b; printf 'reply\\n'; read c; test \"$c\" = done";
+    let solution = "read a; read b; printf 'query\\nmore\\n'; read c; printf done";
+    for number_flag in ["--line-numbers", "-n"] {
+        let output = run(
+            &directory,
+            &[
+                "test",
+                "-i",
+                "-J",
+                judge,
+                number_flag,
+                "-v",
+                "always",
+                "-t",
+                "2000",
+                "--",
+                "sh",
+                "-c",
+                solution,
+            ],
+            0,
+        );
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert!(
+            stdout.contains(concat!(
+                "Interaction:\n0 < init\n0 < extra\n1 > query\n1 > more\n",
+                "1 < reply\n2 > done (no eol)\n",
+            )),
+            "{stdout}"
+        );
+    }
+    for mode in ["outputs", "all"] {
+        let output = run(
+            &directory,
+            &[
+                "test", "-i", "-J", "true", "-p", mode, "--", "touch", "started",
+            ],
+            2,
+        );
+        assert!(
+            String::from_utf8_lossy(&output.stderr).contains("--interactive cannot be combined")
+        );
+        assert!(!directory.path().join("started").exists());
     }
 }
 

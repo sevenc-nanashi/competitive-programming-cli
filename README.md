@@ -4,6 +4,7 @@
 > This project is in early development.
 >
 > - Configuration and metadata formats may change.
+> - Commands and options may change.
 
 cpg is a command-line interface tool for competitive programming.
 
