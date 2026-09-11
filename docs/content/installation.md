@@ -11,20 +11,19 @@ cargo install --path . --locked
 You can install cpg using cargo:
 
 ```bash
+# NOTE: Only prereleases are available at this time.
+
 # Build from source
-cargo install competitive-programming-cli
+cargo install "competitive-programming-cli@>0.1.0-preview.0"
 
 # Or download the pre-built binaries using cargo-binstall
-cargo binstall competitive-programming-cli
+cargo binstall "competitive-programming-cli@>0.1.0-preview.0"
 ```
 
 The release workflow builds the following archives, each with a SHA-256 checksum,
 for the [releases page](https://github.com/sevenc-nanashi/competitive-programming-cli/releases).
 
 You can install those binaries manually or using package managers like `mise`.
-Each archive includes `command-reference.md` with the generated command reference,
-`config.schema.json` with the configuration schema, and `notice.md` with dependency
-licenses. All three are also available as separate release downloads.
 
 ```bash
 # Using mise
@@ -42,8 +41,7 @@ Install the compilers and runtimes referenced by your configuration separately.
 
 `cpg completion <shell>` prints a completion script generated from cpg's command
 definitions. It completes commands, aliases, flags, value choices, and file or
-directory paths. The script calls cpg itself, so the `usage` executable is not
-required.
+directory paths.
 
 For Bash, add this to `~/.bashrc`:
 
