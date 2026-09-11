@@ -68,13 +68,13 @@ Enter
 Type "sed -i 's/? 0 :/? -1 :/' solution.rb"
 Enter
 Wait+Line /\$$/
-Type "cpg test solution.rb --show-io never"
+Type "cpg test solution.rb --show-io never --jobs 2"
 Enter
 Wait+Line /\$$/
 Sleep 3s
 
 Ctrl+L
-Type "# You can also show the input and output for all test cases, including AC cases"
+Type "# You can also show the input and output for passing test cases"
 Enter
 Type "cpg test solution.rb -p all -n --show-io always"
 Enter
