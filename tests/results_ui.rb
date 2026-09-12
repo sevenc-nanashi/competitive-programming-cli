@@ -114,8 +114,8 @@ begin
   ]
   Terminal.new(binary, *interactive_args) do |term|
     term.finish(0, ui: false)
-    check(term.output.include?("\e[32m< question"), 'Missing judge output color')
-    check(term.output.include?("\e[33m> answer"), 'Missing solution output color')
+    check(term.output.include?("\e[32m< \e[0mquestion"), 'Judge color must stop before output')
+    check(term.output.include?("\e[33m> \e[0manswer"), 'Solution color must stop before output')
     plain = term.output.gsub(/\e\[[\d;]*m/, '')
     check(plain.include?("< question\r\n> answer\r\n"), 'Extra interaction newlines')
     check(!plain.include?('(no eol)'), 'Colored interaction lost its final newline')
@@ -132,7 +132,25 @@ begin
     term.finish(0, ui: false)
     plain = term.output.gsub(/\e\[[\d;]*m/, '')
     check(plain.include?("0 < question\r\n1 > answer\r\n"), 'Wrong exchange numbers')
-    check(term.output.include?("\e[32m") && term.output.include?("\e[33m"), 'Missing exchange colors')
+    check(term.output.include?("0 \e[32m<\e[0m question"), 'Wrong numbered judge color boundary')
+    check(term.output.include?("1 \e[33m>\e[0m answer"), 'Wrong numbered solution color boundary')
+  end
+
+  [[], ['-n']].each do |number_flags|
+    Terminal.new(binary, 'test', '-p', 'outputs', *number_flags, *interactive_args.drop(1)) do |term|
+      term.finish(0, ui: false)
+      check(term.output.match?(/\e\[32m(?:\e\[1m)?Judge:/), 'Missing judge header color')
+      check(term.output.match?(/\e\[33m(?:\e\[1m)?Solution:/), 'Missing solution header color')
+      judge_separator, solution_separator = if number_flags.empty?
+        ["\e[32m>\e[0m", "\e[33m<\e[0m"]
+      else
+        ["\e[32m| 0\e[0m :", ": \e[33m1 |\e[0m"]
+      end
+      check(term.output.match?(/(?:\A|\n)question +#{Regexp.escape(judge_separator)}/),
+            'Judge pane output and colon must be uncolored')
+      check(term.output.include?("#{solution_separator} answer\r\n"),
+            'Solution pane output and colon must be uncolored')
+    end
   end
 
   Dir.mktmpdir('cpg-panes') do |directory|
