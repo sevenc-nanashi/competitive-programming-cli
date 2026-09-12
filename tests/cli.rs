@@ -1482,11 +1482,11 @@ fn numbered_interactive_exchanges() {
             "{stdout}"
         );
     }
-    for mode in ["outputs", "all"] {
+    {
         let output = run(
             &directory,
             &[
-                "test", "-i", "-J", "true", "-p", mode, "--", "touch", "started",
+                "test", "-i", "-J", "true", "-p", "all", "--", "touch", "started",
             ],
             2,
         );
@@ -1495,6 +1495,111 @@ fn numbered_interactive_exchanges() {
         );
         assert!(!directory.path().join("started").exists());
     }
+}
+
+#[test]
+fn interactive_output_panes_and_demo() {
+    let directory = tempfile::tempdir().unwrap();
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("demo/interactive");
+    let judge = format!("ruby '{}'", root.join("judge.rb").display());
+    let solution = root.join("solution.rb");
+    for mode in ["outputs", "2"] {
+        for numbered in [false, true] {
+            let mut args = vec![
+                "test", "-i", "-J", &judge, "-p", mode, "-v", "always", "-t", "2000",
+            ];
+            if numbered {
+                args.push("-n");
+            }
+            args.extend(["--", "ruby", solution.to_str().unwrap()]);
+            let output = run(&directory, &args, 0);
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            assert!(
+                stdout.contains("Judge:") && stdout.contains("Solution:"),
+                "{stdout}"
+            );
+            if numbered {
+                assert!(stdout.contains(" | 0 : "), "{stdout}");
+                assert!(stdout.contains(" : 1 | ? 5"), "{stdout}");
+                assert!(stdout.contains(" | 1 : "), "{stdout}");
+                assert!(stdout.contains(" | ! "), "{stdout}");
+            } else {
+                assert!(stdout.contains("EQUAL  > "), "{stdout}");
+                assert!(stdout.contains(" < ? 5"), "{stdout}");
+            }
+        }
+    }
+    for visibility in ["never", "failure"] {
+        let output = run(
+            &directory,
+            &[
+                "test",
+                "-i",
+                "-J",
+                &judge,
+                "-p",
+                "outputs",
+                "-v",
+                visibility,
+                "-t",
+                "2000",
+                "--",
+                "ruby",
+                solution.to_str().unwrap(),
+            ],
+            0,
+        );
+        assert!(!String::from_utf8_lossy(&output.stdout).contains("Judge:"));
+    }
+    let output = run(
+        &directory,
+        &[
+            "test",
+            "-i",
+            "-J",
+            &judge,
+            "-p",
+            "outputs",
+            "-t",
+            "2000",
+            "--",
+            "ruby",
+            "-e",
+            "$stdout.sync = true; gets; puts '? 5'; reply = gets; puts(reply.chomp == 'EQUAL' ? '! 1' : '! 5')",
+        ],
+        1,
+    );
+    assert!(String::from_utf8_lossy(&output.stdout).contains(" < ! "));
+    fs::create_dir(directory.path().join("test")).unwrap();
+    for name in ["first", "second"] {
+        fs::write(directory.path().join(format!("test/{name}.in")), "7\n").unwrap();
+    }
+    let output = run(
+        &directory,
+        &[
+            "test",
+            "-i",
+            "-J",
+            &judge,
+            "-p",
+            "outputs",
+            "-n",
+            "-v",
+            "always",
+            "-j",
+            "2",
+            "-t",
+            "2000",
+            "--",
+            "ruby",
+            solution.to_str().unwrap(),
+        ],
+        0,
+    );
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert_eq!(stdout.matches("Judge:").count(), 2, "{stdout}");
+    assert_eq!(stdout.matches(" | ! ").count(), 2, "{stdout}");
+    assert!(stdout.contains("Input:\n7\n"), "{stdout}");
 }
 
 #[test]

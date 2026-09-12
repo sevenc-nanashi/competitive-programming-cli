@@ -210,10 +210,13 @@ cpg test --judge "ruby ./judge.rb {test_input} {solution_output} {test_output}" 
 
 ## Test interactive problems
 
+<Asciinema src="/competitive-programming-cli/demo/interactive.cast" poster="npt:20" />
+
 You can test interactive problems with custom judge.
 The judge's standard input will receive the output from the solution, and the judge's standard output will be sent to the solution's standard input.
 cpg will prefix `<` for the judge's output and `>` for the solution's output.
-On terminals with color enabled, judge output is green and solution output is yellow.
+On terminals with color enabled, the judge prefix is green and the solution
+prefix is yellow; the output text uses the default color.
 The transcript is displayed after each case according to `--show-io`.
 If test files exist, the judge will receive the path as `{test_input}` and `{test_output}` arguments, and cpg will run the judge and solution for each test case.
 As with custom judges, a missing `.out` is replaced with an empty temporary file for that run.
@@ -244,5 +247,40 @@ Input and expected-output files remain unnumbered in interactive mode.
 cpg test --interactive -n --judge ./judge.rb ./solution.rb
 ```
 
-Interactive tests support only `--panes none`; `outputs` and `all` are rejected
-before running the solution or judge.
+Use `--panes outputs` (`-p 2`) to show the judge on the left and the solution on
+the right. Each utterance stays on its own row in chronological order. The center
+arrow is `>` for judge-to-solution and `<` for solution-to-judge:
+
+```text
+Judge:          Solution:
+1 10          >
+              < ? 5
+HIGHER        >
+```
+
+With `--query-numbers` (`-n`), the number appears between the panes. `|` marks the
+speaking side and `:` marks the empty side:
+
+```text
+Judge:              Solution:
+1 10          | 0 :
+              : 1 | ? 5
+HIGHER        | 1 :
+              : 2 | ? 8
+LOWER         | 2 :
+```
+
+Consecutive lines from one speaker share a number. Long lines wrap within their
+pane; continuation rows retain the direction markers but omit the number.
+Empty lines still count as utterances, and unfinished lines show `(no eol)`.
+The center arrow, or the query number and `|`, is green for judge utterances and
+yellow for solution utterances. The headers use the matching colors; `:` and
+output text use the default color. Input and expected-output
+files appear above the panes. `--show-io` controls when the transcript is shown.
+Terminal panes share the available width; redirected output uses content widths.
+Interactive `--panes all` and `--highlight` remain unsupported.
+
+```bash
+cpg test -i -J judge.rb -v always -p outputs solution.rb
+cpg test -i -J judge.rb -v always -p outputs -n solution.rb
+```

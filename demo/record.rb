@@ -27,6 +27,7 @@ system(
     )
     FileUtils.cp("target/debug/cpg", File.join(bin, "cpg"))
     FileUtils.cp("demo/dijkstra-query.rb", workspace)
+    FileUtils.cp_r("demo/interactive", workspace)
     mock = File.join(directory, "mock_service")
     FileUtils.mkdir_p(mock)
     %w[service.toml cookies.txt problems contests].each do |name|

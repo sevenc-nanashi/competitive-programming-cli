@@ -188,7 +188,7 @@ pub struct Test {
     /// Show case input, expected output, and actual output (or interactive transcript).
     #[usage(long, value_enum, default = "failure", short = 'v')]
     pub show_io: ShowIo,
-    /// I/O layout; outputs and all cannot be used with --interactive.
+    /// I/O layout; interactive outputs shows judge and solution side by side; all is unavailable.
     #[usage(long, short = 'p', value_enum, default = "none")]
     pub panes: Panes,
     /// Number lines relative to expected output, or number interactive exchanges from zero.

@@ -554,9 +554,18 @@ pub fn copy_to_clipboard(
     }
 }
 
+#[derive(serde::Serialize, serde::Deserialize)]
+struct TranscriptLine {
+    solution: bool,
+    turn: usize,
+    text: String,
+    no_eol: bool,
+}
+
 struct Transcript {
     file: File,
     numbered: bool,
+    panes: bool,
     solution: Option<bool>,
     turn: usize,
     pending: Vec<u8>,
@@ -565,6 +574,20 @@ struct Transcript {
 impl Transcript {
     fn flush_line(&mut self, no_eol: bool) -> io::Result<()> {
         let solution = self.solution.expect("transcript speaker");
+        if self.panes {
+            serde_json::to_writer(
+                &mut self.file,
+                &TranscriptLine {
+                    solution,
+                    turn: self.turn,
+                    text: String::from_utf8_lossy(&self.pending).into_owned(),
+                    no_eol,
+                },
+            )?;
+            writeln!(self.file)?;
+            self.pending.clear();
+            return Ok(());
+        }
         let (prefix, style) = if solution {
             (">", Style::new().yellow())
         } else {
@@ -572,12 +595,10 @@ impl Transcript {
         };
         write!(
             self.file,
-            "{} {}",
+            "{} {} {}",
             self.turn,
-            style.apply_to(format!(
-                "{prefix} {}",
-                String::from_utf8_lossy(&self.pending)
-            ))
+            style.apply_to(prefix),
+            String::from_utf8_lossy(&self.pending)
         )?;
         if no_eol {
             writeln!(self.file, " {}", Style::new().dim().apply_to("(no eol)"))?;
@@ -587,7 +608,7 @@ impl Transcript {
     }
 
     fn record(&mut self, solution: bool, bytes: &[u8]) -> io::Result<()> {
-        if !self.numbered {
+        if !self.numbered && !self.panes {
             let (prefix, style) = if solution {
                 ("> ", Style::new().yellow())
             } else {
@@ -595,8 +616,9 @@ impl Transcript {
             };
             return write!(
                 self.file,
-                "{}",
-                style.apply_to(format!("{prefix}{}", String::from_utf8_lossy(bytes)))
+                "{}{}",
+                style.apply_to(prefix),
+                String::from_utf8_lossy(bytes)
             );
         }
         if self.solution != Some(solution) {
@@ -652,6 +674,7 @@ fn interactive(
     interrupted: &AtomicBool,
     transcript: Option<File>,
     query_numbers: bool,
+    panes: bool,
 ) -> Result<RunResult> {
     let mut solution = ManagedChild::spawn(program, Stdio::piped(), Stdio::piped())?;
     let mut judge = ManagedChild::spawn(judge, Stdio::piped(), Stdio::piped())?;
@@ -663,6 +686,7 @@ fn interactive(
         Arc::new(Mutex::new(Transcript {
             file,
             numbered: query_numbers,
+            panes,
             solution: None,
             turn: 0,
             pending: Vec::new(),
@@ -972,6 +996,112 @@ impl OutputLine {
         }
         lines
     }
+}
+
+fn interaction_panes(
+    lines: &[TranscriptLine],
+    numbered: bool,
+    width: Option<usize>,
+) -> Result<String> {
+    let digits = lines.last().map_or(1, |line| line.turn.to_string().len());
+    let gutter = if numbered { digits + 6 } else { 3 };
+    let content: Vec<_> = lines
+        .iter()
+        .map(|line| {
+            let text = if line.no_eol {
+                line.text.as_str()
+            } else {
+                let text = line
+                    .text
+                    .strip_suffix('\n')
+                    .expect("complete transcript line");
+                match text.strip_suffix('\r') {
+                    Some(text) => text,
+                    None => text,
+                }
+            };
+            OutputLine::new(text, if line.no_eol { " (no eol)" } else { "" })
+        })
+        .collect();
+    let widths = if let Some(width) = width {
+        ensure!(
+            width >= gutter + 4,
+            "Terminal is too narrow for the selected panes"
+        );
+        let available = width - gutter;
+        [available.div_ceil(2), available / 2]
+    } else {
+        let mut widths = [6, 9];
+        for (line, content) in lines.iter().zip(&content) {
+            let column = usize::from(line.solution);
+            widths[column] = widths[column].max(measure_text_width(&content.text));
+        }
+        widths
+    };
+    let headers = [
+        OutputLine::new("Judge:", "").wrap(widths[0]),
+        OutputLine::new("Solution:", "").wrap(widths[1]),
+    ];
+    let mut output = String::new();
+    for row in 0..headers[0].len().max(headers[1].len()) {
+        let left = headers[0].get(row).map_or("", String::as_str);
+        let right = headers[1].get(row).map_or("", String::as_str);
+        writeln!(
+            output,
+            "{}{}{}",
+            Style::new()
+                .green()
+                .bold()
+                .apply_to(pad_str(left, widths[0], Alignment::Left, None)),
+            " ".repeat(gutter),
+            Style::new().yellow().bold().apply_to(right)
+        )
+        .expect("write to string");
+    }
+    for (line, content) in lines.iter().zip(content) {
+        let column = usize::from(line.solution);
+        for (row, text) in content.wrap(widths[column]).iter().enumerate() {
+            let (left, right) = if line.solution {
+                ("", text.as_str())
+            } else {
+                (text.as_str(), "")
+            };
+            let style = if line.solution {
+                Style::new().yellow()
+            } else {
+                Style::new().green()
+            };
+            let separator = if numbered {
+                let number = if row == 0 {
+                    format!("{:>digits$}", line.turn)
+                } else {
+                    " ".repeat(digits)
+                };
+                if line.solution {
+                    format!(" : {} ", style.apply_to(format!("{number} |")))
+                } else {
+                    format!(" {} : ", style.apply_to(format!("| {number}")))
+                }
+            } else if line.solution {
+                format!(" {} ", style.apply_to("<"))
+            } else {
+                format!(" {} ", style.apply_to(">"))
+            };
+            writeln!(
+                output,
+                "{}{}{}",
+                pad_str(left, widths[0], Alignment::Left, None),
+                separator,
+                right
+            )
+            .expect("write to string");
+        }
+    }
+    if lines.is_empty() {
+        writeln!(output, "{}", Style::new().dim().apply_to("(empty)")).expect("write to string");
+    }
+    output.push('\n');
+    Ok(output)
 }
 
 struct OutputBlock {
@@ -1337,6 +1467,7 @@ fn test_case(
             interrupted,
             transcript,
             options.query_numbers,
+            options.panes == Panes::Outputs,
         )?
     } else {
         let mut result = execute(
@@ -1384,7 +1515,9 @@ fn test_case(
         ShowIo::Never => false,
     } {
         if !options.interactive
-            && (options.panes != Panes::None || options.query_numbers || options.highlight.is_some())
+            && (options.panes != Panes::None
+                || options.query_numbers
+                || options.highlight.is_some())
         {
             let expected = match &expected {
                 Some(path) if path.try_exists()? && empty_expected.is_none() => {
@@ -1409,6 +1542,26 @@ fn test_case(
         {
             print_io("Expected output", expected, style.clone().green())?;
         }
+        if options.interactive && options.panes == Panes::Outputs {
+            let lines = serde_json::Deserializer::from_reader(actual.reopen()?)
+                .into_iter::<TranscriptLine>()
+                .collect::<std::result::Result<Vec<_>, _>>()?;
+            let width = if io::stdout().is_terminal() {
+                Some(usize::from(
+                    console::Term::stdout()
+                        .size_checked()
+                        .context("Cannot determine terminal width")?
+                        .1,
+                ))
+            } else {
+                None
+            };
+            print!(
+                "{}",
+                interaction_panes(&lines, options.query_numbers, width)?
+            );
+            return Ok(result.verdict == Verdict::Ac);
+        }
         let (label, style) = if options.interactive {
             ("Interaction", style)
         } else {
@@ -1421,8 +1574,8 @@ fn test_case(
 
 pub fn test(config: &Config, options: &Test, interrupted: &AtomicBool) -> Result<bool> {
     ensure!(
-        !options.interactive || options.panes == Panes::None,
-        "--interactive cannot be combined with --panes outputs or all"
+        !options.interactive || options.panes != Panes::All,
+        "--interactive cannot be combined with --panes all"
     );
     let program = Program::prepare(config, &options.program, interrupted)?;
     let directory = match &options.test_dir {
@@ -1671,6 +1824,7 @@ mod display_tests {
         let mut transcript = Transcript {
             file: file.reopen().unwrap(),
             numbered: true,
+            panes: false,
             solution: None,
             turn: 0,
             pending: Vec::new(),
@@ -1694,6 +1848,59 @@ mod display_tests {
                 "0 < init\n0 < more\n1 > あ\n1 > second\n1 > partial (no eol)\n",
                 "1 < reply\n2 > done (no eol)\n",
             )
+        );
+    }
+
+    #[test]
+    fn interactive_panes_preserve_speakers_and_wrapping() {
+        let file = tempfile::NamedTempFile::new().unwrap();
+        let mut transcript = Transcript {
+            file: file.reopen().unwrap(),
+            numbered: false,
+            panes: true,
+            solution: None,
+            turn: 0,
+            pending: Vec::new(),
+        };
+        for (solution, bytes) in [
+            (false, b"init\r\n\n".as_slice()),
+            (true, b"\xe3"),
+            (true, b"\x81\x82\n"),
+            (false, b"reply"),
+            (true, b"done"),
+        ] {
+            transcript.record(solution, bytes).unwrap();
+        }
+        transcript.flush_line(true).unwrap();
+        let lines = serde_json::Deserializer::from_reader(file.reopen().unwrap())
+            .into_iter::<TranscriptLine>()
+            .collect::<std::result::Result<Vec<_>, _>>()
+            .unwrap();
+        let plain = interaction_panes(&lines, false, None).unwrap();
+        let plain = console::strip_ansi_codes(&plain);
+        assert!(
+            plain.contains("init           > \n               > \n               < あ\n"),
+            "{plain}"
+        );
+        let numbered = interaction_panes(&lines, true, None).unwrap();
+        let numbered = console::strip_ansi_codes(&numbered);
+        assert!(
+            numbered.contains("reply (no eol) | 1 : \n               : 2 | done (no eol)"),
+            "{numbered}"
+        );
+        for width in 11..30 {
+            let rendered = interaction_panes(&lines, true, Some(width)).unwrap();
+            assert!(
+                rendered
+                    .lines()
+                    .all(|line| measure_text_width(line) <= width)
+            );
+        }
+        assert!(interaction_panes(&lines, true, Some(10)).is_err());
+        assert!(
+            interaction_panes(&[], false, None)
+                .unwrap()
+                .contains("(empty)")
         );
     }
 }

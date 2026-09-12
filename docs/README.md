@@ -27,6 +27,9 @@ it in the archive and as a separate download.
 To update the demo GIFs and asciinema recordings, run `mise run demo` from the
 repository root. Recording requires Ruby, FFmpeg, and the tools in `mise.toml`.
 Edit `demo/overview.tape` or `demo/testing.tape` to change the commands and timing.
+The interactive number-guessing example lives in `demo/interactive/` and
+`demo/interactive.tape`. Record it with `mise run demo demo/interactive.tape`;
+the generated `interactive.gif` and `interactive.cast` go in `docs/public/demo/`.
 To record only the test options demo, run `mise run demo demo/testing.tape`.
 It uses `demo/dijkstra-query.rb` and the `dijkstra-query` mock problem to show an
 unreachable-vertex bug, output display options, and parallel testing.
