@@ -135,7 +135,7 @@ pub struct ProgramArgs {
     #[usage(double_dash = "required", conflicts("file"), required_unless("file"))]
     pub command: Vec<OsString>,
     /// Language compilation/run profile.
-    #[usage(long)]
+    #[usage(long, short = 'P')]
     pub profile: Option<String>,
 }
 
