@@ -151,117 +151,134 @@ fn run(cli: Cli, interrupted: &AtomicBool) -> Result<bool> {
         }
         Commands::Submit(args) => {
             let config = Config::load(&paths)?;
-            let source_path = fs::canonicalize(expand_path(&args.file)?)?;
-            let source = fs::read_to_string(&source_path)?;
-            let local = workspace::find_metadata(
-                source_path
-                    .parent()
-                    .context("Source has no parent directory")?,
-            )?;
-            if let Some((
-                directory,
-                Metadata::Problem {
-                    template_checksums, ..
-                },
-            )) = &local
-                && let Some(expected) = template_checksums.get(source_path.strip_prefix(directory)?)
-                && *expected == workspace::checksum(source.as_bytes())
-            {
-                tracing::warn!("{} is unchanged from its template", source_path.display());
-                ensure!(
-                    args.allow_submit_unchanged_solution,
-                    "Use --allow-submit-unchanged-solution to submit the unchanged template"
-                );
-            }
-            let configured_language = config.match_language(&source_path)?;
-            tracing::info!("Preparing {} for submission...", source_path.display());
-            let prepared_source = configured_language
-                .map(|language| runner::prepare_source(language, &source_path, true, interrupted))
-                .transpose()?
-                .flatten();
-            let source = match &prepared_source {
-                Some(prepared) => fs::read_to_string(prepared.as_ref())?,
-                None => source,
-            };
-            if args.clipboard {
-                let problem_url = if args.open {
-                    let (_, Metadata::Problem { reference, .. }) = local.as_ref().context(
-                        "No .cpg.toml found for the source; --open requires problem metadata",
-                    )?
-                    else {
-                        bail!("--open requires a problem directory");
-                    };
-                    Some(&reference.url)
-                } else {
-                    None
-                };
-                runner::copy_to_clipboard(&config.clipboard, &source, interrupted)?;
-                tracing::info!("Copied {} bytes to the clipboard", source.len());
-                if let Some(url) = problem_url {
-                    println!("{url}");
-                    open_browser(url)
-                        .context("Source copied, but opening the problem page failed")?;
+            let clear_on_fail = args.clipboard && config.clipboard.clear_on_fail();
+            let result = submit(args, &paths, &config, interrupted);
+            if result.is_err() && clear_on_fail && !interrupted.load(Ordering::Relaxed) {
+                match runner::copy_to_clipboard(&config.clipboard, "", interrupted) {
+                    Ok(_) => tracing::info!("Cleared the clipboard"),
+                    Err(error) => tracing::warn!("Cannot clear the clipboard: {error:#}"),
                 }
-                return Ok(true);
             }
-            let services = Services::new(&paths)?;
-            let problem = match args.problem {
-                Some(url) => services.resolve(&url)?.problem()?,
-                None => match local
-                    .context("No .cpg.toml found for the source; specify --problem URL")?
-                    .1
-                {
-                    Metadata::Problem { reference, .. } => reference,
-                    Metadata::Contest(_) => bail!("Specify a problem directory or --problem URL"),
-                },
-            };
-            let backend = services.backend(problem.service);
-            tracing::info!("Submission target: {}", problem.url);
-            let language = match args.language {
-                Some(language) => Some(language),
-                None => configured_language
-                    .and_then(|language| language.submit.get(backend.auth_service().as_str()))
-                    .cloned(),
-            };
-            tracing::info!(
-                "Fetching submission languages from {}...",
-                backend.auth_service().as_str()
-            );
-            let languages = backend.languages(&problem)?;
-            let Some(language) =
-                language.and_then(|id| languages.iter().find(|language| language.id == id))
-            else {
-                tracing::error!(
-                    "Choose a submission language using --language or language.<name>.submit.{}:",
-                    backend.auth_service().as_str()
-                );
-                for language in languages {
-                    tracing::info!("{}\t{}", language.id, language.name);
-                }
-                bail!("Submission language is missing or invalid");
-            };
-            ensure!(!interrupted.load(Ordering::Relaxed), "Interrupted");
-            tracing::info!(
-                "Submitting with language ID {} ({}, {} bytes)...",
-                language.id,
-                language.name,
-                source.len()
-            );
-            let submission = backend.submit(&SubmissionRequest {
-                problem: &problem,
-                language: &language.id,
-                source: &source,
-            })?;
-            println!("Submitted {}: {}", submission.id, submission.url);
-            if args.open {
-                open_browser(&submission.url)
-                    .context("Submission succeeded, but opening its page failed")?;
-            }
+            return result;
         }
         Commands::Results(args) => {
             let scope = workspace::locate(&std::env::current_dir()?)?;
             results::run(&args, paths, scope, interrupted)?;
         }
+    }
+    Ok(true)
+}
+
+fn submit(
+    args: cli::Submit,
+    paths: &Paths,
+    config: &Config,
+    interrupted: &AtomicBool,
+) -> Result<bool> {
+    let source_path = fs::canonicalize(expand_path(&args.file)?)?;
+    let source = fs::read_to_string(&source_path)?;
+    let local = workspace::find_metadata(
+        source_path
+            .parent()
+            .context("Source has no parent directory")?,
+    )?;
+    if let Some((
+        directory,
+        Metadata::Problem {
+            template_checksums, ..
+        },
+    )) = &local
+        && let Some(expected) = template_checksums.get(source_path.strip_prefix(directory)?)
+        && *expected == workspace::checksum(source.as_bytes())
+    {
+        tracing::warn!("{} is unchanged from its template", source_path.display());
+        ensure!(
+            args.allow_submit_unchanged_solution,
+            "Use --allow-submit-unchanged-solution to submit the unchanged template"
+        );
+    }
+    let configured_language = config.match_language(&source_path)?;
+    tracing::info!("Preparing {} for submission...", source_path.display());
+    let prepared_source = configured_language
+        .map(|language| runner::prepare_source(language, &source_path, true, interrupted))
+        .transpose()?
+        .flatten();
+    let source = match &prepared_source {
+        Some(prepared) => fs::read_to_string(prepared.as_ref())?,
+        None => source,
+    };
+    if args.clipboard {
+        let problem_url = if args.open {
+            let (_, Metadata::Problem { reference, .. }) = local
+                .as_ref()
+                .context("No .cpg.toml found for the source; --open requires problem metadata")?
+            else {
+                bail!("--open requires a problem directory");
+            };
+            Some(&reference.url)
+        } else {
+            None
+        };
+        runner::copy_to_clipboard(&config.clipboard, &source, interrupted)?;
+        tracing::info!("Copied {} bytes to the clipboard", source.len());
+        if let Some(url) = problem_url {
+            println!("{url}");
+            open_browser(url).context("Source copied, but opening the problem page failed")?;
+        }
+        return Ok(true);
+    }
+    let services = Services::new(paths)?;
+    let problem = match args.problem {
+        Some(url) => services.resolve(&url)?.problem()?,
+        None => match local
+            .context("No .cpg.toml found for the source; specify --problem URL")?
+            .1
+        {
+            Metadata::Problem { reference, .. } => reference,
+            Metadata::Contest(_) => bail!("Specify a problem directory or --problem URL"),
+        },
+    };
+    let backend = services.backend(problem.service);
+    tracing::info!("Submission target: {}", problem.url);
+    let language = match args.language {
+        Some(language) => Some(language),
+        None => configured_language
+            .and_then(|language| language.submit.get(backend.auth_service().as_str()))
+            .cloned(),
+    };
+    tracing::info!(
+        "Fetching submission languages from {}...",
+        backend.auth_service().as_str()
+    );
+    let languages = backend.languages(&problem)?;
+    let Some(language) =
+        language.and_then(|id| languages.iter().find(|language| language.id == id))
+    else {
+        tracing::error!(
+            "Choose a submission language using --language or language.<name>.submit.{}:",
+            backend.auth_service().as_str()
+        );
+        for language in languages {
+            tracing::info!("{}\t{}", language.id, language.name);
+        }
+        bail!("Submission language is missing or invalid");
+    };
+    ensure!(!interrupted.load(Ordering::Relaxed), "Interrupted");
+    tracing::info!(
+        "Submitting with language ID {} ({}, {} bytes)...",
+        language.id,
+        language.name,
+        source.len()
+    );
+    let submission = backend.submit(&SubmissionRequest {
+        problem: &problem,
+        language: &language.id,
+        source: &source,
+    })?;
+    println!("Submitted {}: {}", submission.id, submission.url);
+    if args.open {
+        open_browser(&submission.url)
+            .context("Submission succeeded, but opening its page failed")?;
     }
     Ok(true)
 }

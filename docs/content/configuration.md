@@ -154,6 +154,16 @@ kind = "osc52"
 sequence to stderr, asking the terminal to copy the text. The terminal must
 support OSC 52 and allow clipboard writes; stderr must reach that terminal.
 
+By default, clipboard contents are cleared when `cpg submit --clipboard` fails.
+This is to prevent accidentally submitting the wrong source, because you will
+paste the empty clipboard into the submission form, and many online judges reject
+empty submissions. You can disable this behavior with:
+
+```toml
+[clipboard]
+clear_on_failure = false
+```
+
 To use the system clipboard through [arboard](https://docs.rs/arboard/latest/arboard/):
 
 ```toml

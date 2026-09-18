@@ -513,17 +513,17 @@ pub fn copy_to_clipboard(
 ) -> Result<()> {
     ensure!(!interrupted.load(Ordering::Relaxed), "Interrupted");
     match clipboard {
-        Clipboard::Osc52 {} => crossterm::execute!(
+        Clipboard::Osc52 { .. } => crossterm::execute!(
             io::stderr(),
             crossterm::clipboard::CopyToClipboard::to_clipboard_from(content)
         )
         .context("Cannot write OSC 52 to the terminal"),
         // ponytail: persistence after exit relies on a clipboard manager; use command for wl-copy/xclip.
-        Clipboard::Arboard {} => arboard::Clipboard::new()
+        Clipboard::Arboard { .. } => arboard::Clipboard::new()
             .context("Cannot open the system clipboard")?
             .set_text(content)
             .context("Cannot copy text to the clipboard"),
-        Clipboard::Command { command } => {
+        Clipboard::Command { command, .. } => {
             ensure!(
                 !command.trim().is_empty(),
                 "Clipboard command must not be empty"

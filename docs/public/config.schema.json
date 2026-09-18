@@ -50,6 +50,11 @@
           "description": "Use the terminal clipboard through OSC 52 on stderr.",
           "type": "object",
           "properties": {
+            "clear_on_fail": {
+              "description": "Clear the clipboard when submit --clipboard fails. Defaults to true.",
+              "type": "boolean",
+              "default": true
+            },
             "kind": {
               "type": "string",
               "const": "osc52"
@@ -64,6 +69,11 @@
           "description": "Use the system clipboard through arboard.",
           "type": "object",
           "properties": {
+            "clear_on_fail": {
+              "description": "Clear the clipboard when submit --clipboard fails. Defaults to true.",
+              "type": "boolean",
+              "default": true
+            },
             "kind": {
               "type": "string",
               "const": "arboard"
@@ -78,6 +88,11 @@
           "description": "Pipe the text to a shell command.",
           "type": "object",
           "properties": {
+            "clear_on_fail": {
+              "description": "Clear the clipboard when submit --clipboard fails. Defaults to true.",
+              "type": "boolean",
+              "default": true
+            },
             "command": {
               "description": "Shell command receiving UTF-8 text on stdin, without an added newline.",
               "type": "string",

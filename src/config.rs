@@ -340,20 +340,47 @@ pub struct Config {
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum Clipboard {
     /// Use the terminal clipboard through OSC 52 on stderr.
-    Osc52 {},
+    Osc52 {
+        /// Clear the clipboard when submit --clipboard fails. Defaults to true.
+        #[serde(default = "default_clear_on_fail")]
+        clear_on_fail: bool,
+    },
     /// Use the system clipboard through arboard.
-    Arboard {},
+    Arboard {
+        /// Clear the clipboard when submit --clipboard fails. Defaults to true.
+        #[serde(default = "default_clear_on_fail")]
+        clear_on_fail: bool,
+    },
     /// Pipe the text to a shell command.
     Command {
+        /// Clear the clipboard when submit --clipboard fails. Defaults to true.
+        #[serde(default = "default_clear_on_fail")]
+        clear_on_fail: bool,
         /// Shell command receiving UTF-8 text on stdin, without an added newline.
         #[schemars(length(min = 1))]
         command: String,
     },
 }
 
+fn default_clear_on_fail() -> bool {
+    true
+}
+
 impl Default for Clipboard {
     fn default() -> Self {
-        Self::Osc52 {}
+        Self::Osc52 {
+            clear_on_fail: true,
+        }
+    }
+}
+
+impl Clipboard {
+    pub fn clear_on_fail(&self) -> bool {
+        match self {
+            Self::Osc52 { clear_on_fail }
+            | Self::Arboard { clear_on_fail }
+            | Self::Command { clear_on_fail, .. } => *clear_on_fail,
+        }
     }
 }
 
@@ -556,6 +583,7 @@ problem = "echo problem"
 [clipboard]
 kind = "command"
 command = "xclip -selection clipboard"
+clear_on_fail = true
 [language.cpp]
 extensions = ["cpp", "cc"]
 compile = "g++ {input} -o {binary}"
@@ -589,7 +617,10 @@ atcoder = "6116"
         assert!(!config.alphabetic);
         assert!(config.setup.workspace.is_empty());
         assert_eq!(config.setup.problem, ["echo problem"]);
-        assert!(matches!(config.clipboard, Clipboard::Command { command } if command == "wl-copy"));
+        assert!(config.clipboard.clear_on_fail());
+        assert!(
+            matches!(config.clipboard, Clipboard::Command { command, .. } if command == "wl-copy")
+        );
         let cpp = &config.language["cpp"];
         assert_eq!(cpp.extensions, ["cpp"]);
         assert_eq!(cpp.compile.as_deref(), Some("clang++ {input} -o {binary}"));
@@ -610,12 +641,14 @@ atcoder = "6116"
         fs::write(&local_path, "[clipboard]\nkind = 'arboard'\n").unwrap();
         assert!(matches!(
             Config::load(&paths).unwrap().clipboard,
-            Clipboard::Arboard {}
+            Clipboard::Arboard { .. }
         ));
         fs::write(&local_path, "[clipboard]\nkind = 'osc52'\n").unwrap();
         assert!(matches!(
             Config::load(&paths).unwrap().clipboard,
-            Clipboard::Osc52 {}
+            Clipboard::Osc52 {
+                clear_on_fail: true
+            }
         ));
         for invalid in [
             "[",

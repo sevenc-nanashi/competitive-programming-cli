@@ -367,7 +367,10 @@ fn clipboard_open_problem() {
     let args = ["submit", "solution.txt", "--clipboard", "--open"];
     let output = run(&directory, &args, 2);
     assert!(String::from_utf8_lossy(&output.stderr).contains("requires problem metadata"));
-    assert!(!directory.path().join("copied").exists());
+    assert_eq!(
+        fs::read_to_string(directory.path().join("copied")).unwrap(),
+        ""
+    );
 
     let url = "https://atcoder.jp/contests/practice/tasks/practice_1";
     fs::write(directory.path().join(".cpg.toml"), format!(
@@ -400,7 +403,7 @@ fn clipboard_open_problem() {
         );
         assert_eq!(
             fs::read_to_string(directory.path().join("copied")).unwrap(),
-            "source\n"
+            if expected == 0 { "source\n" } else { "" }
         );
         if expected != 0 {
             assert!(
@@ -575,6 +578,7 @@ fn clipboard() {
         "kind = 'command'\ncommand = 42",
         "kind = 'arboard'\ncommand = 'cat'",
         "kind = 'osc52'\ncommand = 'cat'",
+        "kind = 'osc52'\nclear_on_fail = 'true'",
     ] {
         fs::write(&config_path, format!("[clipboard]\n{settings}\n")).unwrap();
         let output = run(&directory, &args, 2);
@@ -608,6 +612,58 @@ fn clipboard_osc52() {
             );
         }
     }
+}
+
+#[test]
+fn clipboard_clear_on_fail() {
+    let directory = tempfile::tempdir().unwrap();
+    fs::create_dir(directory.path().join("config")).unwrap();
+    let config_path = directory.path().join("config/config.toml");
+    let copied = directory.path().join("copied");
+    let output = run(&directory, &["submit", "missing.txt", "--clipboard"], 2);
+    assert!(String::from_utf8_lossy(&output.stderr).contains("\x1b]52;c;\x1b\\"));
+    fs::write(directory.path().join("solution.txt"), "hello").unwrap();
+    for backend in [
+        "kind = 'osc52'",
+        "kind = 'command'\ncommand = 'cat > copied'",
+    ] {
+        for setting in ["", "clear_on_fail = false", "clear_on_fail = true"] {
+            for stage in ["preprocess", "presubmit"] {
+                fs::write(&copied, "stale").unwrap();
+                fs::write(&config_path, format!("[clipboard]\n{backend}\n{setting}\n[language.text]\nextensions = ['txt']\nrun = 'cat {{input}}'\n{stage} = 'exit 7'\n")).unwrap();
+                let output = run(&directory, &["submit", "solution.txt", "--clipboard"], 2);
+                let stderr = String::from_utf8_lossy(&output.stderr);
+                assert!(stderr.contains(&format!("{stage} failed")), "{stderr}");
+                let clear = setting != "clear_on_fail = false";
+                if backend == "kind = 'osc52'" {
+                    assert_eq!(stderr.contains("\x1b]52;c;\x1b\\"), clear);
+                } else {
+                    assert_eq!(
+                        fs::read_to_string(&copied).unwrap(),
+                        if clear { "" } else { "stale" }
+                    );
+                }
+            }
+        }
+    }
+
+    fs::write(
+        &config_path,
+        "[clipboard]\nkind = 'command'\ncommand = 'cat > copied'\nclear_on_fail = true\n",
+    )
+    .unwrap();
+    run(&directory, &["submit", "solution.txt", "--clipboard"], 0);
+    assert_eq!(fs::read_to_string(&copied).unwrap(), "hello");
+    run(&directory, &["submit", "missing.txt"], 2);
+    assert_eq!(fs::read_to_string(&copied).unwrap(), "hello");
+    run(&directory, &["submit", "missing.txt", "--clipboard"], 2);
+    assert_eq!(fs::read_to_string(&copied).unwrap(), "");
+
+    fs::write(&config_path, "[clipboard]\nkind = 'command'\ncommand = 'exit 9'\nclear_on_fail = true\n[language.text]\nextensions = ['txt']\nrun = 'cat {input}'\npreprocess = 'exit 7'\n").unwrap();
+    let output = run(&directory, &["submit", "solution.txt", "--clipboard"], 2);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("preprocess failed"), "{stderr}");
+    assert!(stderr.contains("Cannot clear the clipboard"), "{stderr}");
 }
 
 #[test]
