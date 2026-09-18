@@ -11,7 +11,7 @@
       "default": false
     },
     "clipboard": {
-      "description": "Clipboard backend. Defaults to arboard; command sends the text to a shell command's stdin.",
+      "description": "Clipboard backend. Defaults to osc52; command sends the text to a shell command's stdin.",
       "allOf": [
         {
           "$ref": "#/definitions/Clipboard"
@@ -46,6 +46,20 @@
   "definitions": {
     "Clipboard": {
       "oneOf": [
+        {
+          "description": "Use the terminal clipboard through OSC 52 on stderr.",
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "osc52"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind"
+          ]
+        },
         {
           "description": "Use the system clipboard through arboard.",
           "type": "object",

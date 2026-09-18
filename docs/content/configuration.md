@@ -147,11 +147,20 @@ Choose its backend with `[clipboard]` in `$config/config.toml`:
 
 ```toml
 [clipboard]
+kind = "osc52"
+```
+
+`osc52` is the default when the section is omitted. It sends an OSC 52 escape
+sequence to stderr, asking the terminal to copy the text. The terminal must
+support OSC 52 and allow clipboard writes; stderr must reach that terminal.
+
+To use the system clipboard through [arboard](https://docs.rs/arboard/latest/arboard/):
+
+```toml
+[clipboard]
 kind = "arboard"
 ```
 
-`arboard` is the default when the section is omitted. It uses the system
-clipboard through [arboard](https://docs.rs/arboard/latest/arboard/).
 On Linux, a clipboard manager must retain the text after cpg exits; otherwise,
 use a command such as `wl-copy` or `xclip` below.
 

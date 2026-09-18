@@ -574,24 +574,39 @@ fn clipboard() {
         "kind = 'command'",
         "kind = 'command'\ncommand = 42",
         "kind = 'arboard'\ncommand = 'cat'",
+        "kind = 'osc52'\ncommand = 'cat'",
     ] {
         fs::write(&config_path, format!("[clipboard]\n{settings}\n")).unwrap();
         let output = run(&directory, &args, 2);
         assert!(String::from_utf8_lossy(&output.stderr).contains("Invalid configuration"));
     }
-    for config in ["", "[clipboard]\nkind = 'arboard'\n"] {
-        fs::write(&config_path, config).unwrap();
-        let output = command(&directory)
-            .args(args)
-            .env_remove("DISPLAY")
-            .env_remove("WAYLAND_DISPLAY")
-            .env_remove("WAYLAND_SOCKET")
-            .output()
-            .unwrap();
-        assert_eq!(output.status.code(), Some(2));
-        assert!(
-            String::from_utf8_lossy(&output.stderr).contains("Cannot open the system clipboard")
-        );
+    fs::write(&config_path, "[clipboard]\nkind = 'arboard'\n").unwrap();
+    let output = command(&directory)
+        .args(args)
+        .env_remove("DISPLAY")
+        .env_remove("WAYLAND_DISPLAY")
+        .env_remove("WAYLAND_SOCKET")
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(2));
+    assert!(String::from_utf8_lossy(&output.stderr).contains("Cannot open the system clipboard"));
+}
+
+#[test]
+fn clipboard_osc52() {
+    let directory = tempfile::tempdir().unwrap();
+    fs::create_dir(directory.path().join("config")).unwrap();
+    for config in ["", "[clipboard]\nkind = 'osc52'\n"] {
+        fs::write(directory.path().join("config/config.toml"), config).unwrap();
+        for (text, encoded) in [("", ""), ("hello\n", "aGVsbG8K"), ("あ", "44GC")] {
+            fs::write(directory.path().join("solution.txt"), text).unwrap();
+            let output = run(&directory, &["submit", "solution.txt", "--clipboard"], 0);
+            assert!(output.stdout.is_empty());
+            assert!(
+                String::from_utf8_lossy(&output.stderr)
+                    .contains(&format!("\x1b]52;c;{encoded}\x1b\\"))
+            );
+        }
     }
 }
 

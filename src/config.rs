@@ -328,7 +328,7 @@ pub struct Config {
     /// Shell commands to run after copying each template.
     #[serde(default)]
     pub setup: Setup,
-    /// Clipboard backend. Defaults to arboard; command sends the text to a shell command's stdin.
+    /// Clipboard backend. Defaults to osc52; command sends the text to a shell command's stdin.
     #[serde(default)]
     pub clipboard: Clipboard,
     /// Languages keyed by name. The executable language customizes the executable-file fallback.
@@ -339,6 +339,8 @@ pub struct Config {
 #[derive(Debug, Deserialize, JsonSchema)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum Clipboard {
+    /// Use the terminal clipboard through OSC 52 on stderr.
+    Osc52 {},
     /// Use the system clipboard through arboard.
     Arboard {},
     /// Pipe the text to a shell command.
@@ -351,7 +353,7 @@ pub enum Clipboard {
 
 impl Default for Clipboard {
     fn default() -> Self {
-        Self::Arboard {}
+        Self::Osc52 {}
     }
 }
 
@@ -609,6 +611,11 @@ atcoder = "6116"
         assert!(matches!(
             Config::load(&paths).unwrap().clipboard,
             Clipboard::Arboard {}
+        ));
+        fs::write(&local_path, "[clipboard]\nkind = 'osc52'\n").unwrap();
+        assert!(matches!(
+            Config::load(&paths).unwrap().clipboard,
+            Clipboard::Osc52 {}
         ));
         for invalid in [
             "[",
