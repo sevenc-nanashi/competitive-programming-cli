@@ -72,12 +72,6 @@ impl ResourceRef {
             _ => bail!("Expected a problem URL; use prepare for a contest"),
         }
     }
-    pub fn contest(self) -> Result<ContestRef> {
-        match self {
-            Self::Contest(c) => Ok(c),
-            _ => bail!("Expected a contest URL; use download for a problem"),
-        }
-    }
 }
 
 #[derive(Debug, Clone)]

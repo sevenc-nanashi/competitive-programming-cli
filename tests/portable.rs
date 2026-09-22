@@ -350,7 +350,7 @@ fn download_login_and_submission() {
     )
     .unwrap();
     run(
-        command(&directory).args(["download", "https://mock.local/problems/echo"]),
+        command(&directory).args(["prepare", "https://mock.local/problems/echo"]),
         0,
     );
     let problem = directory.path().join("workspace/mock/problems/echo");
@@ -359,7 +359,7 @@ fn download_login_and_submission() {
         "initialized"
     );
     run(
-        command(&directory).args(["download", "https://mock.local/problems/echo"]),
+        command(&directory).args(["prepare", "https://mock.local/problems/echo"]),
         2,
     );
     let module = directory

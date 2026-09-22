@@ -14,7 +14,7 @@ mod workspace;
 use anyhow::{Context, Result, bail, ensure};
 use cli::{Cli, Commands, ConfigField, ListMode};
 use config::{Config, Paths, expand_path};
-use model::{Metadata, ResourceRef, ServiceId, SubmissionRequest};
+use model::{Metadata, ServiceId, SubmissionRequest};
 use services::Services;
 use std::{
     fs,
@@ -128,23 +128,24 @@ fn run(cli: Cli, interrupted: &AtomicBool) -> Result<bool> {
         Commands::Download(args) => {
             let services = Services::new(&paths)?;
             let problem = services.resolve(&args.url)?.problem()?;
-            let directory = workspace::download(
-                &paths,
-                &Config::load(&paths)?,
-                &services,
-                ResourceRef::Problem(problem),
+            let directory = expand_path(&args.directory)?;
+            tracing::info!("Downloading problem {}...", problem.url);
+            workspace::write_samples(
+                &directory,
+                &services.backend(problem.service).fetch_problem(&problem)?,
+                false,
                 interrupted,
             )?;
             println!("{}", directory.display());
         }
         Commands::Prepare(args) => {
             let services = Services::new(&paths)?;
-            let contest = services.resolve(&args.url)?.contest()?;
-            let directory = workspace::download(
+            let resource = services.resolve(&args.url)?;
+            let directory = workspace::prepare(
                 &paths,
                 &Config::load(&paths)?,
                 &services,
-                ResourceRef::Contest(contest),
+                resource,
                 interrupted,
             )?;
             println!("{}", directory.display());

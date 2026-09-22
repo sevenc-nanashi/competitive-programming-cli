@@ -97,7 +97,6 @@ fn interactive_initialization() {
         for step in [
             "[language.cpp]",
             "cpg login",
-            "cpg download",
             "cpg prepare",
             "cpg test",
             "cpg submit",
@@ -2231,7 +2230,7 @@ fn setup_failures_and_cleanup() {
     )
     .unwrap();
     for (command, url, category) in [
-        ("download", "https://mock.local/problems/sum", "problems"),
+        ("prepare", "https://mock.local/problems/sum", "problems"),
         (
             "prepare",
             "https://mock.local/contests/practice",
@@ -2256,7 +2255,7 @@ fn setup_failures_and_cleanup() {
         fs::write(&config_path, format!("{base}[setup]\n{setup}\n")).unwrap();
         let output = run(
             &directory,
-            &["download", "https://mock.local/problems/sum"],
+            &["prepare", "https://mock.local/problems/sum"],
             2,
         );
         assert!(String::from_utf8_lossy(&output.stderr).contains(error));
@@ -2268,11 +2267,7 @@ fn setup_failures_and_cleanup() {
         format!("{base}[setup]\nworkspace = ['printf workspace > order', 'printf second >> order']\nproblem = ['printf initialized > generated.txt', 'printf problem >> order']\nsingle_problem = ['printf single >> order']\ncontest = []\n"),
     )
     .unwrap();
-    run(
-        &directory,
-        &["download", "https://mock.local/problems/sum"],
-        0,
-    );
+    run(&directory, &["p", "https://mock.local/problems/sum"], 0);
     assert_eq!(
         fs::read(root.join("mock/problems/sum/generated.txt")).unwrap(),
         b"initialized"
@@ -2289,7 +2284,7 @@ fn setup_failures_and_cleanup() {
     )
     .unwrap();
     let mut child = command(&directory)
-        .args(["download", "https://mock.local/problems/echo"])
+        .args(["prepare", "https://mock.local/problems/echo"])
         .stdout(Stdio::null())
         .stderr(Stdio::piped())
         .spawn()
@@ -2343,7 +2338,7 @@ fn mock_submission_judging() {
     .unwrap();
     run(
         &directory,
-        &["download", "https://mock.local/problems/sum"],
+        &["prepare", "https://mock.local/problems/sum"],
         0,
     );
     let problem = directory.path().join("workspace/mock/problems/sum");
@@ -2543,7 +2538,7 @@ mock = "ruby"
         "abc",
     )
     .unwrap();
-    let output = run(&directory, &["d", "https://mock.local/problems/echo"], 0);
+    let output = run(&directory, &["p", "https://mock.local/problems/echo"], 0);
     let echo = root.join("mock/problems/echo");
     assert_eq!(
         String::from_utf8(output.stdout).unwrap(),
@@ -2589,7 +2584,7 @@ mock = "ruby"
         &["test", echo.join("solution.rb").to_str().unwrap()],
         0,
     );
-    run(&directory, &["d", "https://mock.local/problems/echo"], 2);
+    run(&directory, &["p", "https://mock.local/problems/echo"], 2);
     assert!(echo.join("solution.rb").is_file());
     let output = run(
         &directory,
@@ -2597,7 +2592,7 @@ mock = "ruby"
         0,
     );
     let logs = String::from_utf8_lossy(&output.stderr);
-    assert!(logs.contains("i) [cpg::workspace] <download{"));
+    assert!(logs.contains("i) [cpg::workspace] <prepare{"));
     assert_eq!(logs.matches("Missing cookies").count(), 1, "{logs}");
     assert!(!logs.contains('\u{1b}'));
     let contest = root.join("mock/contests/practice");
@@ -2751,7 +2746,7 @@ mock = "ruby"
     );
     run(&directory, &["p", "https://mock.local/problems/echo"], 2);
     run(&directory, &["d", "https://example.com/problems/echo"], 2);
-    run(&directory, &["d", "https://mock.local/problems/missing"], 2);
+    run(&directory, &["p", "https://mock.local/problems/missing"], 2);
     assert!(!root.join("mock/problems/missing").exists());
     // Failure partway through a contest must remove all staged files.
     fs::create_dir(mock.join("contests/broken")).unwrap();
@@ -2767,7 +2762,7 @@ mock = "ruby"
         directory.path().join("config/problem_template/link"),
     )
     .unwrap();
-    run(&directory, &["d", "https://mock.local/problems/sum"], 2);
+    run(&directory, &["p", "https://mock.local/problems/sum"], 2);
     fs::remove_file(directory.path().join("config/problem_template/link")).unwrap();
     assert!(!root.join("mock/problems/sum").exists());
     let solution = echo.join("solution.rb");
@@ -3089,4 +3084,49 @@ mock = "ruby"
         .output()
         .unwrap();
     assert_eq!(output.status.code(), Some(2));
+}
+
+#[cfg(feature = "mock")]
+#[test]
+fn download_samples_without_workspace() {
+    let directory = tempfile::tempdir().unwrap();
+    let fixture = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("mock_service");
+    std::os::unix::fs::symlink(&fixture, directory.path().join("mock_service")).unwrap();
+    let url = "https://mock.local/problems/echo";
+    run(&directory, &["d", url], 0);
+    for extension in ["in", "out"] {
+        assert_eq!(
+            fs::read(directory.path().join(format!("test/sample-1.{extension}"))).unwrap(),
+            fs::read(fixture.join(format!("problems/echo/test/01.{extension}"))).unwrap()
+        );
+    }
+    assert!(!directory.path().join(".cpg.toml").exists());
+    assert!(!directory.path().join("config").exists());
+    assert!(!directory.path().join("workspace").exists());
+    for option in ["-d", "--directory"] {
+        let name = format!("samples{option}");
+        let destination = directory.path().join(&name);
+        fs::create_dir(&destination).unwrap();
+        fs::write(destination.join("custom.in"), "keep").unwrap();
+        run(&directory, &["download", url, option, &name], 0);
+        assert!(destination.join("sample-1.in").is_file());
+        assert_eq!(fs::read(destination.join("custom.in")).unwrap(), b"keep");
+        assert!(!destination.join(".cpg.toml").exists());
+    }
+    // A conflict in a later file must not create or replace any earlier sample.
+    fs::remove_file(directory.path().join("test/sample-1.in")).unwrap();
+    fs::write(directory.path().join("test/sample-1.out"), "keep").unwrap();
+    let output = run(&directory, &["d", url], 2);
+    assert!(String::from_utf8_lossy(&output.stderr).contains("already exists"));
+    assert!(!directory.path().join("test/sample-1.in").exists());
+    assert_eq!(
+        fs::read(directory.path().join("test/sample-1.out")).unwrap(),
+        b"keep"
+    );
+    let output = run(
+        &directory,
+        &["d", "https://mock.local/contests/practice"],
+        2,
+    );
+    assert!(String::from_utf8_lossy(&output.stderr).contains("use prepare for a contest"));
 }

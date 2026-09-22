@@ -10,7 +10,7 @@ use sha2::{Digest, Sha256};
 use std::{
     collections::BTreeMap,
     fs,
-    io::ErrorKind,
+    io::{ErrorKind, Write},
     path::{Component, Path, PathBuf},
     sync::atomic::{AtomicBool, Ordering},
 };
@@ -182,17 +182,44 @@ fn write_problem(
         } => *template_checksums_ = template_checksums(destination)?,
         _ => unreachable!(),
     }
-    fs::create_dir_all(destination.join("test"))?;
-    for (i, sample) in problem.samples.iter().enumerate() {
-        let name = format!("sample-{}", i + 1);
-        fs::write(
-            destination.join("test").join(format!("{name}.in")),
-            &sample.input,
-        )?;
-        fs::write(
-            destination.join("test").join(format!("{name}.out")),
-            &sample.output,
-        )?;
+    write_samples(&destination.join("test"), &problem, true, interrupted)?;
+    write_metadata(destination, &metadata)
+}
+
+pub fn write_samples(
+    destination: &Path,
+    problem: &Problem,
+    overwrite: bool,
+    interrupted: &AtomicBool,
+) -> Result<()> {
+    let files: Vec<_> = problem
+        .samples
+        .iter()
+        .enumerate()
+        .flat_map(|(i, sample)| {
+            [("in", &sample.input), ("out", &sample.output)]
+                .map(|(ext, data)| (destination.join(format!("sample-{}.{ext}", i + 1)), data))
+        })
+        .collect();
+    for (path, _) in files.iter().filter(|_| !overwrite) {
+        match fs::symlink_metadata(path) {
+            Err(error) if error.kind() == ErrorKind::NotFound => (),
+            Err(error) => return Err(error.into()),
+            Ok(_) => anyhow::bail!("Sample file already exists: {}", path.display()),
+        }
+    }
+    ensure!(!interrupted.load(Ordering::Relaxed), "Interrupted");
+    fs::create_dir_all(destination)?;
+    for (path, data) in files {
+        ensure!(!interrupted.load(Ordering::Relaxed), "Interrupted");
+        fs::OpenOptions::new()
+            .write(true)
+            .create(overwrite)
+            .truncate(overwrite)
+            .create_new(!overwrite)
+            .open(&path)
+            .with_context(|| format!("Cannot create {}", path.display()))?
+            .write_all(data.as_bytes())?;
     }
     tracing::info!(
         "Saved {} sample case(s) for {} ({})",
@@ -200,10 +227,10 @@ fn write_problem(
         problem.reference.id,
         problem.title
     );
-    write_metadata(destination, &metadata)
+    Ok(())
 }
 
-pub fn download(
+pub fn prepare(
     paths: &Paths,
     config: &Config,
     services: &Services,
@@ -218,7 +245,7 @@ pub fn download(
     };
     let parent = root.join(service.as_str()).join(category);
     let destination = parent.join(safe_id(id)?);
-    let _span = tracing::info_span!("download", service = service.as_str(), id).entered();
+    let _span = tracing::info_span!("prepare", service = service.as_str(), id).entered();
     ensure!(
         !destination.try_exists()?,
         "Destination already exists: {}",

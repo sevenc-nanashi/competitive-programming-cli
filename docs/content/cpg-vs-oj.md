@@ -45,8 +45,9 @@ commands first. Direct commands after `--` do not require language settings.
 | Run an interactive judge            | `oj test-reactive -c "ruby solution.rb" "ruby judge.rb"` | `cpg test --interactive --judge "ruby judge.rb" -- ruby solution.rb` |
 | Submit to an explicit problem       | `oj submit URL solution.cpp`                             | `cpg submit solution.cpp --problem URL`                              |
 
-`cpg download` creates a problem workspace with templates and metadata as well
-as samples. Enter the printed directory before working on the solution.
+`cpg download` saves only sample cases into `./test/` (or `--directory`).
+`cpg prepare` accepts a problem or contest URL and creates a workspace with
+templates, metadata, and samples. Enter the printed directory before working on the solution.
 Without `--dir`, cpg generates cases in `random/`; test them with
 `cpg test --test-dir random solution.cpp`.
 

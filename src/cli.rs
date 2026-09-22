@@ -27,12 +27,12 @@ pub enum Commands {
     Config(Config),
     /// Import a Netscape cookie file or inspect the saved session.
     Login(Login),
-    /// Download one problem and its samples.
+    /// Download sample cases for one problem into a local directory.
     #[usage(alias = "d")]
     Download(Download),
-    /// Prepare all problems in a contest.
+    /// Prepare a workspace for one problem or all problems in a contest.
     #[usage(alias = "p")]
-    Prepare(Download),
+    Prepare(Prepare),
     /// Open the current problem or contest in your browser.
     #[usage(alias = "o")]
     Open(Open),
@@ -108,7 +108,17 @@ pub struct Login {
 
 #[derive(Debug, usage::Args)]
 pub struct Download {
-    /// Problem or contest URL to download.
+    /// Problem URL to download sample cases from.
+    #[usage(value_hint = usage::ValueHint::Url)]
+    pub url: Url,
+    /// Directory to save sample cases in.
+    #[usage(long, short = 'd', default = "test", value_hint = usage::ValueHint::DirPath)]
+    pub directory: PathBuf,
+}
+
+#[derive(Debug, usage::Args)]
+pub struct Prepare {
+    /// Problem or contest URL to prepare.
     #[usage(value_hint = usage::ValueHint::Url)]
     pub url: Url,
 }

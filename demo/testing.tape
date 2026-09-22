@@ -17,7 +17,7 @@ Hide
 Type@1ms `export PS1='$ '; cd "$CPG_DEMO_WORKSPACE";`
 Enter
 Wait+Line /\$$/
-Type@1ms `cpg download https://mock.local/problems/dijkstra-query`
+Type@1ms `cpg prepare https://mock.local/problems/dijkstra-query`
 Enter
 Wait+Line /\$$/
 Type@1ms `cp "$CPG_DEMO_WORKSPACE/dijkstra-query.rb" "$CPG_DEMO_WORKSPACE/mock/problems/dijkstra-query/solution.rb"; cd "$CPG_DEMO_WORKSPACE/mock/problems/dijkstra-query"; clear`

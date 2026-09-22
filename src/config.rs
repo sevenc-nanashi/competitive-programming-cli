@@ -240,8 +240,8 @@ pub fn init(paths: &Paths, args: &crate::cli::Init, interrupted: &AtomicBool) ->
          2. Put your starter solution in problem_template and shared files in workspace_template.\n\
          3. Export Netscape-format cookies from your browser, then import them:\n\
          \x20 cpg login atcoder --cookie-file /path/to/cookies.txt\n\
-         4. Download a problem or contest:\n\
-         \x20 cpg download <problem-url>\n\
+         4. Prepare a problem or contest:\n\
+         \x20 cpg prepare <problem-url>\n\
          \x20 cpg prepare <contest-url>\n\
          5. Enter the printed directory (or a problem directory within a contest), then run:\n\
          \x20 cpg test ./solution.cpp\n\

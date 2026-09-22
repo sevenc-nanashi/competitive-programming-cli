@@ -104,8 +104,8 @@ The default is `info` when the variable is unset or empty. Invalid filters cause
 cpg to exit with code 2. Logs go to stderr; command output on stdout is unchanged.
 
 ```bash
-CPG_LOG=debug cpg download https://atcoder.jp/contests/abc473/tasks/abc473_f
-CPG_LOG=info,cpg=debug,reqwest=warn cpg download https://atcoder.jp/contests/abc473/tasks/abc473_f
+CPG_LOG=debug cpg prepare https://atcoder.jp/contests/abc473/tasks/abc473_f
+CPG_LOG=info,cpg=debug,reqwest=warn cpg prepare https://atcoder.jp/contests/abc473/tasks/abc473_f
 CPG_LOG=off cpg list
 ```
 
@@ -218,8 +218,8 @@ directory is absent, allowing setup entirely through commands.
 | `contest`        | `contest_template`        | Contest root                       |
 | `single_problem` | `single_problem_template` | Standalone problem root            |
 
-For `cpg download`, the order is `workspace`, `problem`, then `single_problem`.
-For `cpg prepare`, `workspace` and `contest` run first at the contest root, then
+For `cpg prepare` with a problem URL, the order is `workspace`, `problem`, then `single_problem`.
+For `cpg prepare` with a contest URL, `workspace` and `contest` run first at the contest root, then
 `problem` runs for each problem. Each command finishes before the next template
 is copied, so later templates can overwrite files created by earlier commands.
 After each template is copied, `.cpg.toml` is written before its setup commands

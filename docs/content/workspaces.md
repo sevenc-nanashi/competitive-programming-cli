@@ -2,7 +2,19 @@
 
 The directory you downloaded a single problem or contest problems will be called a "workspace".
 
-## Download single problem
+## Download sample cases
+
+`cpg download` (`cpg d`) downloads one problem's samples into `./test/`.
+It does not require a workspace root or copy templates, run setup commands, or write metadata.
+Use `-d` / `--directory` to choose another sample directory. Existing sample files
+are never overwritten; unrelated files in the directory are preserved.
+
+```bash
+cpg d https://atcoder.jp/contests/abc473/tasks/abc473_f
+cpg d https://atcoder.jp/contests/abc473/tasks/abc473_f -d samples
+```
+
+## Prepare a single problem
 
 You can download a single problem from a contest.
 The downloaded problem will be saved in a directory `$root/$host/problems/$problem_id`, where:
@@ -33,17 +45,17 @@ run after each template is copied and must succeed before the workspace is publi
 
 ```bash
 # Download a problem from AtCoder
-cpg download https://atcoder.jp/contests/abc473/tasks/abc473_f
+cpg prepare https://atcoder.jp/contests/abc473/tasks/abc473_f
 
 # Or shortcut
-cpg d https://atcoder.jp/contests/abc473/tasks/abc473_f
+cpg p https://atcoder.jp/contests/abc473/tasks/abc473_f
 ```
 
 There are no template engines or variable substitutions. The templates are copied as-is.
 Use the `[setup]` section in the configuration file to run commands after copying templates,
 like replacing `package.name` in `Cargo.toml` with the problem ID, or creating a `Makefile` from a template.
 
-## Download contest problems
+## Prepare contest problems
 
 You can download all problems from a contest.
 The downloaded problems will be saved in a directory `$root/$host/contests/$contest_id/$index_$problem_id`, where:
