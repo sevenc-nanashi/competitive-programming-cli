@@ -1709,6 +1709,104 @@ fn judge_argument_order() {
 }
 
 #[test]
+fn explicit_test_input() {
+    let directory = tempfile::tempdir().unwrap();
+    case(&directory, b"ignored\n", b"wrong\n");
+    fs::write(directory.path().join("chosen.in"), "hello\n").unwrap();
+    fs::write(directory.path().join("chosen.out"), "hello\n").unwrap();
+    let output = run(&directory, &["test", "-I", "chosen.in", "--", "cat"], 0);
+    assert!(String::from_utf8_lossy(&output.stdout).contains("chosen: AC ("));
+    assert!(!String::from_utf8_lossy(&output.stdout).contains("sample-1:"));
+    fs::write(directory.path().join("chosen.out"), "wrong\n").unwrap();
+    run(
+        &directory,
+        &["test", "--input-path", "chosen.in", "--", "cat"],
+        1,
+    );
+    fs::remove_file(directory.path().join("chosen.out")).unwrap();
+    run(&directory, &["test", "-I", "chosen.in", "--", "cat"], 0);
+    run(&directory, &["test", "-I", "missing.in", "--", "cat"], 2);
+    run(&directory, &["test", "-I", "test", "--", "cat"], 2);
+    run(
+        &directory,
+        &["test", "-i", "-I", "chosen.in", "--", "cat"],
+        2,
+    );
+    run(
+        &directory,
+        &[
+            "test",
+            "-i",
+            "-I",
+            "chosen.in",
+            "-J",
+            "cat {test_input}; read reply; test \"$reply\" = hello",
+            "--",
+            "head",
+            "-n",
+            "1",
+        ],
+        0,
+    );
+    for judge in [
+        vec![],
+        vec![
+            "-J",
+            "cmp {test_input} {solution_output} && test ! -s {test_output}",
+        ],
+    ] {
+        let mut args = vec!["test", "-I", "-", "-v", "always"];
+        args.extend(judge);
+        args.extend(["--", "cat"]);
+        let output = run_with_input(command(&directory).args(args), "stdin data\n", 0);
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert!(stdout.contains("stdin: AC (") && stdout.contains("stdin data"));
+    }
+    for (script, code, verdict) in [("exit 7", 1, "RE"), ("sleep 5", 1, "TLE")] {
+        let output = run_with_input(
+            command(&directory).args([
+                "test", "-I", "-", "-i", "-t", "100", "--", "sh", "-c", script,
+            ]),
+            "",
+            code,
+        );
+        assert!(
+            String::from_utf8_lossy(&output.stdout).contains(&format!("interactive: {verdict}"))
+        );
+    }
+    // Keep stdin open: the prompt must be visible before input, and exit must not wait for EOF.
+    let mut child = command(&directory)
+        .args([
+            "test",
+            "-I",
+            "-",
+            "-i",
+            "-J",
+            "false",
+            "-t",
+            "2000",
+            "--",
+            "sh",
+            "-c",
+            "echo ready; read reply; echo got:$reply",
+        ])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    let mut stdout = BufReader::new(child.stdout.take().unwrap());
+    let mut line = String::new();
+    stdout.read_line(&mut line).unwrap();
+    assert_eq!(line, "ready\n");
+    child.stdin.as_mut().unwrap().write_all(b"hello\n").unwrap();
+    line.clear();
+    stdout.read_line(&mut line).unwrap();
+    assert_eq!(line, "got:hello\n");
+    assert!(child.wait().unwrap().success());
+}
+
+#[test]
 fn missing_expected_outputs() {
     let directory = tempfile::tempdir().unwrap();
     case(&directory, b"hello\n", b"hello\n");

@@ -67,6 +67,24 @@ Without a custom judge, a missing `.out` skips output comparison: the case is
 `AC` if the solution exits with `0`, otherwise `RE`. Time and memory limits still
 apply. An existing empty `.out` requires empty output.
 
+Use `--input-path` (`-I`) to run a single input file instead of the test directory.
+Paths are relative to the current directory; the corresponding `.out` is used
+when present. Use `-I -` to read one input from standard input until EOF, without
+an expected output. Custom judges also work with these inputs.
+
+```bash
+cpg test -I ./example.in ./solution.cpp
+printf '1 2\n' | cpg test -I - -v always ./solution.cpp
+```
+
+Combine `-I -` with `--interactive` (`-i`) to interact with the solution manually.
+Output appears immediately, and any `--judge` is ignored. Time and memory limits
+still apply, and Ctrl-C stops the solution.
+
+```bash
+cpg test -I - -i ./solution.cpp
+```
+
 Use `--show-io` to choose when to display each case's input, expected output
 (when available), and actual output:
 

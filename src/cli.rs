@@ -98,7 +98,7 @@ pub struct Login {
     /// Online judge whose session should be imported or inspected.
     #[usage(value_enum)]
     pub service: ServiceId,
-    /// Netscape-format cookie file to import; required unless --info is given.
+    /// Netscape-format cookie file to import; required unless `--info` is given.
     #[usage(long, required_unless("--info"), value_hint = usage::ValueHint::FilePath)]
     pub cookie_file: Option<PathBuf>,
     /// Verify saved cookies and print the username and profile URL on separate lines.
@@ -204,7 +204,7 @@ pub struct Test {
     /// Number lines relative to expected output, or number interactive exchanges from zero.
     #[usage(long, short = 'n')]
     pub query_numbers: bool,
-    /// Highlight expected/actual output differences; cannot be used with --interactive.
+    /// Highlight expected/actual output differences; cannot be used with `--interactive.`
     #[usage(long, short = 'H', value_enum, conflicts("--interactive"))]
     pub highlight: Option<Highlight>,
     /// Directory containing .in and .out test files.
@@ -227,7 +227,7 @@ pub struct Test {
     /// Maximum number of test cases to run concurrently.
     #[usage(long, short = 'j', default = "1")]
     pub jobs: NonZeroUsize,
-    /// Treat CRLF and LF line endings as equal; disable with --no-ignore-line-ending.
+    /// Treat CRLF and LF line endings as equal; disable with `--no-ignore-line-ending.`
     #[usage(
         long,
         default = "true",
@@ -238,9 +238,16 @@ pub struct Test {
     /// Stop starting new cases after the first failure; running cases finish.
     #[usage(long, short = 'f')]
     pub fast_fail: bool,
+    /// Input file to use instead of the default .in files in the test directory, or `-` for stdin.
+    ///
+    /// If both `--input-path -` and `--interactive` are given, judge will not be used and you must
+    /// interact with the solution manually.
+    #[usage(long, short = 'I')]
+    pub input_path: Option<PathBuf>,
     /// Allow this nonnegative error when comparing numeric output tokens.
     ///
-    /// Nonnumeric tokens must still match exactly. Select the error comparison with --float-error-type.
+    /// Nonnumeric tokens must still match exactly. Select the error comparison with `--float-error-type.`
+    /// Exponential notation is supported, e.g., `1e-6`.
     #[usage(
         long,
         short = 'e',
@@ -248,14 +255,14 @@ pub struct Test {
         validate_error = "must be finite and nonnegative"
     )]
     pub float_error: Option<f64>,
-    /// Error comparison used with --float-error; both accepts either absolute or relative error.
+    /// Error comparison used with `--float-error`; both accepts either absolute or relative error.
     #[usage(long, value_enum, default = "both")]
     pub float_error_type: FloatErrorType,
     /// Judge source file, executable file, or shell command.
     #[usage(long, short = 'J')]
     pub judge: Option<String>,
-    /// Connect the solution and judge through stdin/stdout for interactive testing; requires --judge.
-    #[usage(long, requires("--judge"), short = 'i')]
+    /// Connect the solution and judge through stdin/stdout for interactive testing; requires `--judge` without `--input-path -`
+    #[usage(long, short = 'i')]
     pub interactive: bool,
 }
 
@@ -286,7 +293,7 @@ pub struct Submit {
     #[usage(long, short = 'c', conflicts("--problem", "--language"))]
     pub clipboard: bool,
     /// Open the submission page in your browser after a successful submission.
-    /// With --clipboard, open the problem page instead of the submission page so you can paste the
+    /// With `--clipboard,` open the problem page instead of the submission page so you can paste the
     /// copied source.
     #[usage(long, short = 'o')]
     pub open: bool,

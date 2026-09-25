@@ -1578,26 +1578,17 @@ fn test_case(
 }
 
 pub fn test(config: &Config, options: &Test, interrupted: &AtomicBool) -> Result<bool> {
+    let stdin = options.input_path.as_deref() == Some(Path::new("-"));
+    let manual = stdin && options.interactive;
+    ensure!(
+        !options.interactive || manual || options.judge.is_some(),
+        "Interactive tests require --judge unless --input-path - is given"
+    );
     ensure!(
         !options.interactive || options.panes != Panes::All,
         "--interactive cannot be combined with --panes all"
     );
     let program = Program::prepare(config, &options.program, interrupted)?;
-    let directory = match &options.test_dir {
-        Some(dir) => std::path::absolute(expand_path(dir)?)?,
-        None => program.cwd.join("test"),
-    };
-    let cases = inputs(&directory)?;
-    ensure!(
-        options.interactive || !cases.is_empty(),
-        "No .in test cases in {}",
-        directory.display()
-    );
-    let judge = options
-        .judge
-        .as_ref()
-        .map(|command| Judge::prepare(config, command, interrupted))
-        .transpose()?;
     let limits = Limits {
         time: options.time_limit.map(|n| Duration::from_millis(n.get())),
         memory: options
@@ -1609,16 +1600,65 @@ pub fn test(config: &Config, options: &Test, interrupted: &AtomicBool) -> Result
             })
             .transpose()?,
     };
+    if manual {
+        let mut solution = ManagedChild::spawn(&program, Stdio::piped(), Stdio::inherit())?;
+        let solution_in = solution.child.stdin().take().expect("piped stdin");
+        // Relay from the foreground process so terminal reads do not stop the child group.
+        let forward = thread::spawn(move || relay(io::stdin().lock(), solution_in, false, None));
+        let result = monitor(&mut [&mut solution], limits, interrupted)?;
+        drop(solution);
+        // ponytail: a blocked terminal reader lives until CLI exit; use cancellable I/O if reused.
+        if forward.is_finished() {
+            forward
+                .join()
+                .map_err(|_| anyhow::anyhow!("Stdin relay panicked"))??;
+        }
+        println!(
+            "interactive: {} ({} ms, {} KiB)",
+            crate::results::color_status(&result.verdict.to_string()),
+            result.elapsed.as_millis(),
+            result.memory / 1024
+        );
+        return Ok(result.verdict == Verdict::Ac);
+    }
+    let directory = match &options.test_dir {
+        Some(dir) => std::path::absolute(expand_path(dir)?)?,
+        None => program.cwd.join("test"),
+    };
+    let stdin_directory = if stdin {
+        Some(tempfile::tempdir()?)
+    } else {
+        None
+    };
+    let cases = match (&options.input_path, &stdin_directory) {
+        (_, Some(directory)) => {
+            let input = directory.path().join("stdin.in");
+            io::copy(&mut io::stdin().lock(), &mut File::create(&input)?)?;
+            vec![input]
+        }
+        (Some(path), None) => {
+            let input = std::path::absolute(expand_path(path)?)?;
+            ensure!(input.is_file(), "Not an input file: {}", input.display());
+            vec![input]
+        }
+        (None, None) => inputs(&directory)?,
+    };
+    ensure!(
+        options.interactive || !cases.is_empty(),
+        "No .in test cases in {}",
+        directory.display()
+    );
+    let judge = options
+        .judge
+        .as_ref()
+        .map(|command| Judge::prepare(config, command, interrupted))
+        .transpose()?;
     let cases: Vec<_> = if cases.is_empty() {
         vec![None]
     } else {
         cases.into_iter().map(Some).collect()
     };
-    tracing::info!(
-        "Running {} test case(s) from {}...",
-        cases.len(),
-        directory.display()
-    );
+    tracing::info!("Running {} test case(s)...", cases.len());
     let (accepted, total) = run_jobs(
         cases,
         options.jobs.get(),
