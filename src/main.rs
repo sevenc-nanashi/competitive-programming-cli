@@ -85,12 +85,12 @@ fn run(cli: Cli, interrupted: &AtomicBool) -> Result<bool> {
         }
         Commands::Login(args) => {
             if args.info {
-                let (user, url) = Services::new(&paths)?.backend(args.service).whoami()?;
+                let (user, url) = Services::new(&paths)?.backend(&args.service).whoami()?;
                 println!("{user}\n{url}");
             } else {
                 Services::login(
                     &paths,
-                    args.service,
+                    &args.service,
                     &args.cookie_file.expect("required unless --info"),
                 )?;
             }
@@ -132,7 +132,7 @@ fn run(cli: Cli, interrupted: &AtomicBool) -> Result<bool> {
             tracing::info!("Downloading problem {}...", problem.url);
             workspace::write_samples(
                 &directory,
-                &services.backend(problem.service).fetch_problem(&problem)?,
+                &services.backend(&problem.service).fetch_problem(&problem)?,
                 false,
                 interrupted,
             )?;
@@ -239,17 +239,17 @@ fn submit(
             Metadata::Contest(_) => bail!("Specify a problem directory or --problem URL"),
         },
     };
-    let backend = services.backend(problem.service);
+    let backend = services.backend(&problem.service);
     tracing::info!("Submission target: {}", problem.url);
     let language = match args.language {
         Some(language) => Some(language),
         None => configured_language
-            .and_then(|language| language.submit.get(backend.auth_service().as_str()))
+            .and_then(|language| language.submit.get(&backend.auth_service().to_string()))
             .cloned(),
     };
     tracing::info!(
         "Fetching submission languages from {}...",
-        backend.auth_service().as_str()
+        backend.auth_service().to_string()
     );
     let languages = backend.languages(&problem)?;
     let Some(language) =
@@ -257,7 +257,7 @@ fn submit(
     else {
         tracing::error!(
             "Choose a submission language using --language or language.<name>.submit.{}:",
-            backend.auth_service().as_str()
+            backend.auth_service().to_string()
         );
         for language in languages {
             tracing::info!("{}\t{}", language.id, language.name);

@@ -96,7 +96,7 @@ pub enum ConfigField {
 #[derive(Debug, usage::Args)]
 pub struct Login {
     /// Online judge whose session should be imported or inspected.
-    #[usage(value_enum)]
+    #[usage(complete = login_complete_service)]
     pub service: ServiceId,
     /// Netscape-format cookie file to import; required unless `--info` is given.
     #[usage(long, required_unless("--info"), value_hint = usage::ValueHint::FilePath)]
@@ -104,6 +104,22 @@ pub struct Login {
     /// Verify saved cookies and print the username and profile URL on separate lines.
     #[usage(long, conflicts("--cookie-file"))]
     pub info: bool,
+}
+fn login_complete_service(
+    partial: &<Login as usage::spec::CommandArgs>::Partial,
+    _ctx: &usage::complete::CompleteCtx<'_>,
+) -> Vec<usage::complete::Candidate<'static>> {
+    let service_id = String::from_utf8_lossy(&partial.service);
+    if let Some(service_host) = service_id.strip_prefix("oj+") {
+        return vec![usage::complete::Candidate::described(
+            service_id.to_string(),
+            format!("`{service_host}` via `oj`"),
+        )];
+    }
+    crate::model::SERVICE_ID_COMPLETIONS
+        .iter()
+        .map(|(id, label)| usage::complete::Candidate::described(*id, *label))
+        .collect()
 }
 
 #[derive(Debug, usage::Args)]

@@ -44,14 +44,14 @@ pub struct Services {
     yukicoder: YukicoderBackend,
     #[cfg(feature = "mock")]
     mock: mock::MockBackend,
-    missing_cookies: Mutex<HashMap<&'static str, PathBuf>>,
+    missing_cookies: Mutex<HashMap<String, PathBuf>>,
 }
 
 impl Services {
     pub fn new(paths: &Paths) -> Result<Self> {
         let mut missing_cookies = HashMap::new();
-        let mut load_cookies = |service: ServiceId| -> Result<Vec<u8>> {
-            let name = service.as_str();
+        let mut load_cookies = |service: &ServiceId| -> Result<Vec<u8>> {
+            let name = service.to_string();
             let path = paths.cookies.join(format!("{name}.txt"));
             match fs::read(&path) {
                 Ok(raw) => Ok(raw),
@@ -63,10 +63,10 @@ impl Services {
             }
         };
         let atcoder = AtCoderBackend {
-            http: Http::from_cookies(&load_cookies(ServiceId::Atcoder)?, ServiceId::Atcoder)?,
+            http: Http::from_cookies(&load_cookies(&ServiceId::Atcoder)?, &ServiceId::Atcoder)?,
         };
         let yukicoder = YukicoderBackend {
-            http: Http::from_cookies(&load_cookies(ServiceId::Yukicoder)?, ServiceId::Yukicoder)?,
+            http: Http::from_cookies(&load_cookies(&ServiceId::Yukicoder)?, &ServiceId::Yukicoder)?,
         };
         Ok(Self {
             problems: AtCoderProblemsBackend {
@@ -82,20 +82,21 @@ impl Services {
         })
     }
 
-    pub fn backend(&self, service: ServiceId) -> &dyn ServiceBackend {
+    pub fn backend(&self, service: &ServiceId) -> &dyn ServiceBackend {
         let backend: &dyn ServiceBackend = match service {
             ServiceId::Atcoder => &self.atcoder,
             ServiceId::AtcoderProblems => &self.problems,
             ServiceId::Yukicoder => &self.yukicoder,
+            ServiceId::Oj(_) => todo!(),
             #[cfg(feature = "mock")]
             ServiceId::Mock => &self.mock,
         };
-        let auth_service = backend.auth_service().as_str();
+        let auth_service = backend.auth_service().to_string();
         if let Some(path) = self
             .missing_cookies
             .lock()
             .expect("missing cookies lock poisoned")
-            .remove(auth_service)
+            .remove(&auth_service)
         {
             tracing::warn!(
                 "Missing cookies for {auth_service}: {}; import them with cpg login {auth_service} --cookie-file <path>",
@@ -106,21 +107,21 @@ impl Services {
     }
 
     pub fn resolve(&self, url: &Url) -> Result<ResourceRef> {
-        let backend = self.backend(ServiceId::from_url(url)?);
+        let backend = self.backend(&ServiceId::from_url(url)?);
         tracing::info!("Resolving {url}...");
         backend.resolve_url(url)
     }
 
-    pub fn login(paths: &Paths, service: ServiceId, source: &Path) -> Result<()> {
+    pub fn login(paths: &Paths, service: &ServiceId, source: &Path) -> Result<()> {
         let source = expand_path(source)?;
         let raw = fs::read(&source).with_context(|| format!("Cannot read {}", source.display()))?;
         let auth_service = match service {
-            ServiceId::AtcoderProblems => ServiceId::Atcoder,
+            ServiceId::AtcoderProblems => &ServiceId::Atcoder,
             s => s,
         };
         tracing::info!(
             "Checking authentication for {} using {}...",
-            auth_service.as_str(),
+            auth_service.to_string(),
             source.display()
         );
         let (user, _) = match auth_service {
@@ -132,6 +133,7 @@ impl Services {
                 http: Http::from_cookies(&raw, auth_service)?,
             }
             .whoami()?,
+            ServiceId::Oj(_) => todo!(),
             ServiceId::AtcoderProblems => unreachable!(),
             #[cfg(feature = "mock")]
             ServiceId::Mock => mock::MockBackend {
@@ -150,8 +152,8 @@ impl Services {
         }
         staging.write_all(&raw)?;
         staging.as_file().sync_all()?;
-        staging.persist(paths.cookies.join(format!("{}.txt", auth_service.as_str())))?;
-        tracing::info!("Logged in to {} as {user}", auth_service.as_str());
+        staging.persist(paths.cookies.join(format!("{}.txt", auth_service.to_string())))?;
+        tracing::info!("Logged in to {} as {user}", auth_service.to_string());
         Ok(())
     }
 }
@@ -196,10 +198,11 @@ pub(super) struct Http {
 }
 
 impl Http {
-    fn from_cookies(raw: &[u8], service: ServiceId) -> Result<Self> {
+    fn from_cookies(raw: &[u8], service: &ServiceId) -> Result<Self> {
         let host = match service {
             ServiceId::Atcoder | ServiceId::AtcoderProblems => "atcoder.jp",
             ServiceId::Yukicoder => "yukicoder.me",
+            ServiceId::Oj(_) => todo!(),
             #[cfg(feature = "mock")]
             ServiceId::Mock => anyhow::bail!("Mock services do not use HTTP"),
         };

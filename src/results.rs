@@ -76,7 +76,7 @@ pub fn run(
     tracing::info!("Fetching up to {} submissions for {url}...", args.limit);
     let services = Services::new(&paths)?;
     let submissions = services
-        .backend(scope.service())
+        .backend(&scope.service())
         .submissions(&scope, args.limit.get())?;
     tracing::info!("Fetched {} submission(s)", submissions.len());
     let mut output = io::stdout().lock();
@@ -213,7 +213,7 @@ fn monitor(
             }
         };
         while request_rx.recv().is_ok() {
-            let result = services.backend(scope.service()).submissions(&scope, limit);
+            let result = services.backend(&scope.service()).submissions(&scope, limit);
             if update_tx.send(result).is_err() {
                 break;
             }
