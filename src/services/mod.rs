@@ -1,6 +1,7 @@
 mod atcoder;
 #[cfg(feature = "mock")]
 mod mock;
+mod oj;
 mod problems;
 mod yukicoder;
 
@@ -10,6 +11,7 @@ use self::{
 use crate::{
     config::{Paths, expand_path},
     model::*,
+    services::oj::OjBackend,
 };
 use anyhow::{Context, Result, ensure};
 use reqwest::{blocking::Client, cookie::Jar};
@@ -27,9 +29,7 @@ use std::{
 use url::Url;
 
 pub trait ServiceBackend {
-    fn service(&self) -> ServiceId;
-    fn auth_service(&self) -> ServiceId;
-    fn whoami(&self) -> Result<(String, Url)>;
+    fn whoami(&self, service: &ServiceId) -> Result<(String, Url)>;
     fn resolve_url(&self, url: &Url) -> Result<ResourceRef>;
     fn fetch_problem(&self, problem: &ProblemRef) -> Result<Problem>;
     fn fetch_contest(&self, contest: &ContestRef) -> Result<Contest>;
@@ -42,6 +42,7 @@ pub struct Services {
     atcoder: AtCoderBackend,
     problems: AtCoderProblemsBackend,
     yukicoder: YukicoderBackend,
+    oj: OjBackend,
     #[cfg(feature = "mock")]
     mock: mock::MockBackend,
     missing_cookies: Mutex<HashMap<String, PathBuf>>,
@@ -68,15 +69,20 @@ impl Services {
         let yukicoder = YukicoderBackend {
             http: Http::from_cookies(&load_cookies(&ServiceId::Yukicoder)?, &ServiceId::Yukicoder)?,
         };
+        let oj = OjBackend {
+            cookie_dir: paths.cookies.clone(),
+            cookie_override: None,
+        };
         Ok(Self {
             problems: AtCoderProblemsBackend {
                 atcoder: atcoder.clone(),
             },
             atcoder,
             yukicoder,
+            oj,
             #[cfg(feature = "mock")]
             mock: mock::MockBackend {
-                cookies: cookie_jar(&load_cookies(ServiceId::Mock)?, "mock.local")?,
+                cookies: cookie_jar(&load_cookies(&ServiceId::Mock)?, "mock.local")?,
             },
             missing_cookies: Mutex::new(missing_cookies),
         })
@@ -87,11 +93,15 @@ impl Services {
             ServiceId::Atcoder => &self.atcoder,
             ServiceId::AtcoderProblems => &self.problems,
             ServiceId::Yukicoder => &self.yukicoder,
-            ServiceId::Oj(_) => todo!(),
+            ServiceId::Oj(_) => &self.oj,
             #[cfg(feature = "mock")]
             ServiceId::Mock => &self.mock,
         };
-        let auth_service = backend.auth_service().to_string();
+        let auth_service = match service {
+            ServiceId::AtcoderProblems => &ServiceId::Atcoder,
+            service => service,
+        }
+        .to_string();
         if let Some(path) = self
             .missing_cookies
             .lock()
@@ -128,18 +138,22 @@ impl Services {
             ServiceId::Atcoder => AtCoderBackend {
                 http: Http::from_cookies(&raw, auth_service)?,
             }
-            .whoami()?,
+            .whoami(auth_service)?,
             ServiceId::Yukicoder => YukicoderBackend {
                 http: Http::from_cookies(&raw, auth_service)?,
             }
-            .whoami()?,
-            ServiceId::Oj(_) => todo!(),
+            .whoami(auth_service)?,
+            ServiceId::Oj(_) => OjBackend {
+                cookie_dir: paths.cookies.clone(),
+                cookie_override: Some(raw.clone()),
+            }
+            .whoami(auth_service)?,
             ServiceId::AtcoderProblems => unreachable!(),
             #[cfg(feature = "mock")]
             ServiceId::Mock => mock::MockBackend {
                 cookies: cookie_jar(&raw, "mock.local")?,
             }
-            .whoami()?,
+            .whoami(auth_service)?,
         };
         crate::platform::private_directory(&paths.cookies)?;
         let mut staging = tempfile::NamedTempFile::new_in(&paths.cookies)?;
@@ -152,7 +166,7 @@ impl Services {
         }
         staging.write_all(&raw)?;
         staging.as_file().sync_all()?;
-        staging.persist(paths.cookies.join(format!("{}.txt", auth_service.to_string())))?;
+        staging.persist(paths.cookies.join(format!("{}.txt", auth_service.id())))?;
         tracing::info!("Logged in to {} as {user}", auth_service.to_string());
         Ok(())
     }

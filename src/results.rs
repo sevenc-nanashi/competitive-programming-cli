@@ -213,7 +213,9 @@ fn monitor(
             }
         };
         while request_rx.recv().is_ok() {
-            let result = services.backend(&scope.service()).submissions(&scope, limit);
+            let result = services
+                .backend(&scope.service())
+                .submissions(&scope, limit);
             if update_tx.send(result).is_err() {
                 break;
             }

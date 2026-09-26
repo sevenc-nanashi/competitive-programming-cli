@@ -122,29 +122,18 @@ impl YukicoderBackend {
 }
 
 impl ServiceBackend for YukicoderBackend {
-    fn service(&self) -> ServiceId {
-        ServiceId::Yukicoder
-    }
-    fn auth_service(&self) -> ServiceId {
-        ServiceId::Yukicoder
-    }
-
-    fn whoami(&self) -> Result<(String, Url)> {
+    fn whoami(&self, _service: &ServiceId) -> Result<(String, Url)> {
         let (_, document) = self.http.get(&Url::parse("https://yukicoder.me/")?)?;
         Self::authenticated(&document)
     }
 
     fn resolve_url(&self, url: &Url) -> Result<ResourceRef> {
-        ensure!(
-            ServiceId::from_url(url)? == self.service(),
-            "Expected a yukicoder URL"
-        );
         let parts: Vec<_> = url.path().trim_matches('/').split('/').collect();
         match parts.as_slice() {
             ["problems", "no", number] => {
                 let number: u64 = number.parse().context("Invalid yukicoder problem number")?;
                 Ok(ResourceRef::Problem(ProblemRef {
-                    service: self.service(),
+                    service: ServiceId::Yukicoder,
                     id: number.to_string(),
                     url: Url::parse(&format!("https://yukicoder.me/problems/no/{number}"))?,
                     contest_id: None,
@@ -157,7 +146,7 @@ impl ServiceBackend for YukicoderBackend {
             ["contests", id] => {
                 let id: u64 = id.parse().context("Invalid yukicoder contest ID")?;
                 Ok(ResourceRef::Contest(ContestRef {
-                    service: self.service(),
+                    service: ServiceId::Yukicoder,
                     id: id.to_string(),
                     url: Url::parse(&format!("https://yukicoder.me/contests/{id}"))?,
                 }))
@@ -314,7 +303,7 @@ mod tests {
     #[test]
     fn problem_numbers_and_submission_pages() {
         let backend = YukicoderBackend {
-            http: Http::from_cookies(&[], ServiceId::Yukicoder).unwrap(),
+            http: Http::from_cookies(&[], &ServiceId::Yukicoder).unwrap(),
         };
         let data: ApiProblem =
             serde_json::from_str(r#"{"No":1586,"ProblemId":6690,"Title":"Problem"}"#).unwrap();

@@ -18,7 +18,7 @@ impl std::fmt::Display for ServiceId {
             Self::Atcoder => write!(f, "atcoder"),
             Self::AtcoderProblems => write!(f, "atcoder-problems"),
             Self::Yukicoder => write!(f, "yukicoder"),
-            Self::Oj(name) => write!(f, "oj+{name}"),
+            Self::Oj(host) => write!(f, "oj+{host}"),
             #[cfg(feature = "mock")]
             Self::Mock => write!(f, "mock"),
         }
@@ -83,6 +83,28 @@ impl ServiceId {
             // TODO: Add list of `oj` services?
             Some(host) => Ok(Self::Oj(host.to_string())),
             None => bail!("Unsupported judge URL: {url}"),
+        }
+    }
+
+    pub fn service_root(&self) -> String {
+        match self {
+            Self::Atcoder => "https://atcoder.jp".to_string(),
+            Self::AtcoderProblems => "https://kenkoooo.com/atcoder".to_string(),
+            Self::Yukicoder => "https://yukicoder.me".to_string(),
+            Self::Oj(host) => format!("https://{host}"),
+            #[cfg(feature = "mock")]
+            Self::Mock => "https://mock.local".to_string(),
+        }
+    }
+
+    pub fn id(&self) -> String {
+        match self {
+            Self::Atcoder => "atcoder".to_string(),
+            Self::AtcoderProblems => "atcoder-problems".to_string(),
+            Self::Yukicoder => "yukicoder".to_string(),
+            Self::Oj(host) => format!("oj+{}", host.replace(".", "--").replace("/", "---")),
+            #[cfg(feature = "mock")]
+            Self::Mock => "mock".to_string(),
         }
     }
 }

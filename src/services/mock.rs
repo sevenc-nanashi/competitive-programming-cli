@@ -96,13 +96,7 @@ impl MockBackend {
 }
 
 impl ServiceBackend for MockBackend {
-    fn service(&self) -> ServiceId {
-        ServiceId::Mock
-    }
-    fn auth_service(&self) -> ServiceId {
-        ServiceId::Mock
-    }
-    fn whoami(&self) -> Result<(String, Url)> {
+    fn whoami(&self, _service: &ServiceId) -> Result<(String, Url)> {
         let user = self.authenticated()?.user;
         let mut url = Url::parse("https://mock.local/users/")?;
         url.path_segments_mut()
@@ -113,17 +107,13 @@ impl ServiceBackend for MockBackend {
     }
 
     fn resolve_url(&self, url: &Url) -> Result<ResourceRef> {
-        ensure!(
-            ServiceId::from_url(url)? == self.service(),
-            "Expected a mock URL"
-        );
         let parts: Vec<_> = url.path().trim_matches('/').split('/').collect();
         match parts.as_slice() {
             ["problems", id] => Ok(ResourceRef::Problem(Self::problem(id)?)),
             ["contests", id] => {
                 safe_id(id)?;
                 Ok(ResourceRef::Contest(ContestRef {
-                    service: self.service(),
+                    service: ServiceId::Mock,
                     id: (*id).into(),
                     url: url.clone(),
                 }))
