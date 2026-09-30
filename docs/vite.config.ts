@@ -16,8 +16,9 @@ export default defineConfig({
       mdx: true,
       transformers: [asciinema],
       ssg: {
+        markdownSource: true,
         siteName: "cpg",
-        siteUrl: `https://sevenc-nanashi.github.io${base}`,
+        siteUrl: `https://sevenc7c.com${base}`,
         theme: defineTheme({
           sidebar: [
             { text: "Introduction", link: "/index.md" },
