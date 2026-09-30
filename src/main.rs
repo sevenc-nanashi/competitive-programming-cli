@@ -1,6 +1,3 @@
-#[cfg(not(any(target_os = "linux", target_os = "macos", windows)))]
-compile_error!("cpg supports Linux, macOS, and Windows");
-
 mod cli;
 mod config;
 mod log_writer;
@@ -14,7 +11,7 @@ mod workspace;
 use anyhow::{Context, Result, bail, ensure};
 use cli::{Cli, Commands, ConfigField, ListMode};
 use config::{Config, Paths, expand_path};
-use model::{Metadata, ServiceId, SubmissionRequest};
+use model::{Metadata, SubmissionRequest};
 use services::Services;
 use std::{
     fs,
