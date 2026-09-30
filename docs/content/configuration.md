@@ -49,6 +49,7 @@ cpg config
 # Workspace root: /home/your-name/competitive-programming
 # Configuration directory: /home/your-name/.config/cpg
 # Cookies directory: /home/your-name/.local/share/cpg/cookies
+# oj virtual environment directory: /home/your-name/.local/state/cpg/oj-venv
 # Workspace template directory: /home/your-name/.config/cpg/workspace_template
 # Problem template directory: /home/your-name/.config/cpg/problem_template
 # Contest template directory: /home/your-name/.config/cpg/contest_template
@@ -60,6 +61,7 @@ cpg config --root
 # Or print only one of the other directories
 cpg config --config-dir
 cpg config --cookies-dir
+cpg config --oj-venv-dir
 cpg config --workspace-template-dir
 cpg config --problem-template-dir
 cpg config --contest-template-dir
@@ -68,6 +70,8 @@ cpg config --single-problem-template-dir
 
 Paths are absolute and reflect the environment overrides above and in
 [Login](#login). These commands do not create directories or modify settings.
+The oj virtual environment directory follows `XDG_STATE_HOME`, defaulting to
+`~/.local/state/cpg/oj-venv`.
 The flags are mutually exclusive. The full display and `--root` require a
 configured root; run `cpg init` or set `root` first. All directory flags also work
 before initialization. Template directories are located within the configuration
@@ -239,6 +243,33 @@ remove the temporary workspace.
 
 You would want to set `bundle install` or `git clone https://github.com/atcoder/ac-library.git` in the workspace template,
 for example.
+
+## Experimental oj support
+
+URLs outside the native AtCoder, AtCoder Problems, and yukicoder backends are
+automatically passed to a [fork of online-judge-api-client](https://github.com/sevenc-nanashi/online-judge-tools-api-client).
+Supported URLs and operations depend on that client and the judge. For example:
+
+```bash
+cpg prepare https://codeforces.com/contest/2226
+cpg download https://codeforces.com/contest/2226/problem/A
+```
+
+Install `uv` and make it available on `PATH`. On first use, cpg creates
+`$XDG_STATE_HOME/cpg/oj-venv`, defaulting to `~/.local/state/cpg/oj-venv`, and
+installs its pinned API client. Print its location with `cpg config --oj-venv-dir`;
+this only prints the path and does not create the environment.
+
+These judges use service IDs such as `oj+codeforces.com`. Workspaces are stored
+under that service name. Cookie import uses the same service ID:
+
+```bash
+cpg login oj+codeforces.com --cookie-file /path/to/cookies.txt
+```
+
+This backend is experimental. Login verification and submission may fail or be
+unsupported for a judge, and `cpg results` is not supported. Downloading a contest
+can be slower than with native backends.
 
 ## Login
 

@@ -6,7 +6,10 @@ I've used them for a long time, but wanted a more integrated workflow for managi
 
 ## What changes with cpg
 
-- Runs as a native Rust executable without a Python runtime. Your solution's compiler or interpreter is still needed.
+- Runs as a native Rust executable. Native judge backends do not require Python;
+  the [experimental oj backend](./configuration.md#experimental-oj-support) uses
+  `uv` and a managed Python virtual environment. Your solution's compiler or
+  interpreter is still needed.
 - Places problems and contests under a configured root, so you can download without choosing a directory each time.
 - Prefixes contest problem directories with indexes so they sort in contest order.
 - Shares workspace templates between standalone problems and contests.

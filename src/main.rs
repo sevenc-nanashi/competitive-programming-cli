@@ -43,6 +43,7 @@ fn run(cli: Cli, interrupted: &AtomicBool) -> Result<bool> {
                         ConfigField::Root => Config::load(&paths)?.root()?,
                         ConfigField::ConfigDir => config_dir,
                         ConfigField::CookiesDir => std::path::absolute(&paths.cookies)?,
+                        ConfigField::OjVenvDir => std::path::absolute(&paths.oj_venv)?,
                         ConfigField::WorkspaceTemplateDir => config_dir.join("workspace_template"),
                         ConfigField::ProblemTemplateDir => config_dir.join("problem_template"),
                         ConfigField::ContestTemplateDir => config_dir.join("contest_template"),
@@ -58,6 +59,10 @@ fn run(cli: Cli, interrupted: &AtomicBool) -> Result<bool> {
                         ("Workspace root:", Config::load(&paths)?.root()?),
                         ("Configuration directory:", config_dir.clone()),
                         ("Cookies directory:", std::path::absolute(&paths.cookies)?),
+                        (
+                            "oj virtual environment directory:",
+                            std::path::absolute(&paths.oj_venv)?,
+                        ),
                         (
                             "Workspace template directory:",
                             config_dir.join("workspace_template"),

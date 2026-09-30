@@ -30,6 +30,17 @@ You can install those binaries manually or using package managers like `mise`.
 mise use -g github:sevenc-nanashi/competitive-programming-cli
 ```
 
+## Experimental oj backend
+
+For judges without a native backend, install `uv` and make it available on `PATH`.
+On first use, cpg runs `uv venv` and installs its pinned fork of
+online-judge-api-client. This requires network access; `uv` can download a Python
+interpreter if needed. AtCoder, AtCoder Problems, and yukicoder use native backends
+and do not require Python or `uv`.
+
+See [experimental oj support](./configuration.md#experimental-oj-support) for
+usage, virtual environment paths, and limitations.
+
 ## Windows
 
 Configuration commands, including setup and language commands, run through

@@ -23,7 +23,7 @@ pub enum Commands {
     Completion(Completion),
     /// Initialize configuration and template directories interactively.
     Init(Init),
-    /// Show the workspace root and configuration, cookies, and template directories.
+    /// Show configuration information.
     Config(Config),
     /// Import a Netscape cookie file or inspect the saved session.
     Login(Login),
@@ -83,6 +83,8 @@ pub enum ConfigField {
     ConfigDir,
     /// Print only the absolute cookies directory.
     CookiesDir,
+    /// Print only the absolute oj virtual environment directory.
+    OjVenvDir,
     /// Print only the absolute workspace template directory.
     WorkspaceTemplateDir,
     /// Print only the absolute problem template directory.
