@@ -240,12 +240,12 @@ pub fn prepare(
     ensure!(!interrupted.load(Ordering::Relaxed), "Interrupted");
     let root = config.root()?;
     let (service, category, id) = match &resource {
-        ResourceRef::Problem(p) => (p.service, "problems", &p.id),
-        ResourceRef::Contest(c) => (c.service, "contests", &c.id),
+        ResourceRef::Problem(p) => (&p.service, "problems", &p.id),
+        ResourceRef::Contest(c) => (&c.service, "contests", &c.id),
     };
-    let parent = root.join(service.as_str()).join(category);
+    let parent = root.join(service.to_string()).join(category);
     let destination = parent.join(safe_id(id)?);
-    let _span = tracing::info_span!("prepare", service = service.as_str(), id).entered();
+    let _span = tracing::info_span!("prepare", service = service.to_string(), id).entered();
     ensure!(
         !destination.try_exists()?,
         "Destination already exists: {}",
@@ -262,14 +262,14 @@ pub fn prepare(
                 paths,
                 config,
                 staging.path(),
-                services.backend(p.service).fetch_problem(&p)?,
+                services.backend(&p.service).fetch_problem(&p)?,
                 true,
                 interrupted,
             )?;
         }
         ResourceRef::Contest(c) => {
             tracing::info!("Fetching contest {}...", c.url);
-            let contest = services.backend(c.service).fetch_contest(&c)?;
+            let contest = services.backend(&c.service).fetch_contest(&c)?;
             tracing::info!(
                 "Preparing {} problem(s) from {}...",
                 contest.problems.len(),
@@ -311,7 +311,7 @@ pub fn prepare(
                     paths,
                     config,
                     &destination,
-                    services.backend(p.service).fetch_problem(p)?,
+                    services.backend(&p.service).fetch_problem(p)?,
                     false,
                     interrupted,
                 )?;

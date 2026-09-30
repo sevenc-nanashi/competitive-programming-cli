@@ -30,21 +30,11 @@ struct ProblemData {
 }
 
 impl ServiceBackend for AtCoderProblemsBackend {
-    fn service(&self) -> ServiceId {
-        ServiceId::AtcoderProblems
-    }
-    fn auth_service(&self) -> ServiceId {
-        self.atcoder.auth_service()
-    }
-    fn whoami(&self) -> Result<(String, Url)> {
-        self.atcoder.whoami()
+    fn whoami(&self, _service: &ServiceId) -> Result<(String, Url)> {
+        self.atcoder.whoami(&ServiceId::Atcoder)
     }
 
     fn resolve_url(&self, url: &Url) -> Result<ResourceRef> {
-        ensure!(
-            ServiceId::from_url(url)? == self.service(),
-            "Expected an AtCoder Problems URL"
-        );
         ensure!(
             url.path().trim_end_matches('/') == "/atcoder",
             "Unrecognized AtCoder Problems URL"
@@ -58,7 +48,7 @@ impl ServiceBackend for AtCoderProblemsBackend {
         };
         ensure!(!id.is_empty(), "Missing virtual contest ID");
         Ok(ResourceRef::Contest(ContestRef {
-            service: self.service(),
+            service: ServiceId::AtcoderProblems,
             id: (*id).into(),
             url: url.clone(),
         }))

@@ -1,6 +1,3 @@
-#[cfg(not(any(target_os = "linux", target_os = "macos", windows)))]
-compile_error!("cpg supports Linux, macOS, and Windows");
-
 mod cli;
 mod config;
 mod log_writer;
@@ -14,7 +11,7 @@ mod workspace;
 use anyhow::{Context, Result, bail, ensure};
 use cli::{Cli, Commands, ConfigField, ListMode};
 use config::{Config, Paths, expand_path};
-use model::{Metadata, ServiceId, SubmissionRequest};
+use model::{Metadata, SubmissionRequest};
 use services::Services;
 use std::{
     fs,
@@ -46,6 +43,7 @@ fn run(cli: Cli, interrupted: &AtomicBool) -> Result<bool> {
                         ConfigField::Root => Config::load(&paths)?.root()?,
                         ConfigField::ConfigDir => config_dir,
                         ConfigField::CookiesDir => std::path::absolute(&paths.cookies)?,
+                        ConfigField::OjVenvDir => std::path::absolute(&paths.oj_venv)?,
                         ConfigField::WorkspaceTemplateDir => config_dir.join("workspace_template"),
                         ConfigField::ProblemTemplateDir => config_dir.join("problem_template"),
                         ConfigField::ContestTemplateDir => config_dir.join("contest_template"),
@@ -61,6 +59,10 @@ fn run(cli: Cli, interrupted: &AtomicBool) -> Result<bool> {
                         ("Workspace root:", Config::load(&paths)?.root()?),
                         ("Configuration directory:", config_dir.clone()),
                         ("Cookies directory:", std::path::absolute(&paths.cookies)?),
+                        (
+                            "oj virtual environment directory:",
+                            std::path::absolute(&paths.oj_venv)?,
+                        ),
                         (
                             "Workspace template directory:",
                             config_dir.join("workspace_template"),
@@ -85,12 +87,14 @@ fn run(cli: Cli, interrupted: &AtomicBool) -> Result<bool> {
         }
         Commands::Login(args) => {
             if args.info {
-                let (user, url) = Services::new(&paths)?.backend(args.service).whoami()?;
+                let (user, url) = Services::new(&paths)?
+                    .backend(&args.service)
+                    .whoami(&args.service)?;
                 println!("{user}\n{url}");
             } else {
                 Services::login(
                     &paths,
-                    args.service,
+                    &args.service,
                     &args.cookie_file.expect("required unless --info"),
                 )?;
             }
@@ -104,7 +108,6 @@ fn run(cli: Cli, interrupted: &AtomicBool) -> Result<bool> {
                 Metadata::Problem { reference, .. } => reference.url,
                 Metadata::Contest(contest) => contest.reference.url,
             };
-            ServiceId::from_url(&url)?;
             ensure!(!interrupted.load(Ordering::Relaxed), "Interrupted");
             if args.url_only {
                 println!("{url}");
@@ -132,7 +135,7 @@ fn run(cli: Cli, interrupted: &AtomicBool) -> Result<bool> {
             tracing::info!("Downloading problem {}...", problem.url);
             workspace::write_samples(
                 &directory,
-                &services.backend(problem.service).fetch_problem(&problem)?,
+                &services.backend(&problem.service).fetch_problem(&problem)?,
                 false,
                 interrupted,
             )?;
@@ -239,25 +242,22 @@ fn submit(
             Metadata::Contest(_) => bail!("Specify a problem directory or --problem URL"),
         },
     };
-    let backend = services.backend(problem.service);
+    let backend = services.backend(&problem.service);
     tracing::info!("Submission target: {}", problem.url);
     let language = match args.language {
         Some(language) => Some(language),
         None => configured_language
-            .and_then(|language| language.submit.get(backend.auth_service().as_str()))
+            .and_then(|language| language.submit.get(&problem.service.to_string()))
             .cloned(),
     };
-    tracing::info!(
-        "Fetching submission languages from {}...",
-        backend.auth_service().as_str()
-    );
+    tracing::info!("Fetching submission languages from {}...", problem.service);
     let languages = backend.languages(&problem)?;
     let Some(language) =
         language.and_then(|id| languages.iter().find(|language| language.id == id))
     else {
         tracing::error!(
             "Choose a submission language using --language or language.<name>.submit.{}:",
-            backend.auth_service().as_str()
+            problem.service
         );
         for language in languages {
             tracing::info!("{}\t{}", language.id, language.name);

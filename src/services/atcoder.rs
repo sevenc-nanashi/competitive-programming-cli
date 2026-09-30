@@ -53,14 +53,7 @@ impl AtCoderBackend {
 }
 
 impl ServiceBackend for AtCoderBackend {
-    fn service(&self) -> ServiceId {
-        ServiceId::Atcoder
-    }
-    fn auth_service(&self) -> ServiceId {
-        ServiceId::Atcoder
-    }
-
-    fn whoami(&self) -> Result<(String, Url)> {
+    fn whoami(&self, _service: &ServiceId) -> Result<(String, Url)> {
         let (url, document) = self.http.get(&Url::parse("https://atcoder.jp/settings")?)?;
         ensure!(
             url.path().starts_with("/settings"),
@@ -70,17 +63,13 @@ impl ServiceBackend for AtCoderBackend {
     }
 
     fn resolve_url(&self, url: &Url) -> Result<ResourceRef> {
-        ensure!(
-            ServiceId::from_url(url)? == self.service(),
-            "Expected an AtCoder URL"
-        );
         let segments: Vec<_> = url.path().trim_matches('/').split('/').collect();
         match segments.as_slice() {
             ["contests", contest, "tasks", problem]
                 if !contest.is_empty() && !problem.is_empty() =>
             {
                 Ok(ResourceRef::Problem(ProblemRef {
-                    service: self.service(),
+                    service: ServiceId::Atcoder,
                     id: (*problem).into(),
                     url: Url::parse(&format!(
                         "https://atcoder.jp/contests/{contest}/tasks/{problem}"
@@ -91,7 +80,7 @@ impl ServiceBackend for AtCoderBackend {
             }
             ["contests", contest] | ["contests", contest, "tasks"] if !contest.is_empty() => {
                 Ok(ResourceRef::Contest(ContestRef {
-                    service: self.service(),
+                    service: ServiceId::Atcoder,
                     id: (*contest).into(),
                     url: Url::parse(&format!("https://atcoder.jp/contests/{contest}"))?,
                 }))
