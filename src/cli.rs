@@ -222,7 +222,13 @@ pub struct Test {
     #[usage(flatten)]
     pub program: ProgramArgs,
     /// Show case input, expected output, and actual output (or interactive transcript).
-    #[usage(long, value_enum, default = "failure", short = 'v', default_if("--input-path", "-", "always"))]
+    #[usage(
+        long,
+        value_enum,
+        default = "failure",
+        short = 'v',
+        default_if("--input-path", "-", "always")
+    )]
     pub show_io: ShowIo,
     /// I/O layout; interactive outputs shows judge and solution side by side; all is unavailable.
     #[usage(long, short = 'p', value_enum, default = "none")]

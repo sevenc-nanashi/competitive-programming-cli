@@ -49,7 +49,7 @@ cpg config
 # Workspace root: /home/your-name/competitive-programming
 # Configuration directory: /home/your-name/.config/cpg
 # Cookies directory: /home/your-name/.local/share/cpg/cookies
-# oj virtual environment directory: /home/your-name/.local/state/cpg/oj-venv
+# oj virtual environment directory: /home/your-name/.local/share/cpg/oj-venv
 # Workspace template directory: /home/your-name/.config/cpg/workspace_template
 # Problem template directory: /home/your-name/.config/cpg/problem_template
 # Contest template directory: /home/your-name/.config/cpg/contest_template
@@ -70,8 +70,8 @@ cpg config --single-problem-template-dir
 
 Paths are absolute and reflect the environment overrides above and in
 [Login](#login). These commands do not create directories or modify settings.
-The oj virtual environment directory follows `XDG_STATE_HOME`, defaulting to
-`~/.local/state/cpg/oj-venv`.
+The oj virtual environment directory follows `XDG_DATA_HOME`, defaulting to
+`~/.local/share/cpg/oj-venv`.
 The flags are mutually exclusive. The full display and `--root` require a
 configured root; run `cpg init` or set `root` first. All directory flags also work
 before initialization. Template directories are located within the configuration
@@ -256,7 +256,7 @@ cpg download https://codeforces.com/contest/2226/problem/A
 ```
 
 Install `uv` and make it available on `PATH`. On first use, cpg creates
-`$XDG_STATE_HOME/cpg/oj-venv`, defaulting to `~/.local/state/cpg/oj-venv`, and
+`$XDG_DATA_HOME/cpg/oj-venv`, defaulting to `~/.local/share/cpg/oj-venv`, and
 installs its pinned API client. Print its location with `cpg config --oj-venv-dir`;
 this only prints the path and does not create the environment.
 

@@ -63,7 +63,7 @@ impl Paths {
     pub fn discover() -> Result<Self> {
         Ok(Self {
             config: directory("CPG_CONFIG_HOME", "XDG_CONFIG_HOME", ".config", "cpg")?,
-            oj_venv: xdg_directory("XDG_STATE_HOME", ".local/state", "cpg/oj-venv")?,
+            oj_venv: xdg_directory("XDG_DATA_HOME", ".local/share", "cpg/oj-venv")?,
             cookies: directory(
                 "CPG_COOKIES_HOME",
                 "XDG_DATA_HOME",

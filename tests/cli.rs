@@ -16,7 +16,7 @@ fn command(directory: &TempDir) -> Command {
         .env("HOME", directory.path())
         .env("CARGO_MANIFEST_DIR", directory.path())
         .env("CPG_LOG", "")
-        .env("XDG_STATE_HOME", directory.path().join(".local/state"))
+        .env("XDG_DATA_HOME", directory.path().join(".local/share"))
         .env("CPG_CONFIG_HOME", "~/config")
         .env("CPG_COOKIES_HOME", "~/cookies");
     command
@@ -674,7 +674,7 @@ fn configuration_paths() {
     for (flag, path) in [
         ("--config-dir", "config"),
         ("--cookies-dir", "cookies"),
-        ("--oj-venv-dir", ".local/state/cpg/oj-venv"),
+        ("--oj-venv-dir", ".local/share/cpg/oj-venv"),
         ("--workspace-template-dir", "config/workspace_template"),
         ("--problem-template-dir", "config/problem_template"),
         ("--contest-template-dir", "config/contest_template"),
@@ -714,7 +714,7 @@ fn configuration_paths() {
                 root.display(),
                 directory.path().join("config").display(),
                 directory.path().join("cookies").display(),
-                directory.path().join(".local/state/cpg/oj-venv").display(),
+                directory.path().join(".local/share/cpg/oj-venv").display(),
                 directory.path().join("config/workspace_template").display(),
                 directory.path().join("config/problem_template").display(),
                 directory.path().join("config/contest_template").display(),
