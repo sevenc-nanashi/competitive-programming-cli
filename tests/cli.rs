@@ -2137,6 +2137,24 @@ run = "{binary}"
 
 #[test]
 fn limits_interactive_and_cleanup() {
+    fn assert_stopped(pid: i32) {
+        let started = Instant::now();
+        // SIGKILL is asynchronous; waiting for the shell does not wait for its descendants.
+        loop {
+            match procfs::process::Process::new(pid).and_then(|p| p.stat()) {
+                Ok(stat) if stat.state == 'Z' => return,
+                Err(procfs::ProcError::NotFound(_)) => return,
+                Ok(_) => {}
+                Err(error) => panic!("{error}"),
+            }
+            assert!(
+                started.elapsed() < Duration::from_secs(5),
+                "child {pid} is still running"
+            );
+            thread::sleep(Duration::from_millis(10));
+        }
+    }
+
     let directory = tempfile::tempdir().unwrap();
     case(&directory, b"", b"");
     fs::remove_file(directory.path().join("test/sample-1.out")).unwrap();
@@ -2159,12 +2177,7 @@ fn limits_interactive_and_cleanup() {
         .trim()
         .parse()
         .unwrap();
-    let stopped = match procfs::process::Process::new(pid).and_then(|p| p.stat()) {
-        Ok(stat) => stat.state == 'Z',
-        Err(procfs::ProcError::NotFound(_)) => true,
-        Err(error) => panic!("{error}"),
-    };
-    assert!(stopped, "child {pid} is still running");
+    assert_stopped(pid);
     let output = run(
         &directory,
         &[
@@ -2298,13 +2311,7 @@ fn limits_interactive_and_cleanup() {
         let pids = fs::read_to_string(directory.path().join("children.pid")).unwrap();
         assert_eq!(pids.lines().count(), 2);
         for pid in pids.lines() {
-            let pid: i32 = pid.parse().unwrap();
-            let stopped = match procfs::process::Process::new(pid).and_then(|p| p.stat()) {
-                Ok(stat) => stat.state == 'Z',
-                Err(procfs::ProcError::NotFound(_)) => true,
-                Err(error) => panic!("{error}"),
-            };
-            assert!(stopped, "child {pid} is still running");
+            assert_stopped(pid.parse().unwrap());
         }
     }
     assert_eq!(
