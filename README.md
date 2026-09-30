@@ -23,6 +23,7 @@ Currently supported online judges:
 - AtCoder
 - AtCoder Problems (Virtual Contests)
 - Yukicoder
+- **Experimental**: other online judges via [oj (using my fork)](https://github.com/https://github.com/sevenc-nanashi/online-judge-tools-api-client)
 
 cpg supports Linux, macOS, and Windows. Building requires Rust 1.91 or newer.
 Configuration commands use `sh` on Linux/macOS and `cmd` on Windows.

@@ -70,6 +70,8 @@ impl Services {
             http: Http::from_cookies(&load_cookies(&ServiceId::Yukicoder)?, &ServiceId::Yukicoder)?,
         };
         let oj = OjBackend {
+            fetch_cache: Mutex::default(),
+            venv_dir: paths.oj_venv.clone(),
             cookie_dir: paths.cookies.clone(),
             cookie_override: None,
         };
@@ -144,6 +146,8 @@ impl Services {
             }
             .whoami(auth_service)?,
             ServiceId::Oj(_) => OjBackend {
+                fetch_cache: Mutex::default(),
+                venv_dir: paths.oj_venv.clone(),
                 cookie_dir: paths.cookies.clone(),
                 cookie_override: Some(raw.clone()),
             }

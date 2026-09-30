@@ -26,6 +26,7 @@ const SCHEMA_URL: &str = concat!(
 pub struct Paths {
     pub config: PathBuf,
     pub cookies: PathBuf,
+    pub oj_venv: PathBuf,
 }
 
 pub fn expand_path(path: impl AsRef<Path>) -> Result<PathBuf> {
@@ -62,6 +63,7 @@ impl Paths {
     pub fn discover() -> Result<Self> {
         Ok(Self {
             config: directory("CPG_CONFIG_HOME", "XDG_CONFIG_HOME", ".config", "cpg")?,
+            oj_venv: xdg_directory("XDG_STATE_HOME", ".local/state", "cpg/oj-venv")?,
             cookies: directory(
                 "CPG_COOKIES_HOME",
                 "XDG_DATA_HOME",
@@ -571,6 +573,7 @@ mod tests {
         let paths = Paths {
             config: directory.path().to_owned(),
             cookies: directory.path().join("cookies"),
+            oj_venv: directory.path().join("oj-venv"),
         };
         let base_path = paths.config.join("config.toml");
         let local_path = paths.config.join("config.local.toml");

@@ -1,4 +1,4 @@
-use std::io::Write as _;
+use std::{collections::HashMap, io::Write as _, sync::Mutex};
 
 use super::ServiceBackend;
 use crate::model::*;
@@ -226,12 +226,61 @@ struct OjApiResponse<T> {
 }
 
 pub(super) struct OjBackend {
+    pub fetch_cache: Mutex<HashMap<Vec<String>, serde_json::Value>>,
+    pub venv_dir: std::path::PathBuf,
     pub cookie_dir: std::path::PathBuf,
     pub cookie_override: Option<Vec<u8>>,
 }
 
 impl OjBackend {
     fn call_oj_api<T: for<'de> Deserialize<'de>>(&self, host: &str, args: &[&str]) -> Result<T> {
+        let cache_key = matches!(args.first(), Some(&"get-problem" | &"get-contest"))
+            .then(|| args.iter().map(|arg| arg.to_string()).collect::<Vec<_>>());
+        if let Some(key) = &cache_key
+            && let Some(result) = self
+                .fetch_cache
+                .lock()
+                .expect("oj fetch cache lock poisoned")
+                .get(key)
+                .cloned()
+        {
+            return serde_json::from_value(result)
+                .context("Failed to parse cached `oj-api` result");
+        }
+        // TODO: Support non-uv python setup, or download Python interpreter
+        let venv_exists = self.venv_dir.join("pyvenv.cfg").try_exists()?;
+        if !venv_exists {
+            let status = std::process::Command::new("uv")
+                .arg("venv")
+                .arg(&self.venv_dir)
+                .status()
+                .context("Failed to run `uv venv`; Make sure `uv` is installed")?;
+            anyhow::ensure!(status.success(), "Failed to create oj virtual environment");
+        }
+        let python = self.venv_dir.join(if cfg!(windows) {
+            "Scripts/python.exe"
+        } else {
+            "bin/python"
+        });
+        let dependency_file = self.venv_dir.join("dependency-url.txt");
+        let needs_install = !venv_exists
+            || match std::fs::read_to_string(&dependency_file) {
+                Ok(url) => url != OJ_DEPENDENCY_URL,
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => true,
+                Err(error) => return Err(error).context("Failed to read oj dependency URL"),
+            };
+        if needs_install {
+            let status = std::process::Command::new("uv")
+                .args(["pip", "install", "--python"])
+                .arg(&python)
+                .arg(OJ_DEPENDENCY_URL)
+                .status()
+                .context("Failed to run `uv pip install`")?;
+            anyhow::ensure!(status.success(), "Failed to install oj-api");
+            std::fs::write(&dependency_file, OJ_DEPENDENCY_URL)
+                .context("Failed to save oj dependency URL")?;
+        }
+
         let cookie_bin = if let Some(cookie_override) = &self.cookie_override {
             Some(cookie_override.clone())
         } else {
@@ -270,52 +319,75 @@ impl OjBackend {
             temp_cookie_lwp_path.display()
         );
 
-        let convert_process = std::process::Command::new("uv")
-            .arg("run")
-            .arg("--script")
-            .arg("-")
-            .arg(temp_cookie_netscape_path.to_str().unwrap())
-            .arg(temp_cookie_lwp_path.to_str().unwrap())
-            .stdin(std::process::Stdio::piped())
-            .stdout(std::process::Stdio::inherit())
+        let mut convert_process = std::process::Command::new(&python);
+        convert_process.arg("-");
+        convert_process.arg(temp_cookie_netscape_path.to_str().unwrap());
+        convert_process.arg(temp_cookie_lwp_path.to_str().unwrap());
+        convert_process.stdin(std::process::Stdio::piped());
+        convert_process.stdout(std::process::Stdio::inherit());
+        tracing::debug!(
+            "Running Python to convert cookie file: {:?}",
+            convert_process
+        );
+        let mut convert_process = convert_process
             .spawn()
-            .context("Failed to run `uv` to convert cookie file")?;
-        let mut convert_stdin = convert_process.stdin.as_ref().unwrap();
+            .context("Failed to run Python to convert cookie file")?;
+        let mut convert_stdin = convert_process
+            .stdin
+            .take()
+            .context("Failed to open Python stdin")?;
         convert_stdin
             .write_all(include_bytes!("./mozilla_cookie_to_lwp_cookie.py"))
-            .context("Failed to write to `uv` stdin")?;
+            .context("Failed to write to Python stdin")?;
+        drop(convert_stdin);
         let convert_output = convert_process
             .wait_with_output()
-            .context("Failed to wait for `uv` process")?;
+            .context("Failed to wait for Python process")?;
         if !convert_output.status.success() {
             bail!(
-                "`uv` failed to convert cookie file: {}",
+                "Python failed to convert cookie file: {}",
                 String::from_utf8_lossy(&convert_output.stderr)
             );
         }
 
-        let process = std::process::Command::new("uvx")
-            // NOTE: use my customized fork
-            .arg(format!("--from={OJ_DEPENDENCY_URL}"))
-            .arg("oj-api")
-            .arg(concat!("--user-agent=cpg/", env!("CARGO_PKG_VERSION")))
-            .args(["--cookie", temp_cookie_lwp_path.to_str().unwrap()])
-            .args(args)
+        let mut oj_process = std::process::Command::new(&python);
+        oj_process.args(["-m", "onlinejudge_api.main"]);
+        oj_process.arg(concat!("--user-agent=cpg/", env!("CARGO_PKG_VERSION")));
+        oj_process.args(["--cookie", temp_cookie_lwp_path.to_str().unwrap()]);
+        oj_process.args(args);
+        tracing::debug!("Running `oj-api`: {:?}", oj_process);
+        let oj_process = oj_process
             .output()
-            .context("Failed to run `oj-api`; Make sure `uvx` is installed")?;
-        if !process.status.success() {
+            .context("Failed to run `oj-api` in its virtual environment")?;
+        if !oj_process.status.success() {
             bail!(
                 "`oj-api` failed: {}",
-                String::from_utf8_lossy(&process.stderr)
+                String::from_utf8_lossy(&oj_process.stderr)
             );
         }
-        let output = String::from_utf8(process.stdout).context("`oj-api` output is not UTF-8")?;
-        let response: OjApiResponse<T> =
+        let output =
+            String::from_utf8(oj_process.stdout).context("`oj-api` output is not UTF-8")?;
+        let response: OjApiResponse<serde_json::Value> =
             serde_json::from_str(&output).context("Failed to parse `oj-api` output")?;
         if response.status != "ok" {
             bail!("`oj-api` returned error: {}", response.messages.join("\n"));
         }
-        Ok(response.result)
+        let result = serde_json::from_value(response.result.clone())
+            .context("Failed to parse `oj-api` result")?;
+        if let Some(key) = cache_key {
+            let mut canonical_key = key.clone();
+            *canonical_key.last_mut().expect("fetch URL argument") = response.result["url"]
+                .as_str()
+                .context("`oj-api` returned no resource URL")?
+                .to_owned();
+            let mut cache = self
+                .fetch_cache
+                .lock()
+                .expect("oj fetch cache lock poisoned");
+            cache.insert(canonical_key, response.result.clone());
+            cache.insert(key, response.result);
+        }
+        Ok(result)
     }
 }
 impl ServiceBackend for OjBackend {
@@ -341,34 +413,36 @@ impl ServiceBackend for OjBackend {
     fn resolve_url(&self, url: &Url) -> Result<ResourceRef> {
         let as_problem = self.call_oj_api::<OjProblem>(
             url.host_str().context("URL has no host")?,
-            &["get-problem", "--full", url.as_str()],
+            &["get-problem", url.as_str()],
         );
+        let as_problem_err = match &as_problem {
+            Ok(as_problem) => {
+                return Ok(ResourceRef::Problem(ProblemRef::from(as_problem.clone())));
+            }
+            Err(err) => err,
+        };
         let as_contest = self.call_oj_api::<OjContest>(
             url.host_str().context("URL has no host")?,
-            &["get-contest", "--full", url.as_str()],
+            &["get-contest", url.as_str()],
         );
-        match (as_problem, as_contest) {
-            (Ok(problem), contest) => {
-                if contest.is_ok() {
-                    tracing::warn!("URL is both a problem and a contest; treating as problem");
-                }
-                Ok(ResourceRef::Problem(ProblemRef::from(problem)))
+        let as_contest_err = match &as_contest {
+            Ok(as_contest) => {
+                return Ok(ResourceRef::Contest(ContestRef::from(as_contest.clone())));
             }
-            (Err(_), Ok(contest)) => Ok(ResourceRef::Contest(ContestRef::from(contest))),
-            (Err(problem_err), Err(contest_err)) => {
-                bail!(
-                    "Failed to resolve URL as problem or contest: problem error: {}, contest error: {}",
-                    problem_err,
-                    contest_err
-                );
-            }
-        }
+            Err(err) => err,
+        };
+
+        bail!(
+            "Failed to resolve URL as problem or contest: problem error: {}, contest error: {}",
+            as_problem_err,
+            as_contest_err
+        );
     }
 
     fn fetch_problem(&self, problem: &ProblemRef) -> Result<Problem> {
         let oj_problem = self.call_oj_api::<OjProblem>(
             problem.url.host_str().context("Problem URL has no host")?,
-            &["get-problem", "--full", problem.url.as_str()],
+            &["get-problem", problem.url.as_str()],
         )?;
         Ok(Problem::from(oj_problem))
     }
@@ -376,7 +450,7 @@ impl ServiceBackend for OjBackend {
     fn fetch_contest(&self, contest: &ContestRef) -> Result<Contest> {
         let oj_contest = self.call_oj_api::<OjContest>(
             contest.url.host_str().context("Contest URL has no host")?,
-            &["get-contest", "--full", contest.url.as_str()],
+            &["get-contest", contest.url.as_str()],
         )?;
         Ok(Contest::from(oj_contest))
     }
