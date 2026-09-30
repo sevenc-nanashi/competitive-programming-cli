@@ -1580,6 +1580,7 @@ fn test_case(
 pub fn test(config: &Config, options: &Test, interrupted: &AtomicBool) -> Result<bool> {
     let stdin = options.input_path.as_deref() == Some(Path::new("-"));
     let manual = stdin && options.interactive;
+    static EOF_SEQUENCE: &str = if cfg!(windows) { "Ctrl+Z" } else { "Ctrl+D" };
     ensure!(
         !options.interactive || manual || options.judge.is_some(),
         "Interactive tests require --judge unless --input-path - is given"
@@ -1601,6 +1602,7 @@ pub fn test(config: &Config, options: &Test, interrupted: &AtomicBool) -> Result
             .transpose()?,
     };
     if manual {
+        tracing::info!("Waiting for your input; {EOF_SEQUENCE} to finish...");
         let mut solution = ManagedChild::spawn(&program, Stdio::piped(), Stdio::inherit())?;
         let solution_in = solution.child.stdin().take().expect("piped stdin");
         // Relay from the foreground process so terminal reads do not stop the child group.
@@ -1632,6 +1634,7 @@ pub fn test(config: &Config, options: &Test, interrupted: &AtomicBool) -> Result
     };
     let cases = match (&options.input_path, &stdin_directory) {
         (_, Some(directory)) => {
+            tracing::info!("Waiting for your input; {EOF_SEQUENCE} to finish...");
             let input = directory.path().join("stdin.in");
             io::copy(&mut io::stdin().lock(), &mut File::create(&input)?)?;
             vec![input]
