@@ -88,9 +88,9 @@ cpg test -I - -i ./solution.cpp
 Use `--show-io` to choose when to display each case's input, expected output
 (when available), and actual output:
 
-- `always`: show I/O for every case.
-- `failure` (default): show I/O only for failed cases, including `WA`, `RE`, `TLE`, and `MLE`.
-- `never`: hide I/O details.
+- `always` (`a`): show I/O for every case.
+- `failure` (`f`, default): show I/O only for failed cases, including `WA`, `RE`, `TLE`, and `MLE`.
+- `never` (`n`): hide I/O details.
 
 Verdicts and the summary are always shown. Standard error from the solution
 and judge is still streamed directly.

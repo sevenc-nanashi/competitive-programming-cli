@@ -171,20 +171,26 @@ pub struct ProgramArgs {
 pub enum FloatErrorType {
     /// Accept when either absolute or relative error is within the tolerance.
     #[default]
+    #[usage(visible_alias = "b")]
     Both,
     /// Compare the absolute difference between expected and actual values.
+    #[usage(visible_alias = "a")]
     Absolute,
     /// Compare relative to the expected value; an expected zero requires zero.
+    #[usage(visible_alias = "r")]
     Relative,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, usage::ValueEnum)]
 pub enum ShowIo {
     /// Show I/O for every test case.
+    #[usage(visible_alias = "a")]
     Always,
     /// Show I/O only for failed test cases.
+    #[usage(visible_alias = "f")]
     Failure,
     /// Hide test case I/O.
+    #[usage(visible_alias = "n")]
     Never,
 }
 
@@ -204,8 +210,10 @@ pub enum Panes {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, usage::ValueEnum)]
 pub enum Highlight {
     /// Highlight differing lines.
+    #[usage(visible_alias = "l")]
     Line,
     /// Highlight differing whitespace-separated words.
+    #[usage(visible_alias = "w")]
     Word,
 }
 
