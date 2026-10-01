@@ -7,7 +7,7 @@ use serde::Deserialize;
 use url::Url;
 
 static OJ_DEPENDENCY_URL: &str =
-    "git+https://github.com/sevenc-nanashi/online-judge-tools-api-client@5b369b7";
+    "git+https://github.com/sevenc-nanashi/online-judge-tools-api-client@dcbe6eb";
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
