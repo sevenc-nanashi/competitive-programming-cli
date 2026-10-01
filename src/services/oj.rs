@@ -7,7 +7,7 @@ use serde::Deserialize;
 use url::Url;
 
 static OJ_DEPENDENCY_URL: &str =
-    "git+https://github.com/sevenc-nanashi/online-judge-tools-api-client@4253b7e";
+    "git+https://github.com/sevenc-nanashi/online-judge-tools-api-client@5b369b7";
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -189,6 +189,8 @@ struct OjServiceContest {
 #[serde(rename_all = "camelCase")]
 struct OjLoginCheck {
     logged_in: bool,
+    user_name: Option<String>,
+    profile_url: Option<Url>,
 }
 
 #[allow(dead_code)]
@@ -391,7 +393,7 @@ impl OjBackend {
     }
 }
 impl ServiceBackend for OjBackend {
-    fn whoami(&self, service: &ServiceId) -> Result<(String, Url)> {
+    fn whoami(&self, service: &ServiceId) -> Result<(String, Option<Url>)> {
         tracing::warn!(
             "login for oj backend is not fully supported for oj+<host> services, and is not fully tested."
         );
@@ -405,8 +407,8 @@ impl ServiceBackend for OjBackend {
             bail!("Not logged in to {}", service.id());
         }
         Ok((
-            "<unknown but logged in>".into(),
-            Url::parse(&format!("https://{}/", service.service_root()))?,
+            output.user_name.context("`oj-api` returned no userName")?,
+            output.profile_url,
         ))
     }
 

@@ -30,7 +30,7 @@ struct ProblemData {
 }
 
 impl ServiceBackend for AtCoderProblemsBackend {
-    fn whoami(&self, _service: &ServiceId) -> Result<(String, Url)> {
+    fn whoami(&self, _service: &ServiceId) -> Result<(String, Option<Url>)> {
         self.atcoder.whoami(&ServiceId::Atcoder)
     }
 

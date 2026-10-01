@@ -90,7 +90,12 @@ fn run(cli: Cli, interrupted: &AtomicBool) -> Result<bool> {
                 let (user, url) = Services::new(&paths)?
                     .backend(&args.service)
                     .whoami(&args.service)?;
-                println!("{user}\n{url}");
+                println!("{user}");
+                if let Some(url) = url {
+                    println!("{url}");
+                } else {
+                    println!("<unavailable>");
+                }
             } else {
                 Services::login(
                     &paths,

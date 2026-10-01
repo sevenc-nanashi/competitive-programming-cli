@@ -299,12 +299,12 @@ cpg login yukicoder --info
 cpg login atcoder-problems --info
 ```
 
-It prints the AtCoder user ID or yukicoder display name on the first stdout line
-and the profile URL on the second. It does not change the saved cookies.
-AtCoder Problems reports the AtCoder user and profile URL.
-Missing or expired sessions exit with code 2. Pass either `--cookie-file` to import
-cookies or `--info` to inspect them; the flags cannot be combined. `login` requires
-an explicit service and does not require a workspace or language configuration.
+It prints the user name on the first stdout line and the profile URL on the second.
+It does not change the saved cookies. AtCoder Problems reports the AtCoder user and
+profile URL or `<unavailable>`. Missing or expired sessions exit with code 2. Pass either
+`--cookie-file` to import cookies or `--info` to inspect them; the flags cannot be combined.
+`login` requires an explicit service and does not require a workspace or language
+configuration.
 
 ## Language settings
 

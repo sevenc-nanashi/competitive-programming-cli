@@ -53,13 +53,13 @@ impl AtCoderBackend {
 }
 
 impl ServiceBackend for AtCoderBackend {
-    fn whoami(&self, _service: &ServiceId) -> Result<(String, Url)> {
+    fn whoami(&self, _service: &ServiceId) -> Result<(String, Option<Url>)> {
         let (url, document) = self.http.get(&Url::parse("https://atcoder.jp/settings")?)?;
         ensure!(
             url.path().starts_with("/settings"),
             "AtCoder session expired; import fresh cookies"
         );
-        Self::authenticated_user(&document)
+        Self::authenticated_user(&document).map(|(user, url)| (user, Some(url)))
     }
 
     fn resolve_url(&self, url: &Url) -> Result<ResourceRef> {

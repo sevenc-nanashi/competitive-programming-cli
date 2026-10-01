@@ -122,9 +122,9 @@ impl YukicoderBackend {
 }
 
 impl ServiceBackend for YukicoderBackend {
-    fn whoami(&self, _service: &ServiceId) -> Result<(String, Url)> {
+    fn whoami(&self, _service: &ServiceId) -> Result<(String, Option<Url>)> {
         let (_, document) = self.http.get(&Url::parse("https://yukicoder.me/")?)?;
-        Self::authenticated(&document)
+        Self::authenticated(&document).map(|(user, url)| (user, Some(url)))
     }
 
     fn resolve_url(&self, url: &Url) -> Result<ResourceRef> {

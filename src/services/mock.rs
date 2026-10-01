@@ -96,14 +96,14 @@ impl MockBackend {
 }
 
 impl ServiceBackend for MockBackend {
-    fn whoami(&self, _service: &ServiceId) -> Result<(String, Url)> {
+    fn whoami(&self, _service: &ServiceId) -> Result<(String, Option<Url>)> {
         let user = self.authenticated()?.user;
         let mut url = Url::parse("https://mock.local/users/")?;
         url.path_segments_mut()
             .expect("base URL")
             .pop_if_empty()
             .push(&user);
-        Ok((user, url))
+        Ok((user, Some(url)))
     }
 
     fn resolve_url(&self, url: &Url) -> Result<ResourceRef> {

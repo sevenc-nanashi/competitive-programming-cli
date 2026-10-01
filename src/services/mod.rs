@@ -29,7 +29,7 @@ use std::{
 use url::Url;
 
 pub trait ServiceBackend {
-    fn whoami(&self, service: &ServiceId) -> Result<(String, Url)>;
+    fn whoami(&self, service: &ServiceId) -> Result<(String, Option<Url>)>;
     fn resolve_url(&self, url: &Url) -> Result<ResourceRef>;
     fn fetch_problem(&self, problem: &ProblemRef) -> Result<Problem>;
     fn fetch_contest(&self, contest: &ContestRef) -> Result<Contest>;
