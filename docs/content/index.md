@@ -26,7 +26,8 @@ Currently supported online judges:
 - AtCoder
 - AtCoder Problems (Virtual Contests)
 - Yukicoder
-- _Experimental:_ other online judges, including Codeforces, via a fork of
+- Codeforces (regular contests, Problemset, and Gym)
+- _Experimental:_ other online judges, via a fork of
   online-judge-api-client. See [experimental oj support](./configuration.md#experimental-oj-support)
   for requirements and limitations.
 

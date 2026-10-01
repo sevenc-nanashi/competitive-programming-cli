@@ -1,4 +1,5 @@
 mod atcoder;
+mod codeforces;
 #[cfg(feature = "mock")]
 mod mock;
 mod oj;
@@ -6,7 +7,8 @@ mod problems;
 mod yukicoder;
 
 use self::{
-    atcoder::AtCoderBackend, problems::AtCoderProblemsBackend, yukicoder::YukicoderBackend,
+    atcoder::AtCoderBackend, codeforces::CodeforcesBackend, problems::AtCoderProblemsBackend,
+    yukicoder::YukicoderBackend,
 };
 use crate::{
     config::{Paths, expand_path},
@@ -42,6 +44,7 @@ pub struct Services {
     atcoder: AtCoderBackend,
     problems: AtCoderProblemsBackend,
     yukicoder: YukicoderBackend,
+    codeforces: CodeforcesBackend,
     oj: OjBackend,
     #[cfg(feature = "mock")]
     mock: mock::MockBackend,
@@ -69,6 +72,12 @@ impl Services {
         let yukicoder = YukicoderBackend {
             http: Http::from_cookies(&load_cookies(&ServiceId::Yukicoder)?, &ServiceId::Yukicoder)?,
         };
+        let codeforces = CodeforcesBackend {
+            http: Http::from_cookies(
+                &load_cookies(&ServiceId::Codeforces)?,
+                &ServiceId::Codeforces,
+            )?,
+        };
         let oj = OjBackend {
             fetch_cache: Mutex::default(),
             venv_dir: paths.oj_venv.clone(),
@@ -81,6 +90,7 @@ impl Services {
             },
             atcoder,
             yukicoder,
+            codeforces,
             oj,
             #[cfg(feature = "mock")]
             mock: mock::MockBackend {
@@ -95,6 +105,7 @@ impl Services {
             ServiceId::Atcoder => &self.atcoder,
             ServiceId::AtcoderProblems => &self.problems,
             ServiceId::Yukicoder => &self.yukicoder,
+            ServiceId::Codeforces => &self.codeforces,
             ServiceId::Oj(_) => &self.oj,
             #[cfg(feature = "mock")]
             ServiceId::Mock => &self.mock,
@@ -142,6 +153,10 @@ impl Services {
             }
             .whoami(auth_service)?,
             ServiceId::Yukicoder => YukicoderBackend {
+                http: Http::from_cookies(&raw, auth_service)?,
+            }
+            .whoami(auth_service)?,
+            ServiceId::Codeforces => CodeforcesBackend {
                 http: Http::from_cookies(&raw, auth_service)?,
             }
             .whoami(auth_service)?,
@@ -220,6 +235,7 @@ impl Http {
         let host = match service {
             ServiceId::Atcoder | ServiceId::AtcoderProblems => "atcoder.jp",
             ServiceId::Yukicoder => "yukicoder.me",
+            ServiceId::Codeforces => "codeforces.com",
             ServiceId::Oj(_) => todo!(),
             #[cfg(feature = "mock")]
             ServiceId::Mock => anyhow::bail!("Mock services do not use HTTP"),
@@ -270,6 +286,16 @@ impl Http {
         original: &Url,
         response: reqwest::blocking::Response,
     ) -> Result<(Url, String)> {
+        if original.host_str() == Some("codeforces.com") {
+            ensure!(
+                response.status() != reqwest::StatusCode::FORBIDDEN,
+                "Codeforces denied access (403); open the page in your browser and import fresh cookies. For manual submission use submit --clipboard --open"
+            );
+            ensure!(
+                response.url().path() != "/enter",
+                "Codeforces session expired; import fresh cookies with cpg login codeforces"
+            );
+        }
         let response = response
             .error_for_status()
             .with_context(|| format!("Request failed: {original}"))?;
@@ -303,7 +329,8 @@ impl Http {
         let mut request = self
             .client
             .post(self.request_url(url)?)
-            .header(reqwest::header::REFERER, url.as_str());
+            .header(reqwest::header::REFERER, url.as_str())
+            .header(reqwest::header::ORIGIN, url.origin().ascii_serialization());
         if let Some(csrf) = csrf {
             request = request.header("X-CSRFToken", csrf);
         }

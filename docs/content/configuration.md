@@ -246,13 +246,12 @@ for example.
 
 ## Experimental oj support
 
-URLs outside the native AtCoder, AtCoder Problems, and yukicoder backends are
+URLs outside the native AtCoder, AtCoder Problems, yukicoder, and Codeforces backends are
 automatically passed to a [fork of online-judge-api-client](https://github.com/sevenc-nanashi/online-judge-tools-api-client).
 Supported URLs and operations depend on that client and the judge. For example:
 
 ```bash
-cpg prepare https://codeforces.com/contest/2226
-cpg download https://codeforces.com/contest/2226/problem/A
+cpg download https://onlinejudge.u-aizu.ac.jp/problems/ITP1_1_A
 ```
 
 Install `uv` and make it available on `PATH`. On first use, cpg creates
@@ -260,11 +259,11 @@ Install `uv` and make it available on `PATH`. On first use, cpg creates
 installs its pinned API client. Print its location with `cpg config --oj-venv-dir`;
 this only prints the path and does not create the environment.
 
-These judges use service IDs such as `oj+codeforces.com`. Workspaces are stored
+These judges use service IDs such as `oj+onlinejudge.u-aizu.ac.jp`. Workspaces are stored
 under that service name. Cookie import uses the same service ID:
 
 ```bash
-cpg login oj+codeforces.com --cookie-file /path/to/cookies.txt
+cpg login oj+onlinejudge.u-aizu.ac.jp --cookie-file /path/to/cookies.txt
 ```
 
 This backend is experimental. Login verification and submission may fail or be
@@ -296,6 +295,7 @@ Use `--info` to verify the saved session and print its username and profile URL:
 ```bash
 cpg login atcoder --info
 cpg login yukicoder --info
+cpg login codeforces --info
 cpg login atcoder-problems --info
 ```
 
@@ -313,15 +313,15 @@ by the source file's extension. Names such as `cpp` and `ruby` are yours to
 choose; each extension must match at most one language. These settings apply to
 solutions, generators, reference solutions, and judge files.
 
-| Key          | Required | Purpose                                                                     |
-| ------------ | -------- | --------------------------------------------------------------------------- |
-| `extensions` | Yes      | File extensions without the leading dot, such as `["cpp", "cc"]`.           |
-| `run`        | Yes      | Shell command to execute the solution or script.                            |
-| `compile`    | No       | Shell command to compile or check the source before running it.             |
-| `preprocess` | No       | Transform the source before local execution and submission.                 |
-| `presubmit`  | No       | Transform the source only for submission, after `preprocess`.               |
-| `profile`    | No       | Named overrides for `compile` and `run`, selected with `--profile`.         |
-| `submit`     | No       | Submission language IDs keyed by service, such as `atcoder` or `yukicoder`. |
+| Key          | Required | Purpose                                                                                    |
+| ------------ | -------- | ------------------------------------------------------------------------------------------ |
+| `extensions` | Yes      | File extensions without the leading dot, such as `["cpp", "cc"]`.                          |
+| `run`        | Yes      | Shell command to execute the solution or script.                                           |
+| `compile`    | No       | Shell command to compile or check the source before running it.                            |
+| `preprocess` | No       | Transform the source before local execution and submission.                                |
+| `presubmit`  | No       | Transform the source only for submission, after `preprocess`.                              |
+| `profile`    | No       | Named overrides for `compile` and `run`, selected with `--profile`.                        |
+| `submit`     | No       | Submission language IDs keyed by service, such as `atcoder`, `yukicoder`, or `codeforces`. |
 
 Commands run through `sh -c` on Linux/macOS and `cmd /C` on Windows, in the
 source file's directory. Use the syntax of the corresponding shell;

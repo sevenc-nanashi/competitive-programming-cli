@@ -8,6 +8,7 @@ pub enum ServiceId {
     Atcoder,
     AtcoderProblems,
     Yukicoder,
+    Codeforces,
     Oj(String),
     #[cfg(feature = "mock")]
     Mock,
@@ -18,6 +19,7 @@ impl std::fmt::Display for ServiceId {
             Self::Atcoder => write!(f, "atcoder"),
             Self::AtcoderProblems => write!(f, "atcoder-problems"),
             Self::Yukicoder => write!(f, "yukicoder"),
+            Self::Codeforces => write!(f, "codeforces"),
             Self::Oj(host) => write!(f, "oj+{host}"),
             #[cfg(feature = "mock")]
             Self::Mock => write!(f, "mock"),
@@ -39,6 +41,7 @@ impl std::str::FromStr for ServiceId {
             "atcoder" => Ok(Self::Atcoder),
             "atcoder-problems" => Ok(Self::AtcoderProblems),
             "yukicoder" => Ok(Self::Yukicoder),
+            "codeforces" => Ok(Self::Codeforces),
             #[cfg(feature = "mock")]
             "mock" => Ok(Self::Mock),
             _ if s.starts_with("oj+") => Ok(Self::Oj(s[3..].to_string())),
@@ -60,6 +63,7 @@ pub static SERVICE_ID_COMPLETIONS: &[(&str, &str)] = &[
     ("atcoder", "AtCoder"),
     ("atcoder-problems", "AtCoder Problems"),
     ("yukicoder", "Yukicoder"),
+    ("codeforces", "Codeforces"),
     ("oj+", "Other Online Judges via `oj`"),
     #[cfg(feature = "mock")]
     ("mock", "Mock"),
@@ -77,6 +81,7 @@ impl ServiceId {
             Some("atcoder.jp") => Ok(Self::Atcoder),
             Some("kenkoooo.com") => Ok(Self::AtcoderProblems),
             Some("yukicoder.me") => Ok(Self::Yukicoder),
+            Some("codeforces.com") => Ok(Self::Codeforces),
             #[cfg(feature = "mock")]
             Some("mock.local") => Ok(Self::Mock),
             // _ => bail!("Unsupported judge URL: {url}"),
@@ -91,6 +96,7 @@ impl ServiceId {
             Self::Atcoder => "https://atcoder.jp".to_string(),
             Self::AtcoderProblems => "https://kenkoooo.com/atcoder".to_string(),
             Self::Yukicoder => "https://yukicoder.me".to_string(),
+            Self::Codeforces => "https://codeforces.com".to_string(),
             Self::Oj(host) => format!("https://{host}"),
             #[cfg(feature = "mock")]
             Self::Mock => "https://mock.local".to_string(),
@@ -102,6 +108,7 @@ impl ServiceId {
             Self::Atcoder => "atcoder".to_string(),
             Self::AtcoderProblems => "atcoder-problems".to_string(),
             Self::Yukicoder => "yukicoder".to_string(),
+            Self::Codeforces => "codeforces".to_string(),
             Self::Oj(host) => format!("oj+{}", host.replace(".", "--").replace("/", "---")),
             #[cfg(feature = "mock")]
             Self::Mock => "mock".to_string(),

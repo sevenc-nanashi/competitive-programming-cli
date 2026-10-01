@@ -35,7 +35,7 @@ mise use -g github:sevenc-nanashi/competitive-programming-cli
 For judges without a native backend, install `uv` and make it available on `PATH`.
 On first use, cpg runs `uv venv` and installs its pinned fork of
 online-judge-api-client. This requires network access; `uv` can download a Python
-interpreter if needed. AtCoder, AtCoder Problems, and yukicoder use native backends
+interpreter if needed. AtCoder, AtCoder Problems, yukicoder, and Codeforces use native backends
 and do not require Python or `uv`.
 
 See [experimental oj support](./configuration.md#experimental-oj-support) for

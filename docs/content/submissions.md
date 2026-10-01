@@ -57,6 +57,13 @@ language ID. Add `--open` to print the problem URL and open it in your browser
 after copying; this requires the source's problem metadata. `--clipboard` cannot
 be combined with `--problem` or `--language`.
 
+> [!TIP]
+> For Codeforces, you can use [codeforces-clipboard-submission.js](https://sevenc7c.com/competitive-programming-cli/codeforces-clipboard-submission.user.js)
+> to paste the copied solution instead of selecting the file. This is useful
+> when your solution file is not easily accessible in the browser's file picker,
+> such as when you're using a remote server or WSL.  
+> You will need a userscript manager like [ScriptCat](https://scriptcat.org) or [Tampermonkey](https://www.tampermonkey.net) to install it.
+
 ## List results of submissions
 
 You can list the results of your submissions.
