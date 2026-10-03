@@ -1429,6 +1429,15 @@ fn test_case(
     interrupted: &AtomicBool,
 ) -> Result<bool> {
     let mut expected = input.as_ref().map(|p| p.with_extension("out"));
+    let missing_expected = match &expected {
+        Some(path) => !path.try_exists()?,
+        None => false,
+    };
+    let show_io = match options.show_io {
+        Some(mode) => mode,
+        None if missing_expected => ShowIo::Always,
+        None => ShowIo::Failure,
+    };
     let name = match &input {
         Some(p) => p
             .file_stem()
@@ -1438,7 +1447,7 @@ fn test_case(
         None => "interactive".into(),
     };
     let empty_expected = if let Some(path) = &mut expected
-        && !path.try_exists()?
+        && missing_expected
     {
         if judge.is_some() {
             let file = tempfile::NamedTempFile::new()?;
@@ -1460,7 +1469,7 @@ fn test_case(
             .as_ref()
             .context("Interactive tests require --judge")?
             .command(input.as_deref(), expected.as_deref(), None)?;
-        let transcript = if options.show_io == ShowIo::Never {
+        let transcript = if show_io == ShowIo::Never {
             None
         } else {
             Some(actual.reopen()?)
@@ -1514,7 +1523,7 @@ fn test_case(
         result.elapsed.as_millis(),
         result.memory / 1024
     );
-    if match options.show_io {
+    if match show_io {
         ShowIo::Always => true,
         ShowIo::Failure => result.verdict != Verdict::Ac,
         ShowIo::Never => false,
