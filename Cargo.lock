@@ -208,7 +208,7 @@ dependencies = [
 
 [[package]]
 name = "competitive-programming-cli"
-version = "0.1.0-preview.13"
+version = "0.1.0-preview.14"
 dependencies = [
  "anyhow",
  "arboard",
