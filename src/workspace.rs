@@ -74,13 +74,7 @@ fn write_metadata(directory: &Path, metadata: &Metadata) -> Result<()> {
     Ok(())
 }
 
-fn template(
-    paths: &Paths,
-    name: &str,
-    destination: &Path,
-    setup: &[String],
-    interrupted: &AtomicBool,
-) -> Result<()> {
+fn template(paths: &Paths, name: &str, destination: &Path, interrupted: &AtomicBool) -> Result<()> {
     ensure!(!interrupted.load(Ordering::Relaxed), "Interrupted");
     let source = paths.config.join(format!("{name}_template"));
     match fs::metadata(&source) {
@@ -88,7 +82,16 @@ fn template(
         Err(e) if e.kind() == ErrorKind::NotFound => (),
         Err(e) => return Err(e.into()),
     }
-    for command in setup {
+    Ok(())
+}
+
+fn setup(
+    name: &str,
+    destination: &Path,
+    commands: &[String],
+    interrupted: &AtomicBool,
+) -> Result<()> {
+    for command in commands {
         tracing::info!("Running [setup.{name}]: {command}");
         runner::setup(command, destination, interrupted)
             .with_context(|| format!("[setup.{name}] failed in {}", destination.display()))?;
@@ -149,29 +152,24 @@ fn write_problem(
         title: problem.title.clone(),
         template_checksums: BTreeMap::new(),
     };
-    write_metadata(destination, &metadata)?;
     if single {
-        template(
-            paths,
-            "workspace",
-            destination,
-            &config.setup.workspace,
-            interrupted,
-        )?;
+        template(paths, "workspace", destination, interrupted)?;
+        template(paths, "single_problem", destination, interrupted)?;
     }
-    template(
-        paths,
-        "problem",
-        destination,
-        &config.setup.problem,
-        interrupted,
-    )?;
+    template(paths, "problem", destination, interrupted)?;
+    write_metadata(destination, &metadata)?;
+    setup("problem", destination, &config.setup.problem, interrupted)?;
     if single {
-        template(
-            paths,
+        setup(
             "single_problem",
             destination,
             &config.setup.single_problem,
+            interrupted,
+        )?;
+        setup(
+            "workspace",
+            destination,
+            &config.setup.workspace,
             interrupted,
         )?;
     }
@@ -276,6 +274,8 @@ pub fn prepare(
                 contest.title
             );
             let metadata = Metadata::Contest(contest.clone());
+            template(paths, "workspace", staging.path(), interrupted)?;
+            template(paths, "contest", staging.path(), interrupted)?;
             write_metadata(staging.path(), &metadata)?;
             let alphabetic = config.alphabetic;
             let width = index_label(contest.problems.len(), alphabetic).len();
@@ -304,18 +304,16 @@ pub fn prepare(
             }
             write_metadata(staging.path(), &Metadata::Contest(contest))?;
 
-            template(
-                paths,
-                "workspace",
-                staging.path(),
-                &config.setup.workspace,
-                interrupted,
-            )?;
-            template(
-                paths,
+            setup(
                 "contest",
                 staging.path(),
                 &config.setup.contest,
+                interrupted,
+            )?;
+            setup(
+                "workspace",
+                staging.path(),
+                &config.setup.workspace,
                 interrupted,
             )?;
         }
