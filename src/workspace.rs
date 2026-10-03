@@ -277,20 +277,6 @@ pub fn prepare(
             );
             let metadata = Metadata::Contest(contest.clone());
             write_metadata(staging.path(), &metadata)?;
-            template(
-                paths,
-                "workspace",
-                staging.path(),
-                &config.setup.workspace,
-                interrupted,
-            )?;
-            template(
-                paths,
-                "contest",
-                staging.path(),
-                &config.setup.contest,
-                interrupted,
-            )?;
             let alphabetic = config.alphabetic;
             let width = index_label(contest.problems.len(), alphabetic).len();
             for (i, p) in contest.problems.iter().enumerate() {
@@ -317,6 +303,21 @@ pub fn prepare(
                 )?;
             }
             write_metadata(staging.path(), &Metadata::Contest(contest))?;
+
+            template(
+                paths,
+                "workspace",
+                staging.path(),
+                &config.setup.workspace,
+                interrupted,
+            )?;
+            template(
+                paths,
+                "contest",
+                staging.path(),
+                &config.setup.contest,
+                interrupted,
+            )?;
         }
     }
     ensure!(!interrupted.load(Ordering::Relaxed), "Interrupted");
