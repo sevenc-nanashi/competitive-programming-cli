@@ -332,11 +332,28 @@ source file's directory. Use the syntax of the corresponding shell;
 [Windows examples](./installation.md#windows) describe the differences. In `compile` and
 `run`, `{input}` expands to the source path and `{binary}` to the same path with
 its final extension removed on Linux/macOS or replaced with `.exe` on Windows.
-cpg shell-quotes both paths; leave the placeholders
+cpg shell-quotes these paths; leave the placeholders
 unquoted in the command. When preprocessing is configured, `{input}` points to
 the transformed source. Omit `compile` for interpreted languages that need no
 compilation or syntax check. Compilation runs once before testing or generation.
 Direct commands after `--` do not use these language settings.
+
+All language commands (`compile`, `run`, `preprocess`, and `presubmit`), including
+profile overrides, also support `{workspace}` and `{problem}`:
+
+- `{workspace}`: the absolute path to the contest root or standalone problem directory.
+- `{problem}`: the absolute path to the problem directory, even for sources in subdirectories.
+
+These paths are located using `.cpg.toml` metadata and are shell-quoted; leave
+the placeholders unquoted. Using them outside a cpg workspace is an error,
+and `{problem}` requires problem metadata rather than only contest metadata.
+
+```toml
+[language.cpp]
+extensions = ["cpp"]
+compile = "g++ -std=c++23 -I{workspace}/ac-library -I{problem}/include -o {binary} {input}"
+run = "{binary}"
+```
 
 ### Build profiles
 

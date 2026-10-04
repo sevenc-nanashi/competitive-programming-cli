@@ -82,10 +82,8 @@ impl Program {
                 Some(source) => source,
                 None => &file,
             };
-            let expand = |command: &str| -> Result<String> {
-                Ok(command
-                    .replace("{input}", &quote(input.as_os_str())?)
-                    .replace("{binary}", &quote(binary.as_os_str())?))
+            let expand = |command: &str| {
+                expand_command(command, &cwd, &[("input", input), ("binary", &binary)])
             };
             if let Some(compile) = compile {
                 let command = expand(compile)?;
@@ -121,6 +119,44 @@ impl Program {
             })
         }
     }
+}
+
+fn expand_command(command: &str, directory: &Path, paths: &[(&str, &Path)]) -> Result<String> {
+    let mut expanded = String::new();
+    for part in command.split_inclusive('}') {
+        let Some((prefix, placeholder)) = part.strip_suffix('}').and_then(|s| s.rsplit_once('{'))
+        else {
+            expanded.push_str(part);
+            continue;
+        };
+        let value = match paths.iter().find(|(name, _)| *name == placeholder) {
+            Some((_, path)) => quote(path.as_os_str())?,
+            None if matches!(placeholder, "workspace" | "problem") => {
+                let (mut root, metadata) = crate::workspace::find_metadata(directory)?
+                    .with_context(|| format!("{{{placeholder}}} requires .cpg.toml"))?;
+                if placeholder == "problem" {
+                    ensure!(
+                        !metadata.is_contest(),
+                        "{{problem}} requires problem metadata"
+                    );
+                } else if !metadata.is_contest()
+                    && let Some(parent) = root.parent()
+                    && let Some((contest, metadata)) = crate::workspace::find_metadata(parent)?
+                    && metadata.is_contest()
+                {
+                    root = contest;
+                }
+                quote(root.as_os_str())?
+            }
+            None => {
+                expanded.push_str(part);
+                continue;
+            }
+        };
+        expanded.push_str(prefix);
+        expanded.push_str(&value);
+    }
+    Ok(expanded)
 }
 
 fn quote(value: &OsStr) -> Result<String> {
@@ -206,12 +242,7 @@ fn transform_source(
         // Close the handle so Windows commands can open the output for exclusive writing.
         .into_temp_path();
     let uses_processed = command.contains("{processed}");
-    let processed = quote(output.as_os_str())?;
-    let command = command
-        .split("{input}")
-        .map(|part| part.replace("{processed}", &processed))
-        .collect::<Vec<_>>()
-        .join(&quote(input.as_os_str())?);
+    let command = expand_command(command, &cwd, &[("input", input), ("processed", &output)])?;
     let program = Program::shell(command, cwd);
     tracing::info!("Running {stage} for {}", input.display());
     let result = execute(
