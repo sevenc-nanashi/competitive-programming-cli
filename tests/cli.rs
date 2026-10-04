@@ -2385,7 +2385,7 @@ fn setup_failures_and_cleanup() {
     );
     assert_eq!(
         fs::read(root.join("mock/problems/sum/order")).unwrap(),
-        b"problemsingleworkspacesecond"
+        b"problemworkspacesecondsingle"
     );
 
     let script = "ruby -e 'STDOUT.sync = true; puts \"setup ready\"; sleep 30'";
@@ -2631,14 +2631,14 @@ mock = "ruby"
     }
     fs::write(
         directory.path().join("config/problem_template/solution.rb"),
-        "print STDIN.read",
+        "# base template\n",
     )
     .unwrap();
     fs::write(
         directory
             .path()
             .join("config/single_problem_template/solution.rb"),
-        "# base template\n",
+        "print STDIN.read",
     )
     .unwrap();
     fs::create_dir(directory.path().join("config/problem_template/src")).unwrap();
@@ -2662,9 +2662,9 @@ mock = "ruby"
     assert_eq!(logs.matches("Missing cookies").count(), 1, "{logs}");
     assert_eq!(
         fs::read_to_string(echo.join("setup.log")).unwrap(),
-        "problem\nsingle\nworkspace\n"
+        "problem\nworkspace\nsingle\n"
     );
-    assert_eq!(fs::read_to_string(echo.join("marker")).unwrap(), "problem");
+    assert_eq!(fs::read_to_string(echo.join("marker")).unwrap(), "single");
     assert_eq!(fs::read(echo.join("test/sample-1.in")).unwrap(), b"hello\n");
     assert_eq!(
         fs::read(echo.join("test/sample-1.out")).unwrap(),
@@ -2709,7 +2709,7 @@ mock = "ruby"
     let contest = root.join("mock/contests/practice");
     assert_eq!(
         fs::read_to_string(contest.join("setup.log")).unwrap(),
-        "contest\nworkspace\n"
+        "workspace\ncontest\n"
     );
     for problem in ["1_sum", "2_echo"] {
         assert_eq!(
@@ -3067,7 +3067,9 @@ mock = "ruby"
     );
     // Template edits after download do not change the saved baseline; editing the solution allows submission.
     fs::write(
-        directory.path().join("config/problem_template/solution.rb"),
+        directory
+            .path()
+            .join("config/single_problem_template/solution.rb"),
         "# new template\n",
     )
     .unwrap();
@@ -3090,7 +3092,7 @@ mock = "ruby"
         .unwrap()
         .insert("presubmit".into(), "ruby ~/presubmit.rb {input}".into());
     fs::write(&config_path, toml::to_string(&config).unwrap()).unwrap();
-    fs::write(directory.path().join("preprocess.rb"), "abort unless File.read('marker') == 'problem'; File.open('order', 'a') { |f| f.puts 'preprocess' }; puts '# preprocess'; puts File.read(ARGV.fetch(0))").unwrap();
+    fs::write(directory.path().join("preprocess.rb"), "abort unless File.read('marker') == 'single'; File.open('order', 'a') { |f| f.puts 'preprocess' }; puts '# preprocess'; puts File.read(ARGV.fetch(0))").unwrap();
     fs::write(directory.path().join("presubmit.rb"), "source = File.read(ARGV.fetch(0)); abort unless source.start_with?(\"# preprocess\\n\") && STDIN.read == source; File.open('order', 'a') { |f| f.puts 'presubmit' }; print source; puts '# presubmit'").unwrap();
     fs::write(&solution, "print STDIN.read").unwrap();
     run(&directory, &["s", source], 2);

@@ -27,8 +27,8 @@ The directory will contain:
 
 - `.cpg.toml` file, which contains metadata of the problem.
 - Workspace template files.
-- Single problem template files.
 - Problem template files.
+- Single problem template files.
 - Test cases (stored in `test/sample-1.in` and `test/sample-1.out`).
 
 Samples are always numbered starting at 1, even when there is only one.
@@ -41,7 +41,7 @@ Existing problem or contest directories are never overwritten. Downloads are
 staged in a temporary directory and published only after all files are ready.
 Template symlinks are rejected.
 Optional [`[setup]` commands](./configuration.md#commands-after-copying-templates)
-run after templates are copied, in reverse template order, and must succeed before the workspace is published.
+run after templates are copied and must succeed before the workspace is published.
 
 ```bash
 # Download a problem from AtCoder
@@ -87,7 +87,7 @@ contests preserve their configured order and refer back to the original AtCoder
 problems; yukicoder uses the contest's problem ID list.
 
 Similar to single problem downloads, optional [`[setup]` commands](./configuration.md#commands-after-copying-templates)
-run after templates are copied, in reverse template order, and must succeed before the workspace is published.
+run after templates are copied and must succeed before the workspace is published.
 
 ```bash
 # Download contest problems from AtCoder

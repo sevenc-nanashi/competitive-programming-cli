@@ -154,22 +154,24 @@ fn write_problem(
     };
     if single {
         template(paths, "workspace", destination, interrupted)?;
-        template(paths, "single_problem", destination, interrupted)?;
     }
     template(paths, "problem", destination, interrupted)?;
+    if single {
+        template(paths, "single_problem", destination, interrupted)?;
+    }
     write_metadata(destination, &metadata)?;
     setup("problem", destination, &config.setup.problem, interrupted)?;
     if single {
         setup(
-            "single_problem",
-            destination,
-            &config.setup.single_problem,
-            interrupted,
-        )?;
-        setup(
             "workspace",
             destination,
             &config.setup.workspace,
+            interrupted,
+        )?;
+        setup(
+            "single_problem",
+            destination,
+            &config.setup.single_problem,
             interrupted,
         )?;
     }
@@ -305,15 +307,15 @@ pub fn prepare(
             write_metadata(staging.path(), &Metadata::Contest(contest))?;
 
             setup(
-                "contest",
-                staging.path(),
-                &config.setup.contest,
-                interrupted,
-            )?;
-            setup(
                 "workspace",
                 staging.path(),
                 &config.setup.workspace,
+                interrupted,
+            )?;
+            setup(
+                "contest",
+                staging.path(),
+                &config.setup.contest,
                 interrupted,
             )?;
         }

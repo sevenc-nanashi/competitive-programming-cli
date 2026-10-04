@@ -222,12 +222,12 @@ directory is absent, allowing setup entirely through commands.
 | `single_problem` | `single_problem_template` | Standalone problem root            |
 
 For `cpg prepare` with a problem URL, templates are copied in the order
-`workspace`, `single_problem`, then `problem`. Setup commands run in reverse
-order: `problem`, `single_problem`, then `workspace`.
+`workspace`, `problem`, then `single_problem`. Setup commands run in the order
+`problem`, `workspace`, then `single_problem`.
 For a contest URL, `workspace` and `contest` templates are copied at the contest
 root before the `problem` template is copied into each problem directory.
-Each problem's setup runs there; after all problems are prepared, `contest`
-setup runs, followed by `workspace` setup at the contest root.
+Each problem's setup runs there; after all problems are prepared, `workspace`
+setup runs, followed by `contest` setup at the contest root.
 Later templates overwrite earlier files with the same path. Commands within
 each setup array still run in their declared order.
 
