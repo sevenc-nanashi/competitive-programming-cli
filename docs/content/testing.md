@@ -92,6 +92,9 @@ Use `--show-io` to choose when to display each case's input, expected output
 - `failure` (`f`, default): show I/O only for failed cases, including `WA`, `RE`, `TLE`, and `MLE`.
 - `never` (`n`): hide I/O details.
 
+When `--show-io` is omitted, cases with a missing `.out` file use `always`,
+including input read from standard input with `-I -`.
+
 Verdicts and the summary are always shown. Standard error from the solution
 and judge is still streamed directly.
 Empty I/O is displayed as a dimmed `(empty)`. Non-empty I/O without a final

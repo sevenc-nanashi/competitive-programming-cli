@@ -2375,7 +2375,7 @@ fn setup_failures_and_cleanup() {
     // A setup-only configuration also works without template directories.
     fs::write(
         &config_path,
-        format!("{base}[setup]\nworkspace = ['printf workspace > order', 'printf second >> order']\nproblem = ['printf initialized > generated.txt', 'printf problem >> order']\nsingle_problem = ['printf single >> order']\ncontest = []\n"),
+        format!("{base}[setup]\nworkspace = ['printf workspace >> order', 'printf second >> order']\nproblem = ['printf initialized > generated.txt', 'printf problem >> order']\nsingle_problem = ['printf single >> order']\ncontest = []\n"),
     )
     .unwrap();
     run(&directory, &["p", "https://mock.local/problems/sum"], 0);
@@ -2385,7 +2385,7 @@ fn setup_failures_and_cleanup() {
     );
     assert_eq!(
         fs::read(root.join("mock/problems/sum/order")).unwrap(),
-        b"workspacesecondproblemsingle"
+        b"problemworkspacesecondsingle"
     );
 
     let script = "ruby -e 'STDOUT.sync = true; puts \"setup ready\"; sleep 30'";
@@ -2599,10 +2599,10 @@ fn mock_service_workflow() {
             r#"
 root = {:?}
 [setup]
-workspace = "ruby setup.rb"
-problem = "ruby setup.rb"
-contest = "ruby setup.rb"
-single_problem = "ruby setup.rb"
+workspace = "ruby setup.rb workspace"
+problem = "ruby setup.rb problem"
+contest = "ruby setup.rb contest"
+single_problem = "ruby setup.rb single"
 [language.ruby]
 extensions = ["rb"]
 run = "ruby {{input}}"
@@ -2625,7 +2625,7 @@ mock = "ruby"
         fs::write(path.join(format!("{marker}.txt")), marker).unwrap();
         fs::write(
             path.join("setup.rb"),
-            "File.open('setup.log', 'a') { |file| file.puts File.read('marker') }\nFile.write(\"metadata-#{File.read('marker')}.toml\", File.read('.cpg.toml'))\nFile.write('generated.rb', 'abc')\nputs 'setup stdout'\nwarn 'setup stderr'\n",
+            "File.open('setup.log', 'a') { |file| file.puts ARGV.fetch(0) }\nFile.write(\"metadata-#{ARGV.fetch(0)}.toml\", File.read('.cpg.toml'))\nFile.write('generated.rb', 'abc')\nputs 'setup stdout'\nwarn 'setup stderr'\n",
         )
         .unwrap();
     }
@@ -2662,7 +2662,7 @@ mock = "ruby"
     assert_eq!(logs.matches("Missing cookies").count(), 1, "{logs}");
     assert_eq!(
         fs::read_to_string(echo.join("setup.log")).unwrap(),
-        "workspace\nproblem\nsingle\n"
+        "problem\nworkspace\nsingle\n"
     );
     assert_eq!(fs::read_to_string(echo.join("marker")).unwrap(), "single");
     assert_eq!(fs::read(echo.join("test/sample-1.in")).unwrap(), b"hello\n");

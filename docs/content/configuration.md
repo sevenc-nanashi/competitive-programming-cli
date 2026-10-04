@@ -197,8 +197,7 @@ copy the content to the Windows clipboard, in case arboard fails to work.
 
 ## Commands after copying templates
 
-Add `[setup]` to `$config/config.toml` to run shell commands immediately after
-each corresponding template is copied:
+Add `[setup]` to `$config/config.toml` to run shell commands after copying templates:
 
 ```toml
 [setup]
@@ -222,15 +221,20 @@ directory is absent, allowing setup entirely through commands.
 | `contest`        | `contest_template`        | Contest root                       |
 | `single_problem` | `single_problem_template` | Standalone problem root            |
 
-For `cpg prepare` with a problem URL, the order is `workspace`, `problem`, then `single_problem`.
-For `cpg prepare` with a contest URL, `workspace` and `contest` run first at the contest root, then
-`problem` runs for each problem. Each command finishes before the next template
-is copied, so later templates can overwrite files created by earlier commands.
-After each template is copied, `.cpg.toml` is written before its setup commands
-run, so scripts can read the problem or contest metadata from their working
-directory. Samples and template checksums are written after the problem's setup
-commands. Files created or changed by setup are included in the
-unchanged-template check.
+For `cpg prepare` with a problem URL, templates are copied in the order
+`workspace`, `problem`, then `single_problem`. Setup commands run in the order
+`problem`, `workspace`, then `single_problem`.
+For a contest URL, `workspace` and `contest` templates are copied at the contest
+root before the `problem` template is copied into each problem directory.
+Each problem's setup runs there; after all problems are prepared, `workspace`
+setup runs, followed by `contest` setup at the contest root.
+Later templates overwrite earlier files with the same path. Commands within
+each setup array still run in their declared order.
+
+After templates are copied, `.cpg.toml` is written before setup commands run,
+so scripts can read the problem or contest metadata from their working directory.
+Samples and template checksums are written after the problem's setup commands.
+Files created or changed by that setup are included in the unchanged-template check.
 
 Commands run through `sh -c` (`cmd /C` on Windows) in the temporary directory being prepared, which is
 renamed to the final workspace path on success. Use relative paths in generated
@@ -329,11 +333,28 @@ source file's directory. Use the syntax of the corresponding shell;
 [Windows examples](./installation.md#windows) describe the differences. In `compile` and
 `run`, `{input}` expands to the source path and `{binary}` to the same path with
 its final extension removed on Linux/macOS or replaced with `.exe` on Windows.
-cpg shell-quotes both paths; leave the placeholders
+cpg shell-quotes these paths; leave the placeholders
 unquoted in the command. When preprocessing is configured, `{input}` points to
 the transformed source. Omit `compile` for interpreted languages that need no
 compilation or syntax check. Compilation runs once before testing or generation.
 Direct commands after `--` do not use these language settings.
+
+All language commands (`compile`, `run`, `preprocess`, and `presubmit`), including
+profile overrides, also support `{workspace}` and `{problem}`:
+
+- `{workspace}`: the absolute path to the contest root or standalone problem directory.
+- `{problem}`: the absolute path to the problem directory, even for sources in subdirectories.
+
+These paths are located using `.cpg.toml` metadata and are shell-quoted; leave
+the placeholders unquoted. Using them outside a cpg workspace is an error,
+and `{problem}` requires problem metadata rather than only contest metadata.
+
+```toml
+[language.cpp]
+extensions = ["cpp"]
+compile = "g++ -std=c++23 -I{workspace}/ac-library -I{problem}/include -o {binary} {input}"
+run = "{binary}"
+```
 
 ### Build profiles
 

@@ -41,7 +41,7 @@ Existing problem or contest directories are never overwritten. Downloads are
 staged in a temporary directory and published only after all files are ready.
 Template symlinks are rejected.
 Optional [`[setup]` commands](./configuration.md#commands-after-copying-templates)
-run after each template is copied and must succeed before the workspace is published.
+run after templates are copied and must succeed before the workspace is published.
 
 ```bash
 # Download a problem from AtCoder
@@ -87,7 +87,7 @@ contests preserve their configured order and refer back to the original AtCoder
 problems; yukicoder uses the contest's problem ID list.
 
 Similar to single problem downloads, optional [`[setup]` commands](./configuration.md#commands-after-copying-templates)
-run after each template is copied and must succeed before the workspace is published.
+run after templates are copied and must succeed before the workspace is published.
 
 ```bash
 # Download contest problems from AtCoder
