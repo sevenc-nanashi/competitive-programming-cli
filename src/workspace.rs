@@ -340,24 +340,28 @@ fn index_label(mut index: usize, alphabetic: bool) -> String {
     letters.into_iter().rev().collect()
 }
 
-pub fn list(config: &Config, mode: ListMode) -> Result<Vec<PathBuf>> {
+pub fn list(config: &Config, mode: ListMode) -> Result<Vec<(PathBuf, Metadata)>> {
     let root = config.root()?;
     let mut found = Vec::new();
     if !root.try_exists()? {
         return Ok(found);
     }
-    fn visit(path: &Path, mode: ListMode, found: &mut Vec<PathBuf>) -> Result<()> {
-        if path.join(METADATA).try_exists()? {
-            let metadata = read_metadata(path)?;
+    fn visit(
+        path: &Path,
+        mode: ListMode,
+        found: &mut Vec<(PathBuf, Metadata)>,
+    ) -> Result<()> {
+        if let Ok(metadata) = read_metadata(path) {
+            let is_contest = metadata.is_contest();
             let include = match mode {
                 ListMode::Workspace => true,
-                ListMode::Contests => metadata.is_contest(),
-                ListMode::Problems | ListMode::AllProblems => !metadata.is_contest(),
+                ListMode::Contests => is_contest,
+                ListMode::Problems | ListMode::AllProblems => !is_contest,
             };
             if include {
-                found.push(path.to_owned());
+                found.push((path.to_owned(), metadata));
             }
-            if !metadata.is_contest() || !matches!(mode, ListMode::AllProblems) {
+            if !is_contest || !matches!(mode, ListMode::AllProblems) {
                 return Ok(());
             }
         }
@@ -372,7 +376,7 @@ pub fn list(config: &Config, mode: ListMode) -> Result<Vec<PathBuf>> {
         Ok(())
     }
     visit(&root, mode, &mut found)?;
-    found.sort();
+    found.sort_by_key(|(path, _)| path.clone());
     Ok(found)
 }
 
