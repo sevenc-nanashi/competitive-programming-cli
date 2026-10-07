@@ -123,6 +123,8 @@ You can list the workspaces you've downloaded using the `list` command.
 
 By default, `list` shows workspace directories: contests and standalone problems.
 Paths are relative to the workspace root, which you can get with `cpg config --root`.
+Directories with invalid or unreadable `.cpg.toml` files are omitted, but their
+subdirectories are still searched.
 Choose one of the following mutually exclusive filters:
 
 | Option                  | Directories listed                                  |
@@ -149,6 +151,30 @@ cpg list --problems
 cpg list --all-problems
 ```
 
+Use `--format` (`-f`) to customize each output line.
+
+| Placeholder | Description                           |
+| ----------- | ------------------------------------- |
+| `{path}`    | Relative path from the workspace root |
+| `{service}` | Online judge service name             |
+| `{id}`      | Problem or contest ID                 |
+| `{title}`   | Problem or contest title              |
+| `{url}`     | Problem or contest URL                |
+| `\t`        | Tab character                         |
+
+```bash
+cpg list --format '{path}\t{path} ({title})'
+```
+
+Use `--delimiter` to choose the separator appended after each record:
+`line` (the default newline), `null` (NUL), `tab`, or any single character.
+For example, pass NUL-separated records to `fzf --read0`:
+
+```bash
+cpg list -f '{path}\t{path} ({title})' --delimiter null |
+    fzf --read0 --delimiter=$'\t' --with-nth=2..
+```
+
 This command is for piping the output to other commands, such as `fzf`.
 For example, you can create `ccd` command which changes the current working directory to the selected problem's directory.
 This feature is heavily inspired by [ghq](https://github.com/x-motemen/ghq).
@@ -157,7 +183,8 @@ This feature is heavily inspired by [ghq](https://github.com/x-motemen/ghq).
 ccd() {
     local root dir
     root="$(CPG_LOG=none cpg config --root)" || return
-    dir="$(CPG_LOG=none cpg list | fzf)" || return
+    dir="$(CPG_LOG=none cpg list -f '{path}\t{path} ({title})' | fzf --delimiter=$'\t' --with-nth=2..)" || return
+    dir="${dir%%$'\t'*}"
     [ -n "$dir" ] && cd -- "$root/$dir"
 }
 ```

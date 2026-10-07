@@ -195,6 +195,24 @@ impl Metadata {
             Self::Contest(c) => c.reference.service.clone(),
         }
     }
+    pub fn title(&self) -> &str {
+        match self {
+            Self::Problem { title, .. } => title,
+            Self::Contest(c) => &c.title,
+        }
+    }
+    pub fn url(&self) -> &Url {
+        match self {
+            Self::Problem { reference, .. } => &reference.url,
+            Self::Contest(c) => &c.reference.url,
+        }
+    }
+    pub fn id(&self) -> &str {
+        match self {
+            Self::Problem { reference, .. } => &reference.id,
+            Self::Contest(c) => &c.reference.id,
+        }
+    }
     pub fn is_contest(&self) -> bool {
         matches!(self, Self::Contest(_))
     }
