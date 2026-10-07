@@ -3,6 +3,7 @@ use console::Style;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use std::{
+    borrow::Cow,
     collections::BTreeMap,
     env, fs,
     io::{self, ErrorKind, Write},
@@ -424,7 +425,7 @@ fn setup_commands<'de, D: serde::Deserializer<'de>>(
     })
 }
 
-#[derive(Debug, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Language {
     /// File extensions without the leading dot. Use [] for the executable fallback.
@@ -437,7 +438,7 @@ pub struct Language {
     pub compile: Option<String>,
     /// Execution shell command with shell-quoted {input} and {binary} paths.
     pub run: String,
-    /// Named compile/run overrides selected with --profile. Omitted commands inherit language settings.
+    /// Named command and submission language overrides selected with --profile. Omitted settings inherit language settings.
     #[serde(default)]
     pub profile: BTreeMap<String, Profile>,
     /// Submission language IDs keyed by service (atcoder, yukicoder, codeforces, or share-oj). AtCoder Problems uses atcoder. IDs must be strings.
@@ -455,13 +456,47 @@ static EXECUTABLE: LazyLock<Language> = LazyLock::new(|| Language {
     submit: BTreeMap::new(),
 });
 
-#[derive(Debug, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Profile {
+    /// Override source preprocessing. Supports the same placeholders as language.preprocess.
+    pub preprocess: Option<String>,
+    /// Override the submission source transformation. Supports the same placeholders as language.presubmit.
+    pub presubmit: Option<String>,
     /// Override the compilation shell command. Supports {input} and {binary}.
     pub compile: Option<String>,
     /// Override the execution shell command. Supports {input} and {binary}.
     pub run: Option<String>,
+    /// Override submission language IDs by service. Omitted services inherit language settings.
+    #[serde(default)]
+    pub submit: BTreeMap<String, String>,
+}
+
+impl Language {
+    pub fn with_profile(&self, name: Option<&str>) -> Result<Cow<'_, Self>> {
+        let Some(name) = name else {
+            return Ok(Cow::Borrowed(self));
+        };
+        let profile = self
+            .profile
+            .get(name)
+            .with_context(|| format!("Unknown profile: {name}"))?;
+        let mut language = self.clone();
+        for (base, override_command) in [
+            (&mut language.preprocess, &profile.preprocess),
+            (&mut language.presubmit, &profile.presubmit),
+            (&mut language.compile, &profile.compile),
+        ] {
+            if let Some(command) = override_command {
+                *base = Some(command.clone());
+            }
+        }
+        if let Some(run) = &profile.run {
+            language.run = run.clone();
+        }
+        language.submit.extend(profile.submit.clone());
+        Ok(Cow::Owned(language))
+    }
 }
 
 const SCHEMA_PATTERN: &str = "#:schema https://raw.githubusercontent.com/sevenc-nanashi/competitive-programming-cli/refs/tags/v";

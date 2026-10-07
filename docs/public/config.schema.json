@@ -143,7 +143,7 @@
           ]
         },
         "profile": {
-          "description": "Named compile/run overrides selected with --profile. Omitted commands inherit language settings.",
+          "description": "Named command and submission language overrides selected with --profile. Omitted settings inherit language settings.",
           "type": "object",
           "additionalProperties": {
             "$ref": "#/definitions/Profile"
@@ -178,12 +178,34 @@
             "null"
           ]
         },
+        "preprocess": {
+          "description": "Override source preprocessing. Supports the same placeholders as language.preprocess.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "presubmit": {
+          "description": "Override the submission source transformation. Supports the same placeholders as language.presubmit.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "run": {
           "description": "Override the execution shell command. Supports {input} and {binary}.",
           "type": [
             "string",
             "null"
           ]
+        },
+        "submit": {
+          "description": "Override submission language IDs by service. Omitted services inherit language settings.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "default": {}
         }
       },
       "additionalProperties": false

@@ -318,15 +318,15 @@ by the source file's extension. Names such as `cpp` and `ruby` are yours to
 choose; each extension must match at most one language. These settings apply to
 solutions, generators, reference solutions, and judge files.
 
-| Key          | Required | Purpose                                                                                                |
-| ------------ | -------- | ------------------------------------------------------------------------------------------------------ |
-| `extensions` | Yes      | File extensions without the leading dot, such as `["cpp", "cc"]`.                                      |
-| `run`        | Yes      | Shell command to execute the solution or script.                                                       |
-| `compile`    | No       | Shell command to compile or check the source before running it.                                        |
-| `preprocess` | No       | Transform the source before local execution and submission.                                            |
-| `presubmit`  | No       | Transform the source only for submission, after `preprocess`.                                          |
-| `profile`    | No       | Named overrides for `compile` and `run`, selected with `--profile`.                                    |
-| `submit`     | No       | Submission language IDs keyed by service, such as `atcoder`, `yukicoder`, `codeforces`, or `share-oj`. |
+| Key          | Required | Purpose                                                                              |
+| ------------ | -------- | ------------------------------------------------------------------------------------ |
+| `extensions` | Yes      | File extensions without the leading dot, such as `["cpp", "cc"]`.                    |
+| `run`        | Yes      | Shell command to execute the solution or script.                                     |
+| `compile`    | No       | Shell command to compile or check the source before running it.                      |
+| `preprocess` | No       | Transform the source before local execution and submission.                          |
+| `presubmit`  | No       | Transform the source only for submission, after `preprocess`.                        |
+| `profile`    | No       | Named overrides for commands and submission language IDs, selected with `--profile`. |
+| `submit`     | No       | Submission language IDs keyed by service, such as `atcoder`, `yukicoder`, and so on. |
 
 Commands run through `sh -c` on Linux/macOS and `cmd /C` on Windows, in the
 source file's directory. Use the syntax of the corresponding shell;
@@ -358,12 +358,29 @@ run = "{binary}"
 
 ### Build profiles
 
-Use `[language.<name>.profile.<profile>]` to override `compile`, `run`, or both.
-Omitted commands inherit the language's settings; a profile replaces the whole
-command rather than appending flags. Select one with `cpg test --profile fast
-./solution.cpp` or `cpg generate --profile fast ./generator.cpp`. The
+Use `[language.<name>.profile.<profile>]` to override `preprocess`, `presubmit`,
+`compile`, `run`, and `submit`. Omitted commands inherit the language's settings;
+a profile replaces the whole command rather than appending flags. Submission
+language IDs are overridden per service; omitted services inherit the base IDs.
+`extensions` cannot be overridden because they select the language before the profile.
+Select one with `cpg test --profile fast ./solution.cpp`,
+`cpg generate --profile fast ./generator.cpp`, or
+`cpg submit --profile fast ./solution.cpp` (also with `--clipboard`). The
 [C++ recipe](#c-with-debugging-and-a-fast-profile) enables debugging by default
 and defines a `fast` profile.
+
+For example, use a different interpreter and submission language together:
+
+```toml
+[language.python.profile.pypy]
+run = "pypy3 {input}"
+
+[language.python.profile.pypy.submit]
+yukicoder = "pypy3"
+```
+
+Submission runs only `preprocess` and `presubmit`; it does not compile or run the
+source. An explicit `--language ID` takes precedence over the profile's `submit` setting.
 
 ### Executable files
 
@@ -436,8 +453,9 @@ IDs must be quoted strings, including numeric IDs. AtCoder Problems uses the
 `atcoder` entry. cpg fetches the available languages and displays their IDs if
 the configured ID is missing or invalid. Copy the ID for your judge's language
 and compiler version into this table, or override it for one submission with
-`cpg submit ./solution.cpp --language ID`. Local compiler commands and profiles
-do not select the judge's compiler. See [submitting solutions](./submissions.md).
+`cpg submit ./solution.cpp --language ID`. A profile's `submit` table can also
+override these IDs; local compiler commands alone do not select the judge's compiler.
+See [submitting solutions](./submissions.md).
 
 ## Recipes
 

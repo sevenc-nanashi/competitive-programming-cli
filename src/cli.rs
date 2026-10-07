@@ -162,7 +162,7 @@ pub struct ProgramArgs {
     /// Command and arguments after --, passed through unchanged.
     #[usage(double_dash = "required", conflicts("file"), required_unless("file"))]
     pub command: Vec<OsString>,
-    /// Language compilation/run profile.
+    /// Language preprocessing/compilation/run profile.
     #[usage(long, short = 'P')]
     pub profile: Option<String>,
 }
@@ -316,6 +316,9 @@ pub struct Submit {
     /// Solution source file to submit.
     #[usage(value_hint = usage::ValueHint::FilePath)]
     pub file: PathBuf,
+    /// Language source transformation and submission language profile.
+    #[usage(long, short = 'P')]
+    pub profile: Option<String>,
     /// Copy the source after preprocess and presubmit to the clipboard without submitting.
     #[usage(long, short = 'c', conflicts("--problem", "--language"))]
     pub clipboard: bool,

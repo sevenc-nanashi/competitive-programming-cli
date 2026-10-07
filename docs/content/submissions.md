@@ -26,6 +26,9 @@ cpg submit ./solution.cpp --problem https://atcoder.jp/contests/abc473/tasks/abc
 
 Configure the judge's [submission language ID](./configuration.md#submission-language-ids)
 for each file type, or pass `--language ID`.
+Use `--profile NAME` (`-P NAME`) to apply a language profile's `preprocess`,
+`presubmit`, and service-specific `submit` overrides. This also works with
+`--clipboard`. An explicit `--language ID` takes precedence over the profile.
 
 cpg fetches the available languages and displays their IDs if the configured
 ID is missing or invalid.
