@@ -346,11 +346,7 @@ pub fn list(config: &Config, mode: ListMode) -> Result<Vec<(PathBuf, Metadata)>>
     if !root.try_exists()? {
         return Ok(found);
     }
-    fn visit(
-        path: &Path,
-        mode: ListMode,
-        found: &mut Vec<(PathBuf, Metadata)>,
-    ) -> Result<()> {
+    fn visit(path: &Path, mode: ListMode, found: &mut Vec<(PathBuf, Metadata)>) -> Result<()> {
         if let Ok(metadata) = read_metadata(path) {
             let is_contest = metadata.is_contest();
             let include = match mode {
