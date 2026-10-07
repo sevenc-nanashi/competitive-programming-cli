@@ -163,10 +163,11 @@ impl ServiceBackend for ShareOjBackend {
         let data: ApiProblem = self.http.json(&api_url(problem)?)?;
         let (_, document) = self.http.get(&problem.url)?;
         let samples = samples(&document)?;
-        ensure!(
-            !data.has_samples || !samples.is_empty(),
-            "ShareOJ samples could not be extracted from this problem's statement; add samples manually"
-        );
+        if data.has_samples && samples.is_empty() {
+            tracing::warn!(
+                "ShareOJ samples could not be extracted from this problem's statement; add samples manually"
+            );
+        }
         Ok(Problem {
             reference: problem.clone(),
             title: data.title,
