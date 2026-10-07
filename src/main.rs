@@ -143,6 +143,8 @@ fn run(cli: Cli, interrupted: &AtomicBool) -> Result<bool> {
                 let line = format
                     .replace("{path}", &path)
                     .replace("{title}", metadata.title())
+                    .replace("{id}", metadata.id())
+                    .replace("{url}", metadata.url().as_ref())
                     .replace("{service}", &metadata.service().to_string());
                 print!("{line}{delimiter}");
             }

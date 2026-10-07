@@ -353,7 +353,7 @@ pub struct Results {
 pub struct List {
     #[usage(arg_group)]
     pub mode: Option<ListMode>,
-    /// Output format: {path}, {title}, and {service}; \t inserts a tab.
+    /// Output format: {path}, {title}, {url}, and {service}; \t inserts a tab.
     #[usage(long, short = 'f', default = "{path}")]
     pub format: String,
     /// Record delimiter: line, null, tab, or a single character.

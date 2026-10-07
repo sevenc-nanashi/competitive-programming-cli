@@ -151,10 +151,16 @@ cpg list --problems
 cpg list --all-problems
 ```
 
-Use `--format` (`-f`) to customize each output line. The default is `{path}`.
-`{path}` is relative to `cpg config --root`, `{title}` is the contest or problem
-title, and `{service}` is the service identifier (such as `atcoder`, `codeforces`,
-or `oj+example.com`). `\t` inserts a tab. Entries remain sorted by path.
+Use `--format` (`-f`) to customize each output line.
+
+| Placeholder | Description                           |
+| ----------- | ------------------------------------- |
+| `{path}`    | Relative path from the workspace root |
+| `{service}` | Online judge service name             |
+| `{id}`      | Problem or contest ID                 |
+| `{title}`   | Problem or contest title              |
+| `{url}`     | Problem or contest URL                |
+| `\t`        | Tab character                         |
 
 ```bash
 cpg list --format '{path}\t{title}'
@@ -166,7 +172,7 @@ Use `--delimiter` to choose the separator appended after each record:
 For example, pass NUL-separated records to `fzf --read0`:
 
 ```bash
-cpg list -f '{path}\t{service} - {title}' --delimiter null |
+cpg list -f '{path}\t{service} / {title} @ {url}' --delimiter null |
     fzf --read0 --delimiter=$'\t' --with-nth=2..
 ```
 
@@ -178,7 +184,7 @@ This feature is heavily inspired by [ghq](https://github.com/x-motemen/ghq).
 ccd() {
     local root dir
     root="$(CPG_LOG=none cpg config --root)" || return
-    dir="$(CPG_LOG=none cpg list -f '{path}\t{service} - {title}' | fzf --delimiter=$'\t' --with-nth=2..)" || return
+    dir="$(CPG_LOG=none cpg list -f '{path}\t{service} / {title} @ {url}' | fzf --delimiter=$'\t' --with-nth=2..)" || return
     dir="${dir%%$'\t'*}"
     [ -n "$dir" ] && cd -- "$root/$dir"
 }
