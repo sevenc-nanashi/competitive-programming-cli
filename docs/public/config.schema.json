@@ -172,25 +172,40 @@
       "type": "object",
       "properties": {
         "compile": {
-          "description": "Override the compilation shell command. Supports {input} and {binary}.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "description": "Override the compilation shell command. Use false or \"\" to disable. Supports {input} and {binary}.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ProfileCommand"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         },
         "preprocess": {
-          "description": "Override source preprocessing. Supports the same placeholders as language.preprocess.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "description": "Override source preprocessing. Use false or \"\" to disable. Supports the same placeholders as language.preprocess.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ProfileCommand"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         },
         "presubmit": {
-          "description": "Override the submission source transformation. Supports the same placeholders as language.presubmit.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "description": "Override the submission source transformation. Use false or \"\" to disable. Supports the same placeholders as language.presubmit.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ProfileCommand"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         },
         "run": {
           "description": "Override the execution shell command. Supports {input} and {binary}.",
@@ -209,6 +224,17 @@
         }
       },
       "additionalProperties": false
+    },
+    "ProfileCommand": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "boolean",
+          "const": false
+        }
+      ]
     },
     "Setup": {
       "type": "object",
