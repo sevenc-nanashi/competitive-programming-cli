@@ -207,8 +207,16 @@ fn submit(
         );
     }
     let configured_language = config.match_language(&source_path)?;
+    ensure!(
+        args.profile.is_none() || configured_language.is_some(),
+        "--profile requires a configured language"
+    );
+    let configured_language = configured_language
+        .map(|language| language.with_profile(args.profile.as_deref()))
+        .transpose()?;
     tracing::info!("Preparing {} for submission...", source_path.display());
     let prepared_source = configured_language
+        .as_deref()
         .map(|language| runner::prepare_source(language, &source_path, true, interrupted))
         .transpose()?
         .flatten();
@@ -252,6 +260,7 @@ fn submit(
     let language = match args.language {
         Some(language) => Some(language),
         None => configured_language
+            .as_deref()
             .and_then(|language| language.submit.get(&problem.service.to_string()))
             .cloned(),
     };

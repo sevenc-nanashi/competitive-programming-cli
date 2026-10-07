@@ -50,24 +50,11 @@ impl Program {
             let file = fs::canonicalize(expand_path(file)?)
                 .with_context(|| format!("Cannot open {}", file.display()))?;
             ensure!(file.is_file(), "Not a source file: {}", file.display());
-            let language = config.language(&file)?;
-            let profile = args
-                .profile
-                .as_ref()
-                .map(|name| {
-                    language
-                        .profile
-                        .get(name)
-                        .with_context(|| format!("Unknown profile: {name}"))
-                })
-                .transpose()?;
-            let compile = profile
-                .and_then(|p| p.compile.as_deref())
-                .or(language.compile.as_deref());
-            let run = match profile.and_then(|p| p.run.as_deref()) {
-                Some(run) => run,
-                None => &language.run,
-            };
+            let language = config
+                .language(&file)?
+                .with_profile(args.profile.as_deref())?;
+            let compile = language.compile.as_deref();
+            let run = &language.run;
             let cwd = file
                 .parent()
                 .context("Source file has no parent")?
@@ -77,7 +64,7 @@ impl Program {
                 compile.is_none() || binary != file,
                 "Compiled output would overwrite the source file"
             );
-            let prepared_source = prepare_source(language, &file, false, interrupted)?;
+            let prepared_source = prepare_source(&language, &file, false, interrupted)?;
             let input: &Path = match &prepared_source {
                 Some(source) => source,
                 None => &file,
