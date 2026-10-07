@@ -459,17 +459,42 @@ static EXECUTABLE: LazyLock<Language> = LazyLock::new(|| Language {
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Profile {
-    /// Override source preprocessing. Supports the same placeholders as language.preprocess.
+    /// Override source preprocessing. Use false or "" to disable. Supports the same placeholders as language.preprocess.
+    #[serde(default, deserialize_with = "profile_command")]
+    #[schemars(with = "Option<ProfileCommand>")]
     pub preprocess: Option<String>,
-    /// Override the submission source transformation. Supports the same placeholders as language.presubmit.
+    /// Override the submission source transformation. Use false or "" to disable. Supports the same placeholders as language.presubmit.
+    #[serde(default, deserialize_with = "profile_command")]
+    #[schemars(with = "Option<ProfileCommand>")]
     pub presubmit: Option<String>,
-    /// Override the compilation shell command. Supports {input} and {binary}.
+    /// Override the compilation shell command. Use false or "" to disable. Supports {input} and {binary}.
+    #[serde(default, deserialize_with = "profile_command")]
+    #[schemars(with = "Option<ProfileCommand>")]
     pub compile: Option<String>,
     /// Override the execution shell command. Supports {input} and {binary}.
     pub run: Option<String>,
     /// Override submission language IDs by service. Omitted services inherit language settings.
     #[serde(default)]
     pub submit: BTreeMap<String, String>,
+}
+
+#[derive(Deserialize, JsonSchema)]
+#[serde(untagged)]
+enum ProfileCommand {
+    Command(String),
+    Disabled(#[schemars(extend("const" = false))] bool),
+}
+
+fn profile_command<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Option<String>, D::Error> {
+    match ProfileCommand::deserialize(deserializer)? {
+        ProfileCommand::Command(command) => Ok(Some(command)),
+        ProfileCommand::Disabled(false) => Ok(Some(String::new())),
+        ProfileCommand::Disabled(true) => Err(serde::de::Error::custom(
+            "Expected a shell command or false to disable it",
+        )),
+    }
 }
 
 impl Language {
@@ -488,7 +513,7 @@ impl Language {
             (&mut language.compile, &profile.compile),
         ] {
             if let Some(command) = override_command {
-                *base = Some(command.clone());
+                *base = Some(command.clone()).filter(|command| !command.is_empty());
             }
         }
         if let Some(run) = &profile.run {

@@ -369,6 +369,16 @@ Select one with `cpg test --profile fast ./solution.cpp`,
 [C++ recipe](#c-with-debugging-and-a-fast-profile) enables debugging by default
 and defines a `fast` profile.
 
+Set `preprocess`, `presubmit`, or `compile` to `false` or an empty string (`""`)
+to disable an inherited command.
+
+```toml
+[language.python.profile.plain]
+preprocess = false
+presubmit = ""
+compile = false
+```
+
 For example, use a different interpreter and submission language together:
 
 ```toml
