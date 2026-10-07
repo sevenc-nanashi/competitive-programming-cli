@@ -163,8 +163,7 @@ Use `--format` (`-f`) to customize each output line.
 | `\t`        | Tab character                         |
 
 ```bash
-cpg list --format '{path}\t{title}'
-cpg list --all-problems -f '{title}\t{path}'
+cpg list --format '{path}\t{path} ({title})'
 ```
 
 Use `--delimiter` to choose the separator appended after each record:
@@ -172,7 +171,7 @@ Use `--delimiter` to choose the separator appended after each record:
 For example, pass NUL-separated records to `fzf --read0`:
 
 ```bash
-cpg list -f '{path}\t{service} / {title} @ {url}' --delimiter null |
+cpg list -f '{path}\t{path} ({title})' --delimiter null |
     fzf --read0 --delimiter=$'\t' --with-nth=2..
 ```
 
@@ -184,7 +183,7 @@ This feature is heavily inspired by [ghq](https://github.com/x-motemen/ghq).
 ccd() {
     local root dir
     root="$(CPG_LOG=none cpg config --root)" || return
-    dir="$(CPG_LOG=none cpg list -f '{path}\t{service} / {title} @ {url}' | fzf --delimiter=$'\t' --with-nth=2..)" || return
+    dir="$(CPG_LOG=none cpg list -f '{path}\t{path} ({title})' | fzf --delimiter=$'\t' --with-nth=2..)" || return
     dir="${dir%%$'\t'*}"
     [ -n "$dir" ] && cd -- "$root/$dir"
 }
