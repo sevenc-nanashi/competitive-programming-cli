@@ -250,7 +250,7 @@ for example.
 
 ## Experimental oj support
 
-URLs outside the native AtCoder, AtCoder Problems, yukicoder, and Codeforces backends are
+URLs outside the native AtCoder, AtCoder Problems, yukicoder, Codeforces, and ShareOJ backends are
 automatically passed to a [fork of online-judge-api-client](https://github.com/sevenc-nanashi/online-judge-tools-api-client).
 Supported URLs and operations depend on that client and the judge. For example:
 
@@ -300,6 +300,7 @@ Use `--info` to verify the saved session and print its username and profile URL:
 cpg login atcoder --info
 cpg login yukicoder --info
 cpg login codeforces --info
+cpg login share-oj --info
 cpg login atcoder-problems --info
 ```
 
@@ -317,15 +318,15 @@ by the source file's extension. Names such as `cpp` and `ruby` are yours to
 choose; each extension must match at most one language. These settings apply to
 solutions, generators, reference solutions, and judge files.
 
-| Key          | Required | Purpose                                                                                    |
-| ------------ | -------- | ------------------------------------------------------------------------------------------ |
-| `extensions` | Yes      | File extensions without the leading dot, such as `["cpp", "cc"]`.                          |
-| `run`        | Yes      | Shell command to execute the solution or script.                                           |
-| `compile`    | No       | Shell command to compile or check the source before running it.                            |
-| `preprocess` | No       | Transform the source before local execution and submission.                                |
-| `presubmit`  | No       | Transform the source only for submission, after `preprocess`.                              |
-| `profile`    | No       | Named overrides for commands and submission language IDs, selected with `--profile`.       |
-| `submit`     | No       | Submission language IDs keyed by service, such as `atcoder`, `yukicoder`, or `codeforces`. |
+| Key          | Required | Purpose                                                                              |
+| ------------ | -------- | ------------------------------------------------------------------------------------ |
+| `extensions` | Yes      | File extensions without the leading dot, such as `["cpp", "cc"]`.                    |
+| `run`        | Yes      | Shell command to execute the solution or script.                                     |
+| `compile`    | No       | Shell command to compile or check the source before running it.                      |
+| `preprocess` | No       | Transform the source before local execution and submission.                          |
+| `presubmit`  | No       | Transform the source only for submission, after `preprocess`.                        |
+| `profile`    | No       | Named overrides for commands and submission language IDs, selected with `--profile`. |
+| `submit`     | No       | Submission language IDs keyed by service, such as `atcoder`, `yukicoder`, and so on. |
 
 Commands run through `sh -c` on Linux/macOS and `cmd /C` on Windows, in the
 source file's directory. Use the syntax of the corresponding shell;
@@ -471,12 +472,6 @@ See [submitting solutions](./submissions.md).
 Copy the settings you need into `$config/config.toml` and install the compilers
 or interpreters used by their commands. If a language table already exists,
 merge the settings into it instead of declaring the same table twice.
-
-The submission IDs below were checked on 2026-09-06 against the
-[AtCoder language-test submission form](https://atcoder.jp/contests/language-test-202505/submit)
-and [yukicoder's language API](https://yukicoder.me/api/v1/languages).
-If a contest uses a different language environment, use the IDs cpg displays
-for that contest.
 
 ### C++ with debugging and a fast profile
 

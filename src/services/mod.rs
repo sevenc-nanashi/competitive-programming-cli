@@ -4,11 +4,12 @@ mod codeforces;
 mod mock;
 mod oj;
 mod problems;
+mod shareoj;
 mod yukicoder;
 
 use self::{
     atcoder::AtCoderBackend, codeforces::CodeforcesBackend, problems::AtCoderProblemsBackend,
-    yukicoder::YukicoderBackend,
+    shareoj::ShareOjBackend, yukicoder::YukicoderBackend,
 };
 use crate::{
     config::{Paths, expand_path},
@@ -45,6 +46,7 @@ pub struct Services {
     problems: AtCoderProblemsBackend,
     yukicoder: YukicoderBackend,
     codeforces: CodeforcesBackend,
+    shareoj: ShareOjBackend,
     oj: OjBackend,
     #[cfg(feature = "mock")]
     mock: mock::MockBackend,
@@ -78,6 +80,9 @@ impl Services {
                 &ServiceId::Codeforces,
             )?,
         };
+        let shareoj = ShareOjBackend {
+            http: Http::from_cookies(&load_cookies(&ServiceId::ShareOj)?, &ServiceId::ShareOj)?,
+        };
         let oj = OjBackend {
             fetch_cache: Mutex::default(),
             venv_dir: paths.oj_venv.clone(),
@@ -91,6 +96,7 @@ impl Services {
             atcoder,
             yukicoder,
             codeforces,
+            shareoj,
             oj,
             #[cfg(feature = "mock")]
             mock: mock::MockBackend {
@@ -106,6 +112,7 @@ impl Services {
             ServiceId::AtcoderProblems => &self.problems,
             ServiceId::Yukicoder => &self.yukicoder,
             ServiceId::Codeforces => &self.codeforces,
+            ServiceId::ShareOj => &self.shareoj,
             ServiceId::Oj(_) => &self.oj,
             #[cfg(feature = "mock")]
             ServiceId::Mock => &self.mock,
@@ -157,6 +164,10 @@ impl Services {
             }
             .whoami(auth_service)?,
             ServiceId::Codeforces => CodeforcesBackend {
+                http: Http::from_cookies(&raw, auth_service)?,
+            }
+            .whoami(auth_service)?,
+            ServiceId::ShareOj => ShareOjBackend {
                 http: Http::from_cookies(&raw, auth_service)?,
             }
             .whoami(auth_service)?,
@@ -236,6 +247,7 @@ impl Http {
             ServiceId::Atcoder | ServiceId::AtcoderProblems => "atcoder.jp",
             ServiceId::Yukicoder => "yukicoder.me",
             ServiceId::Codeforces => "codeforces.com",
+            ServiceId::ShareOj => "share-oj.net",
             ServiceId::Oj(_) => todo!(),
             #[cfg(feature = "mock")]
             ServiceId::Mock => anyhow::bail!("Mock services do not use HTTP"),
@@ -296,6 +308,11 @@ impl Http {
                 "Codeforces session expired; import fresh cookies with cpg login codeforces"
             );
         }
+        if original.host_str() == Some("www.share-oj.net")
+            && (response.status().is_client_error() || response.status().is_server_error())
+        {
+            return Err(shareoj::api_error(response.status(), &response.text()?));
+        }
         let response = response
             .error_for_status()
             .with_context(|| format!("Request failed: {original}"))?;
@@ -317,6 +334,26 @@ impl Http {
         let response = self.client.get(self.request_url(url)?).send()?;
         let (_, text) = self.response(url, response)?;
         serde_json::from_str(&text).with_context(|| format!("Invalid response from {url}"))
+    }
+
+    pub fn post_json<T: DeserializeOwned>(
+        &self,
+        url: &Url,
+        body: &impl serde::Serialize,
+    ) -> Result<T> {
+        let response = self
+            .client
+            .post(self.request_url(url)?)
+            .header(reqwest::header::REFERER, url.as_str())
+            .header(reqwest::header::ORIGIN, url.origin().ascii_serialization())
+            .json(body)
+            .send()
+            .context("Submission outcome is unknown; check results before submitting again")?;
+        let (_, text) = self
+            .response(url, response)
+            .context("Submission outcome is unknown; check results before submitting again")?;
+        serde_json::from_str(&text)
+            .context("Submission outcome is unknown; check results before submitting again")
     }
 
     pub fn post(

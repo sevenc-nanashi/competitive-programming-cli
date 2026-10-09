@@ -154,7 +154,7 @@
           "type": "string"
         },
         "submit": {
-          "description": "Submission language IDs keyed by service (atcoder, yukicoder, or codeforces). AtCoder Problems uses atcoder. IDs must be strings.",
+          "description": "Submission language IDs keyed by service (atcoder, yukicoder, codeforces, or share-oj). AtCoder Problems uses atcoder. IDs must be strings.",
           "type": "object",
           "additionalProperties": {
             "type": "string"
