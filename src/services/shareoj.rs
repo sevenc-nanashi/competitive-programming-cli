@@ -296,6 +296,12 @@ impl ApiSubmission {
 
 fn samples(document: &Html) -> Result<Vec<Sample>> {
     let body = required(document, ".problem-body .markdown-body")?;
+    let sample_number = |number: &str| -> Result<u32> {
+        match number.trim() {
+            "" => Ok(1),
+            number => number.parse().context("Invalid ShareOJ sample number"),
+        }
+    };
     let mut pairs: Vec<(u32, Option<String>, Option<String>)> = Vec::new();
     let mut section: Option<(u32, u32)> = None;
     let mut pending = None;
@@ -329,10 +335,7 @@ fn samples(document: &Html) -> Result<Vec<Sample>> {
         }
         let heading = text(element);
         if let Some(number) = heading.strip_prefix("サンプル") {
-            let id = number
-                .trim()
-                .parse()
-                .context("Invalid ShareOJ sample number")?;
+            let id = sample_number(number)?;
             ensure!(
                 !pairs.iter().any(|pair| pair.0 == id),
                 "Duplicate ShareOJ sample {id}"
@@ -340,9 +343,9 @@ fn samples(document: &Html) -> Result<Vec<Sample>> {
             pairs.push((id, None, None));
             section = Some((level, id));
         } else if let Some(number) = heading.strip_prefix("入力例") {
-            pending = Some((number.trim().parse::<u32>()?, true));
+            pending = Some((sample_number(number)?, true));
         } else if let Some(number) = heading.strip_prefix("出力例") {
-            pending = Some((number.trim().parse::<u32>()?, false));
+            pending = Some((sample_number(number)?, false));
         } else if let Some((_, id)) = section {
             match heading.as_str() {
                 "入力" => pending = Some((id, true)),
