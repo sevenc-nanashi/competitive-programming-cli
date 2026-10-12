@@ -200,7 +200,7 @@ run = '{binary} copy'
     run(command(&directory).args(["test", "solution.rs"]), 0);
     let config = fs::read_to_string(&config_path).unwrap();
     fs::write(&config_path, config.replace(" > {processed}", "")).unwrap();
-    run(command(&directory).args(["test", "solution.rs"]), 0);
+    run(command(&directory).args(["test", "solution.rs"]), 2);
     assert_eq!(
         fs::read_to_string(directory.path().join("solution.rs")).unwrap(),
         include_str!("fixtures/portable.rs")

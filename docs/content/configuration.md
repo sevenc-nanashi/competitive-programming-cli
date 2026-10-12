@@ -13,30 +13,14 @@ Run the interactive setup before downloading or listing problems:
 cpg init
 ```
 
-It asks for the workspace root (default: `~/cpg`), creates `config.toml`, the
-workspace root, and the four template directories below, then prints a guide
-to language settings, templates, login, and downloading problems. Relative paths
-are saved as absolute paths. Re-running it keeps an existing configuration and
-template files and creates any missing directories.
-
-If configuration file of oj-prepare exists, it will be imported automatically.
+It creates configuration files and directories. If configuration file of
+oj-prepare exists, it will be imported automatically.
 
 You can also set the workspace root manually in `$config/config.toml`:
 
 ```toml
 root = "/home/your-name/competitive-programming"
 ```
-
-To use lowercase letters for contest problem directory prefixes, add this at the
-top level of `config.toml` (or `config.local.toml`):
-
-```toml
-alphabetic = true
-```
-
-Prefixes are `a`, ..., `z`, `aa`, ... and are left-padded with underscores to
-match the longest prefix. For 27 problems, directories start with `_a_`, ..., `_z_`,
-`aa_`. The default is `false`, which keeps zero-padded numeric prefixes.
 
 The JSON Schema for the configuration file is available on
 `https://raw.githubusercontent.com/sevenc-nanashi/competitive-programming-cli/refs/tags/v{version}/docs/public/config.schema.json`,
@@ -131,18 +115,18 @@ kind = "command"
 command = "/mnt/c/Windows/System32/clip.exe"
 ```
 
-cpg reads `config.toml` first, then applies `config.local.toml`. Tables merge
-recursively, so the example inherits `language.cpp.extensions`, `run`, and
-other language settings. Scalars and arrays replace the corresponding values;
-an empty array clears an inherited list. Changing `clipboard.kind` replaces
-the entire clipboard table, while keeping the same kind allows individual
-fields to be overridden.
+## Directory prefixes
 
-Either file may be absent. The merged configuration must satisfy the normal
-configuration requirements; syntax errors, unknown fields, and invalid types
-are reported. `cpg config` and `cpg init` use the merged settings. Initialization
-preserves existing files and does not create `config.local.toml`. Keep the local
-file out of version control when sharing your configuration.
+To use lowercase letters for contest problem directory prefixes, add this at the
+top level of `config.toml` (or `config.local.toml`):
+
+```toml
+alphabetic = true
+```
+
+Prefixes are `a`, ..., `z`, `aa`, ... and are left-padded with underscores to
+match the longest prefix. For 27 problems, directories start with `_a_`, ..., `_z_`,
+`aa_`. The default is `false`, which keeps zero-padded numeric prefixes.
 
 ## Clipboard
 
@@ -156,7 +140,8 @@ kind = "osc52"
 
 `osc52` is the default when the section is omitted. It sends an OSC 52 escape
 sequence to stderr, asking the terminal to copy the text. The terminal must
-support OSC 52 and allow clipboard writes; stderr must reach that terminal.
+support OSC 52 and allow clipboard writes, and the stderr stream must be a
+terminal.
 
 By default, clipboard contents are cleared when `cpg submit --clipboard` fails.
 This is to prevent accidentally submitting the wrong source, because you will
@@ -192,7 +177,7 @@ a newline. Command stdout and stderr go to cpg's stderr. A nonzero exit status
 fails the copy; Ctrl-C stops the command and its process group.
 For X11, you can use `command = "xclip -selection clipboard"`.
 
-On WSL, you might want to use `command = "/mnt/c/Windows/System32/clip.exe"` to,
+On WSL, you might want to use `command = "/mnt/c/Windows/System32/clip.exe"` to
 copy the content to the Windows clipboard, in case arboard fails to work.
 
 ## Commands after copying templates
@@ -208,9 +193,7 @@ single_problem = "ruby setup_single_problem.rb"
 ```
 
 Each key accepts a single command string or an array of command strings, which
-run in order. Omit a key or use `[]` to run no commands. Each command runs in a
-separate shell, so changes from `cd` or `export` do not carry over to the next
-command. Put scripts in the corresponding template directory so
+run in order. Put scripts in the corresponding template directory so
 they are available when the commands run. Commands also run when that template
 directory is absent, allowing setup entirely through commands.
 
@@ -221,73 +204,38 @@ directory is absent, allowing setup entirely through commands.
 | `contest`        | `contest_template`        | Contest root                       |
 | `single_problem` | `single_problem_template` | Standalone problem root            |
 
-For `cpg prepare` with a problem URL, templates are copied in the order
-`workspace`, `problem`, then `single_problem`. Setup commands run in the order
-`problem`, `workspace`, then `single_problem`.
-For a contest URL, `workspace` and `contest` templates are copied at the contest
-root before the `problem` template is copied into each problem directory.
-Each problem's setup runs there; after all problems are prepared, `workspace`
-setup runs, followed by `contest` setup at the contest root.
-Later templates overwrite earlier files with the same path. Commands within
-each setup array still run in their declared order.
+<!-- For `cpg prepare` with a problem URL, templates are copied in the order: -->
+<!-- `workspace`, `problem`, then `single_problem`. Setup commands run in the order -->
+<!-- `problem`, `workspace`, then `single_problem`. -->
+<!-- For a contest URL, `workspace` and `contest` templates are copied at the contest -->
+<!-- root before the `problem` template is copied into each problem directory. -->
+<!-- Each problem's setup runs there; after all problems are prepared, `workspace` -->
+<!-- setup runs, followed by `contest` setup at the contest root. -->
 
-After templates are copied, `.cpg.toml` is written before setup commands run,
-so scripts can read the problem or contest metadata from their working directory.
-Samples and template checksums are written after the problem's setup commands.
-Files created or changed by that setup are included in the unchanged-template check.
+Later templates overwrite earlier files with the same path.
 
-Commands run through `sh -c` (`cmd /C` on Windows) in the temporary directory being prepared, which is
-renamed to the final workspace path on success. Use relative paths in generated
-files rather than embedding the temporary absolute path. Standard input is
-closed; command stdout and stderr go to cpg's stderr so stdout contains only the
-completed workspace path. A failed command skips the remaining commands and
-stops the download with exit code 2.
-Ctrl-C stops the command and its process group with exit code 130. Both cases
-remove the temporary workspace.
+Template and setup commands are applied in this order:
+
+- Write `.cpg.toml` with problem or contest metadata.
+- Copy `workspace_template` to the workspace root.
+- Copy `contest_template` to the contest root. (for contests)
+- Copy `problem_template` to each problem directory.
+- Copy `single_problem_template` to the problem root. (for standalone problems)
+- Run `[setup.problem]` in each problem directory.
+- Run `[setup.workspace]` in the workspace root.
+- Run `[setup.contest]` in the contest root. (for contests)
+- Run `[setup.single_problem]` in the problem root. (for standalone problems)
 
 You would want to set `bundle install` or `git clone https://github.com/atcoder/ac-library.git` in the workspace template,
 for example.
-
-## Experimental oj support
-
-URLs outside the native AtCoder, AtCoder Problems, yukicoder, and Codeforces backends are
-automatically passed to a [fork of online-judge-api-client](https://github.com/sevenc-nanashi/online-judge-tools-api-client).
-Supported URLs and operations depend on that client and the judge. For example:
-
-```bash
-cpg download https://onlinejudge.u-aizu.ac.jp/problems/ITP1_1_A
-```
-
-Install `uv` and make it available on `PATH`. On first use, cpg creates
-`$XDG_DATA_HOME/cpg/oj-venv`, defaulting to `~/.local/share/cpg/oj-venv`, and
-installs its pinned API client. Print its location with `cpg config --oj-venv-dir`;
-this only prints the path and does not create the environment.
-
-These judges use service IDs such as `oj+onlinejudge.u-aizu.ac.jp`. Workspaces are stored
-under that service name. Cookie import uses the same service ID:
-
-```bash
-cpg login oj+onlinejudge.u-aizu.ac.jp --cookie-file /path/to/cookies.txt
-```
-
-This backend is experimental. Login verification and submission may fail or be
-unsupported for a judge, and `cpg results` is not supported. Downloading a contest
-can be slower than with native backends.
 
 ## Login
 
 This tool does not provide login form itself.
 You need to prepare cookies for each online judge and save them in Netscape HTTP Cookie Format.
-For example, you can use [cookies.txt](https://addons.mozilla.org/ja/firefox/addon/cookies-txt/) Firefox extension to export cookies.
+For example, you can use [Get cookies.txt LOCALLY](https://github.com/kairi003/Get-cookies.txt-LOCALLY) extension.
 
-The cookies file should be saved in `$XDG_DATA_HOME/cpg/cookies` by default.
-Overridable with `$CPG_COOKIES_HOME` environment variable.
-`login` verifies the session before saving `<service>.txt`. On Linux and macOS,
-the file has mode `600` and its directory mode `700`. On Windows, PowerShell sets
-the directory ACL to allow only the current user; new cookie files inherit it.
-An unsuccessful login leaves the previous cookies intact.
-AtCoder Problems uses the AtCoder session; both `login atcoder` and
-`login atcoder-problems` save `atcoder.txt`. Expired sessions require a fresh export.
+The cookies file is saved in `$XDG_DATA_HOME/cpg/cookies` by default, and the permission is `600`.
 
 ```bash
 # Login to an online judge
@@ -304,38 +252,51 @@ cpg login atcoder-problems --info
 ```
 
 It prints the user name on the first stdout line and the profile URL on the second.
-It does not change the saved cookies. AtCoder Problems reports the AtCoder user and
-profile URL or `<unavailable>`. Missing or expired sessions exit with code 2. Pass either
-`--cookie-file` to import cookies or `--info` to inspect them; the flags cannot be combined.
-`login` requires an explicit service and does not require a workspace or language
-configuration.
+
+## Experimental oj support
+
+URLs outside the native AtCoder, AtCoder Problems, yukicoder, and Codeforces backends are
+automatically passed to a [fork of online-judge-api-client](https://github.com/sevenc-nanashi/online-judge-tools-api-client).
+Supported URLs and operations depend on that client and the judge. For example:
+
+```bash
+cpg download https://onlinejudge.u-aizu.ac.jp/problems/ITP1_1_A
+```
+
+Install `uv` and make it available on `PATH`. On first use, cpg creates
+`$XDG_DATA_HOME/cpg/oj-venv`, defaulting to `~/.local/share/cpg/oj-venv`, and
+installs its pinned API client.
+
+oj backends use `oj+<host>` as the service name. For example, Aizu Online Judge is `oj+onlinejudge.u-aizu.ac.jp`.
+
+```bash
+cpg login oj+onlinejudge.u-aizu.ac.jp --cookie-file /path/to/cookies.txt
+```
+
+This backend is experimental. Login verification and submission may fail or be
+unsupported for a judge, and `cpg results` is not supported. Downloading a contest
+can be slower than with native backends.
 
 ## Language settings
 
 Add `[language.<name>]` tables to `$config/config.toml`. cpg selects a language
-by the source file's extension. Names such as `cpp` and `ruby` are yours to
-choose; each extension must match at most one language. These settings apply to
-solutions, generators, reference solutions, and judge files.
+by the source file's extension. These settings apply to solutions, generators, reference solutions, and judge files.
 
-| Key          | Required | Purpose                                                                                    |
-| ------------ | -------- | ------------------------------------------------------------------------------------------ |
-| `extensions` | Yes      | File extensions without the leading dot, such as `["cpp", "cc"]`.                          |
-| `run`        | Yes      | Shell command to execute the solution or script.                                           |
-| `compile`    | No       | Shell command to compile or check the source before running it.                            |
-| `preprocess` | No       | Transform the source before local execution and submission.                                |
-| `presubmit`  | No       | Transform the source only for submission, after `preprocess`.                              |
-| `profile`    | No       | Named overrides for commands and submission language IDs, selected with `--profile`.       |
-| `submit`     | No       | Submission language IDs keyed by service, such as `atcoder`, `yukicoder`, or `codeforces`. |
+| Key          | Required | Purpose                                                                              |
+| ------------ | -------- | ------------------------------------------------------------------------------------ |
+| `extensions` | Yes      | File extensions without the leading dot, such as `["cpp", "cc"]`.                    |
+| `run`        | Yes      | Shell command to execute the solution or script.                                     |
+| `compile`    | No       | Shell command to compile or check the source before running it.                      |
+| `preprocess` | No       | Transform the source before local execution and submission.                          |
+| `presubmit`  | No       | Transform the source only for submission, after `preprocess`.                        |
+| `profile`    | No       | Named overrides for commands and submission language IDs, selected with `--profile`. |
+| `submit`     | No       | Submission language IDs keyed by service, such as `atcoder`, `yukicoder`, and so on. |
 
-Commands run through `sh -c` on Linux/macOS and `cmd /C` on Windows, in the
-source file's directory. Use the syntax of the corresponding shell;
-[Windows examples](./installation.md#windows) describe the differences. In `compile` and
-`run`, `{input}` expands to the source path and `{binary}` to the same path with
+In `compile` and `run`, `{input}` expands to the source path and `{binary}` to the same path with
 its final extension removed on Linux/macOS or replaced with `.exe` on Windows.
-cpg shell-quotes these paths; leave the placeholders
-unquoted in the command. When preprocessing is configured, `{input}` points to
-the transformed source. Omit `compile` for interpreted languages that need no
-compilation or syntax check. Compilation runs once before testing or generation.
+Placeholder are automatically shell-quoted, so leave them unquoted.
+
+When preprocessing is configured, `{input}` points to the transformed source.
 Direct commands after `--` do not use these language settings.
 
 All language commands (`compile`, `run`, `preprocess`, and `presubmit`), including
@@ -343,10 +304,6 @@ profile overrides, also support `{workspace}` and `{problem}`:
 
 - `{workspace}`: the absolute path to the contest root or standalone problem directory.
 - `{problem}`: the absolute path to the problem directory, even for sources in subdirectories.
-
-These paths are located using `.cpg.toml` metadata and are shell-quoted; leave
-the placeholders unquoted. Using them outside a cpg workspace is an error,
-and `{problem}` requires problem metadata rather than only contest metadata.
 
 ```toml
 [language.cpp]
@@ -357,19 +314,9 @@ run = "{binary}"
 
 ### Build profiles
 
-Use `[language.<name>.profile.<profile>]` to override `preprocess`, `presubmit`,
-`compile`, `run`, and `submit`. Omitted commands inherit the language's settings;
-a profile replaces the whole command rather than appending flags. Submission
-language IDs are overridden per service; omitted services inherit the base IDs.
-`extensions` cannot be overridden because they select the language before the profile.
-Select one with `cpg test --profile fast ./solution.cpp`,
-`cpg generate --profile fast ./generator.cpp`, or
-`cpg submit --profile fast ./solution.cpp` (also with `--clipboard`). The
-[C++ recipe](#c-with-debugging-and-a-fast-profile) enables debugging by default
-and defines a `fast` profile.
-
-Set `preprocess`, `presubmit`, or `compile` to `false` or an empty string (`""`)
-to disable an inherited command.
+Use `[language.<name>.profile.<profile>]` to override these commands.
+Note that this overrides the entire command, not appending extra commands or flags.
+You can use an empty string (`""`) or `false` to disable an inherited command.
 
 ```toml
 [language.python.profile.plain]
@@ -403,8 +350,6 @@ cpg test ./a.out
 cpg generate --count 10 ./generator
 ```
 
-The same fallback applies to judge files. Commands run in the executable's
-directory. Non-executable files still require a matching language configuration.
 To customize the fallback, define `[language.executable]` in `config.toml`:
 
 ```toml
@@ -420,14 +365,7 @@ run = "env DEBUG=1 {input}"
 
 Optional `language.<name>.preprocess` runs before compilation (or execution for
 interpreted languages) and before submission. `language.<name>.presubmit` runs
-only for submission, after `preprocess`. Each command receives the current
-source on stdin and as the shell-quoted `{input}` path, runs in the source
-directory, and writes the transformed UTF-8 source to stdout by default.
-
-If the command contains `{processed}`, cpg expands it to a temporary output
-file and reads the transformed source from that file instead of stdout. Leave
-`{input}` and `{processed}` unquoted because cpg shell-quotes both paths. For
-example, a script that accepts input and output paths can use:
+only for submission, after `preprocess`.
 
 ```toml
 [language.cpp]
@@ -437,16 +375,9 @@ compile = "g++ -std=c++23 -O2 -o {binary} {input}"
 run = "{binary}"
 ```
 
-The same placeholder is available in `presubmit`. In this mode, command stdout
-goes to cpg's stderr for diagnostics. A failed command, missing or empty output
-file, or non-UTF-8 output stops the operation; stdout is never used as a fallback.
-
-Use `presubmit` instead of `preprocess` to apply a transformation only when
-submitting. In a two-stage pipeline, `presubmit` receives the output of
-`preprocess`. Transformations run once per source, preserve the original file,
-and use temporary files with the same extension in the source directory so
-relative includes keep working. The template checksum check runs before both
-stages. See the [ACL recipe](#expand-atcoder-library-headers) for an example.
+The same placeholder is available in `presubmit`. Use `presubmit` instead of
+`preprocess` to apply a transformation only when submitting.
+See the [ACL recipe](#expand-atcoder-library-headers) for an example.
 
 ### Submission language IDs
 
@@ -458,25 +389,15 @@ atcoder = "6017"
 yukicoder = "cpp23"
 ```
 
-IDs must be quoted strings, including numeric IDs. AtCoder Problems uses the
-`atcoder` entry. cpg fetches the available languages and displays their IDs if
-the configured ID is missing or invalid. Copy the ID for your judge's language
-and compiler version into this table, or override it for one submission with
-`cpg submit ./solution.cpp --language ID`. A profile's `submit` table can also
-override these IDs; local compiler commands alone do not select the judge's compiler.
+IDs must be quoted strings, including numeric IDs. These IDs can be found when you
+attempt to submit a solution with an unconfigured language with `cpg submit`.
+A profile's `submit` table can also override these IDs.
 See [submitting solutions](./submissions.md).
 
 ## Recipes
 
 Copy the settings you need into `$config/config.toml` and install the compilers
-or interpreters used by their commands. If a language table already exists,
-merge the settings into it instead of declaring the same table twice.
-
-The submission IDs below were checked on 2026-09-06 against the
-[AtCoder language-test submission form](https://atcoder.jp/contests/language-test-202505/submit)
-and [yukicoder's language API](https://yukicoder.me/api/v1/languages).
-If a contest uses a different language environment, use the IDs cpg displays
-for that contest.
+or interpreters used by their commands.
 
 ### C++ with debugging and a fast profile
 
@@ -530,13 +451,13 @@ extensions = ["py"]
 run = "python3 {input}"
 
 [language.python.submit]
-atcoder = "6082" # Python (CPython 3.13.7)
-yukicoder = "python3"
+atcoder = "6083" # PyPy 3.11-v7.3.20
+yukicoder = "pypy3"
 
-# Or if you prefer PyPy:
+# Or if you prefer CPython:
 #
-# atcoder = "6083" # PyPy 3.11-v7.3.20
-# yukicoder = "pypy3"
+# atcoder = "6082" # Python (CPython 3.13.7)
+# yukicoder = "python3"
 ```
 
 ### Expand AtCoder Library headers
@@ -544,13 +465,12 @@ yukicoder = "python3"
 With [ac-library](https://github.com/atcoder/ac-library) checked out at
 `~/ac-library`, use its [expander](https://github.com/atcoder/ac-library/blob/master/expander.py)
 to inline ACL headers before local compilation and submission. This requires
-Python 3 and GCC. `--console` writes the expanded source to stdout, as required
-by `preprocess`.
+Python 3 and GCC.
 
 ```toml
 [language.cpp]
 extensions = ["cpp"]
-preprocess = "python3 ~/ac-library/expander.py --console --lib ~/ac-library {input}"
+preprocess = "python3 ~/ac-library/expander.py --console --lib ~/ac-library {input} > {processed}"
 compile = "g++ -std=c++23 -O2 -o {binary} {input}"
 run = "{binary}"
 

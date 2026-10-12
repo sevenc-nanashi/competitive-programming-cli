@@ -228,18 +228,13 @@ fn transform_source(
         .tempfile_in(&cwd)?
         // Close the handle so Windows commands can open the output for exclusive writing.
         .into_temp_path();
-    let uses_processed = command.contains("{processed}");
     let command = expand_command(command, &cwd, &[("input", input), ("processed", &output)])?;
     let program = Program::shell(command, cwd);
     tracing::info!("Running {stage} for {}", input.display());
     let result = execute(
         &program,
         File::open(input)?.into(),
-        if uses_processed {
-            io::stderr().into()
-        } else {
-            File::create(&output)?.into()
-        },
+        io::stderr().into(),
         Limits::default(),
         interrupted,
     )?;
@@ -252,12 +247,7 @@ fn transform_source(
         fs::read_to_string(&output).with_context(|| format!("{stage} output must be UTF-8"))?;
     ensure!(
         !source.trim().is_empty(),
-        "{stage} produced empty output; configure it to write source code to {}",
-        if uses_processed {
-            "{processed}"
-        } else {
-            "stdout"
-        }
+        "{stage} produced empty output; configure it to write source code to {{processed}}"
     );
     Ok(output)
 }
