@@ -16,6 +16,12 @@ fn command(directory: &TempDir) -> Command {
         .env("HOME", directory.path())
         .env("CARGO_MANIFEST_DIR", directory.path())
         .env("CPG_LOG", "")
+        .envs([
+            ("CPG_REMOTE", ""),
+            ("SSH_CONNECTION", ""),
+            ("SSH_CLIENT", ""),
+            ("SSH_TTY", ""),
+        ])
         .env("XDG_DATA_HOME", directory.path().join(".local/share"))
         .env("CPG_CONFIG_HOME", "~/config")
         .env("CPG_COOKIES_HOME", "~/cookies");

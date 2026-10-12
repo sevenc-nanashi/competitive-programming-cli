@@ -25,6 +25,15 @@
         "$ref": "#/definitions/Language"
       }
     },
+    "remote": {
+      "description": "Remote detection: auto checks SSH environment variables; manual requires --remote or CPG_REMOTE=1.",
+      "allOf": [
+        {
+          "$ref": "#/definitions/Remote"
+        }
+      ],
+      "default": "auto"
+    },
     "root": {
       "description": "Workspace root. Expands a leading ~ to HOME; relative paths resolve from the current directory.",
       "type": [
@@ -234,6 +243,13 @@
           "type": "boolean",
           "const": false
         }
+      ]
+    },
+    "Remote": {
+      "type": "string",
+      "enum": [
+        "auto",
+        "manual"
       ]
     },
     "Setup": {

@@ -180,6 +180,25 @@ For X11, you can use `command = "xclip -selection clipboard"`.
 On WSL, you might want to use `command = "/mnt/c/Windows/System32/clip.exe"` to
 copy the content to the Windows clipboard, in case arboard fails to work.
 
+## Remote mode
+
+cpg has a remote mode that changes behavior to work on a remote server.
+
+- Clipboard backend is set to `osc52`.
+- Copies the URL instead of opening it in a browser when `--open` is specified.
+
+By default, remote mode is automatically enabled when:
+
+- SSH environment variables are detected,
+- `CPG_REMOTE` is set to `1`, or
+- `--remote` is specified on the command line.
+
+You can disable SSH detection in `$config/config.toml` with:
+
+```toml
+remote = "manual"
+```
+
 ## Commands after copying templates
 
 Add `[setup]` to `$config/config.toml` to run shell commands after copying templates:

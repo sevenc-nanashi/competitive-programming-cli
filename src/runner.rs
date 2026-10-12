@@ -517,9 +517,17 @@ pub fn setup(command: &str, directory: &Path, interrupted: &AtomicBool) -> Resul
 pub fn copy_to_clipboard(
     clipboard: &Clipboard,
     content: &str,
+    remote: bool,
     interrupted: &AtomicBool,
 ) -> Result<()> {
     ensure!(!interrupted.load(Ordering::Relaxed), "Interrupted");
+    let clipboard = if remote {
+        &Clipboard::Osc52 {
+            clear_on_fail: clipboard.clear_on_fail(),
+        }
+    } else {
+        clipboard
+    };
     match clipboard {
         Clipboard::Osc52 { .. } => crossterm::execute!(
             io::stderr(),

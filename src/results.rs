@@ -1,6 +1,6 @@
 use crate::{
     cli::Results,
-    config::Paths,
+    config::{Clipboard, Config, Paths},
     model::{Metadata, Submission, SubmissionScope},
     services::Services,
 };
@@ -15,6 +15,7 @@ use crossterm::{
 use std::{
     io::{self, IsTerminal, Write},
     sync::{
+        Arc,
         atomic::{AtomicBool, Ordering},
         mpsc::{self, TryRecvError},
     },
@@ -61,12 +62,22 @@ pub fn run(
     args: &Results,
     paths: Paths,
     scope: SubmissionScope,
+    remote_override: Option<bool>,
     interrupted: &AtomicBool,
 ) -> Result<()> {
     let terminal = io::stdout().is_terminal();
     if args.ui && terminal {
         ensure!(io::stdin().is_terminal(), "--ui requires terminal input");
-        return monitor(paths, scope, args.limit.get(), interrupted);
+        let config = Config::load(&paths)?;
+        let remote = config.remote.enabled(remote_override);
+        return monitor(
+            paths,
+            scope,
+            args.limit.get(),
+            config.clipboard,
+            remote,
+            interrupted,
+        );
     }
     ensure!(!interrupted.load(Ordering::Relaxed), "Interrupted");
     let url = match &scope {
@@ -189,10 +200,27 @@ impl Drop for Screen {
     }
 }
 
+#[derive(Default)]
+struct ClipboardTasks {
+    interrupted: Arc<AtomicBool>,
+    threads: Vec<thread::JoinHandle<()>>,
+}
+
+impl Drop for ClipboardTasks {
+    fn drop(&mut self) {
+        self.interrupted.store(true, Ordering::Relaxed);
+        for thread in self.threads.drain(..) {
+            let _ = thread.join();
+        }
+    }
+}
+
 fn monitor(
     paths: Paths,
     scope: SubmissionScope,
     limit: usize,
+    clipboard: Clipboard,
+    remote: bool,
     interrupted: &AtomicBool,
 ) -> Result<()> {
     let title = match &scope {
@@ -222,9 +250,11 @@ fn monitor(
         }
     });
     let (open_tx, open_rx) = mpsc::channel();
+    let mut clipboard_tasks = ClipboardTasks::default();
     let _screen = Screen::enter()?;
     let mut fetching = false;
     let mut paused = false;
+    let mut copy = remote;
     let mut refresh_at = Instant::now();
     let mut idle = IdleTimer::new(refresh_at);
     let mut submissions = Vec::new();
@@ -250,7 +280,7 @@ fn monitor(
         }
         if let Ok(result) = open_rx.try_recv() {
             message = match result {
-                Ok(()) => "Opened submission in browser".into(),
+                Ok(action) => action,
                 Err(error) => format!("{error:#}"),
             };
         }
@@ -311,7 +341,8 @@ fn monitor(
         line(
             height.saturating_sub(1),
             &format!(
-                "{indicator} {state:<10} | p: pause/resume  r: refresh  ↑/↓: scroll  1–0: open  q: quit | {} submissions {}",
+                "{indicator} {state:<10} | p: pause/resume  r: refresh  ↑/↓: scroll  1–0: {}  c open/copy  q: quit | {} submissions {}",
+                if copy { "copy" } else { "open" },
                 submissions.len(),
                 if message.is_empty() {
                     String::new()
@@ -343,6 +374,10 @@ fn monitor(
                 break;
             }
             KeyCode::Char('q') | KeyCode::Esc => break,
+            KeyCode::Char('c') => {
+                copy = !copy;
+                message.clear();
+            }
             KeyCode::Char('p') => {
                 paused = !paused;
                 if !paused {
@@ -367,10 +402,33 @@ fn monitor(
                 {
                     let url = submission.url.clone();
                     let sender = open_tx.clone();
-                    message = "Opening submission…".into();
-                    thread::spawn(move || {
-                        let _ = sender.send(crate::open_browser(&url));
+                    let clipboard = clipboard.clone();
+                    let interrupted = Arc::clone(&clipboard_tasks.interrupted);
+                    message = if copy {
+                        "Copying URL…"
+                    } else {
+                        "Opening submission…"
+                    }
+                    .into();
+                    let task = thread::spawn(move || {
+                        let result = if copy {
+                            crate::runner::copy_to_clipboard(
+                                &clipboard,
+                                url.as_str(),
+                                remote,
+                                &interrupted,
+                            )
+                            .map(|()| "Copied submission URL".into())
+                        } else {
+                            crate::open_browser(&url)
+                                .map(|()| "Opened submission in browser".into())
+                        };
+                        let _ = sender.send(result);
                     });
+                    if copy {
+                        clipboard_tasks.threads.retain(|task| !task.is_finished());
+                        clipboard_tasks.threads.push(task);
+                    }
                 }
             }
             _ => (),

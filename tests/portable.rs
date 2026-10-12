@@ -56,6 +56,12 @@ fn command(directory: &TempDir) -> Command {
         .env("CPG_CONFIG_HOME", "~/config")
         .env("CPG_COOKIES_HOME", "~/cookies")
         .env("CPG_LOG", "")
+        .envs([
+            ("CPG_REMOTE", ""),
+            ("SSH_CONNECTION", ""),
+            ("SSH_CLIENT", ""),
+            ("SSH_TTY", ""),
+        ])
         .env("CPG_TEST_RUSTC", compiler())
         .env("CARGO_MANIFEST_DIR", directory.path())
         .env("CPG_TEST_HELPER", helper());

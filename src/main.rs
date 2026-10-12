@@ -24,6 +24,13 @@ fn open_browser(url: &url::Url) -> Result<()> {
 
 fn run(cli: Cli, interrupted: &AtomicBool) -> Result<bool> {
     let paths = Paths::discover()?;
+    let remote_override = if cli.remote {
+        Some(true)
+    } else if cli.no_remote {
+        Some(false)
+    } else {
+        None
+    };
     match cli.command {
         Commands::Completion(args) => {
             let shell = usage::complete::Shell::from_name(&args.shell)
@@ -117,9 +124,15 @@ fn run(cli: Cli, interrupted: &AtomicBool) -> Result<bool> {
             if args.url_only {
                 println!("{url}");
             } else {
-                tracing::info!("Opening {url} in your browser...");
-                open_browser(&url)?;
-                tracing::info!("Opened {url}");
+                let config = Config::load(&paths)?;
+                if config.remote.enabled(remote_override) {
+                    runner::copy_to_clipboard(&config.clipboard, url.as_str(), true, interrupted)?;
+                    tracing::info!("Copied {url} to the clipboard");
+                } else {
+                    tracing::info!("Opening {url} in your browser...");
+                    open_browser(&url)?;
+                    tracing::info!("Opened {url}");
+                }
             }
         }
         Commands::List(args) => {
@@ -176,10 +189,15 @@ fn run(cli: Cli, interrupted: &AtomicBool) -> Result<bool> {
         }
         Commands::Submit(args) => {
             let config = Config::load(&paths)?;
+            let remote = config.remote.enabled(remote_override);
+            ensure!(
+                !(remote && args.clipboard && args.open),
+                "--clipboard and --open cannot be combined in remote mode"
+            );
             let clear_on_fail = args.clipboard && config.clipboard.clear_on_fail();
-            let result = submit(args, &paths, &config, interrupted);
+            let result = submit(args, &paths, &config, remote, interrupted);
             if result.is_err() && clear_on_fail && !interrupted.load(Ordering::Relaxed) {
-                match runner::copy_to_clipboard(&config.clipboard, "", interrupted) {
+                match runner::copy_to_clipboard(&config.clipboard, "", remote, interrupted) {
                     Ok(_) => tracing::info!("Cleared the clipboard"),
                     Err(error) => tracing::warn!("Cannot clear the clipboard: {error:#}"),
                 }
@@ -188,7 +206,7 @@ fn run(cli: Cli, interrupted: &AtomicBool) -> Result<bool> {
         }
         Commands::Results(args) => {
             let scope = workspace::locate(&std::env::current_dir()?)?;
-            results::run(&args, paths, scope, interrupted)?;
+            results::run(&args, paths, scope, remote_override, interrupted)?;
         }
     }
     Ok(true)
@@ -198,6 +216,7 @@ fn submit(
     args: cli::Submit,
     paths: &Paths,
     config: &Config,
+    remote: bool,
     interrupted: &AtomicBool,
 ) -> Result<bool> {
     let source_path = fs::canonicalize(expand_path(&args.file)?)?;
@@ -252,7 +271,7 @@ fn submit(
         } else {
             None
         };
-        runner::copy_to_clipboard(&config.clipboard, &source, interrupted)?;
+        runner::copy_to_clipboard(&config.clipboard, &source, remote, interrupted)?;
         tracing::info!("Copied {} bytes to the clipboard", source.len());
         if let Some(url) = problem_url {
             println!("{url}");
@@ -308,8 +327,19 @@ fn submit(
     })?;
     println!("Submitted {}: {}", submission.id, submission.url);
     if args.open {
-        open_browser(&submission.url)
-            .context("Submission succeeded, but opening its page failed")?;
+        if remote {
+            runner::copy_to_clipboard(
+                &config.clipboard,
+                submission.url.as_str(),
+                remote,
+                interrupted,
+            )
+            .context("Submission succeeded, but copying its URL failed")?;
+            tracing::info!("Copied {} to the clipboard", submission.url);
+        } else {
+            open_browser(&submission.url)
+                .context("Submission succeeded, but opening its page failed")?;
+        }
     }
     Ok(true)
 }
