@@ -64,7 +64,7 @@ The downloaded problems will be saved in a directory `$root/$host/contests/$cont
 - `$host` is the host of the online judge, such as `atcoder`.
 - `$contest_id` is the contest ID, such as `abc473`.
 - `$index` is the problem index, such as `01`, `02`, ..., or `a`, `b`, ...
-  - Set [`alphabetic`](./configuration.md#configuration) to `true` to use letters instead of numbers.
+  - Set [`alphabetic`](./configuration.md#directory_prefixes) to `true` to use letters instead of numbers.
   - This exists for sorting problems in the order they appear in the contest, for when:
     - The contest contains multiple problems from different contests (e.g. AtCoder Daily Training),
     - The problem IDs are not sorted in the order they appear in the contest (e.g. Yukicoder).
@@ -82,9 +82,7 @@ The problem directories will contain:
 - Problem metadata and sample test cases.
 - (Note that this does not contain workspace template files)
 
-Contest metadata retains the ordered problem list. AtCoder Problems virtual
-contests preserve their configured order and refer back to the original AtCoder
-problems; yukicoder uses the contest's problem ID list.
+Contest metadata retains the ordered problem list.
 
 Similar to single problem downloads, optional [`[setup]` commands](./configuration.md#commands-after-copying-templates)
 run after templates are copied and must succeed before the workspace is published.
@@ -114,7 +112,15 @@ Use `--url-only` to print just the URL to stdout without opening a browser:
 ```bash
 cpg open --url-only
 # Or shortcut
-cpg o --url-only
+cpg o -n
+```
+
+Or use `--copy` to copy the URL to the clipboard instead of opening a browser:
+
+```bash
+cpg open --copy
+# Or shortcut
+cpg o -c
 ```
 
 ## List workspaces
@@ -123,8 +129,6 @@ You can list the workspaces you've downloaded using the `list` command.
 
 By default, `list` shows workspace directories: contests and standalone problems.
 Paths are relative to the workspace root, which you can get with `cpg config --root`.
-Directories with invalid or unreadable `.cpg.toml` files are omitted, but their
-subdirectories are still searched.
 Choose one of the following mutually exclusive filters:
 
 | Option                  | Directories listed                                  |
@@ -176,6 +180,10 @@ cpg list -f '{path}\t{path} ({title})' --delimiter null |
 ```
 
 This command is for piping the output to other commands, such as `fzf`.
+
+If you need more advanced formatting, you can use `--json` to output JSON for each record
+and parse it with `jq` or other JSON tools.
+
 For example, you can create `ccd` command which changes the current working directory to the selected problem's directory.
 This feature is heavily inspired by [ghq](https://github.com/x-motemen/ghq).
 

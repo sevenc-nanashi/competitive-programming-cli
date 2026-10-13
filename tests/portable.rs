@@ -56,6 +56,12 @@ fn command(directory: &TempDir) -> Command {
         .env("CPG_CONFIG_HOME", "~/config")
         .env("CPG_COOKIES_HOME", "~/cookies")
         .env("CPG_LOG", "")
+        .envs([
+            ("CPG_REMOTE", ""),
+            ("SSH_CONNECTION", ""),
+            ("SSH_CLIENT", ""),
+            ("SSH_TTY", ""),
+        ])
         .env("CPG_TEST_RUSTC", compiler())
         .env("CARGO_MANIFEST_DIR", directory.path())
         .env("CPG_TEST_HELPER", helper());
@@ -200,7 +206,7 @@ run = '{binary} copy'
     run(command(&directory).args(["test", "solution.rs"]), 0);
     let config = fs::read_to_string(&config_path).unwrap();
     fs::write(&config_path, config.replace(" > {processed}", "")).unwrap();
-    run(command(&directory).args(["test", "solution.rs"]), 0);
+    run(command(&directory).args(["test", "solution.rs"]), 2);
     assert_eq!(
         fs::read_to_string(directory.path().join("solution.rs")).unwrap(),
         include_str!("fixtures/portable.rs")

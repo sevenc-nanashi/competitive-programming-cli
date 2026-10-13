@@ -13,6 +13,12 @@ pub struct Cli {
     /// Disable colored output.
     #[usage(long, global)]
     pub no_color: bool,
+    /// Enable remote mode, overriding configuration and environment detection.
+    #[usage(long, global, conflicts("--no-remote"))]
+    pub remote: bool,
+    /// Disable remote mode, overriding configuration and environment detection.
+    #[usage(long, global, conflicts("--remote"))]
+    pub no_remote: bool,
     #[usage(subcommand)]
     pub command: Commands,
 }
@@ -33,7 +39,7 @@ pub enum Commands {
     /// Prepare a workspace for one problem or all problems in a contest.
     #[usage(alias = "p")]
     Prepare(Prepare),
-    /// Open the current problem or contest in your browser.
+    /// Open the current problem or contest in your browser, or copy its URL in remote mode.
     #[usage(alias = "o")]
     Open(Open),
     /// Compile and test a solution.
@@ -325,6 +331,7 @@ pub struct Submit {
     /// Open the submission page in your browser after a successful submission.
     /// With `--clipboard,` open the problem page instead of the submission page so you can paste the
     /// copied source.
+    /// In remote mode, copy the submission URL; cannot be combined with --clipboard.
     #[usage(long, short = 'o')]
     pub open: bool,
     /// Submit to this problem URL instead of detecting it from the source's .cpg.toml.
@@ -342,6 +349,7 @@ pub struct Submit {
 pub struct Results {
     /// Monitor submissions in an interactive terminal UI.
     /// Automatically pause after two hours without new submissions or terminal interaction.
+    /// Press c to switch number keys between opening and copying submission URLs.
     #[usage(long, short = 'i')]
     pub ui: bool,
     /// Maximum number of recent submissions to display.
@@ -354,11 +362,44 @@ pub struct List {
     #[usage(arg_group)]
     pub mode: Option<ListMode>,
     /// Output format: {path}, {title}, {id}, {url}, and {service}; \t inserts a tab.
-    #[usage(long, short = 'f', default = "{path}")]
+    #[usage(long, short = 'f', default = "{path}", conflicts("--jsonl"))]
     pub format: String,
+    /// Output with json instead, with specified delimiter.
+    #[usage(long, default = "false", conflicts("--format"))]
+    pub json: bool,
     /// Record delimiter: line, null, tab, or a single character.
     #[usage(long, default = "line")]
-    pub delimiter: String,
+    pub delimiter: ListDelimiter,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ListDelimiter {
+    Line,
+    Null,
+    Tab,
+    Char(char),
+}
+impl std::str::FromStr for ListDelimiter {
+    type Err = String;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "line" => Ok(ListDelimiter::Line),
+            "null" => Ok(ListDelimiter::Null),
+            "tab" => Ok(ListDelimiter::Tab),
+            c if c.chars().count() == 1 => Ok(ListDelimiter::Char(c.chars().next().unwrap())),
+            _ => Err(format!("invalid delimiter: {s:?}")),
+        }
+    }
+}
+impl std::fmt::Display for ListDelimiter {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ListDelimiter::Line => writeln!(f),
+            ListDelimiter::Null => write!(f, "\0"),
+            ListDelimiter::Tab => write!(f, "\t"),
+            ListDelimiter::Char(c) => write!(f, "{c}"),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, usage::ArgGroup)]

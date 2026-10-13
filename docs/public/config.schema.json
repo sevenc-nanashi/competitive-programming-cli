@@ -25,6 +25,15 @@
         "$ref": "#/definitions/Language"
       }
     },
+    "remote": {
+      "description": "Remote detection: auto checks SSH environment variables; manual requires --remote or CPG_REMOTE=1.",
+      "allOf": [
+        {
+          "$ref": "#/definitions/Remote"
+        }
+      ],
+      "default": "auto"
+    },
     "root": {
       "description": "Workspace root. Expands a leading ~ to HOME; relative paths resolve from the current directory.",
       "type": [
@@ -129,14 +138,14 @@
           }
         },
         "preprocess": {
-          "description": "Shell command before compilation, execution, or submission. Receives source on stdin and via {input}; writes transformed UTF-8 source to {processed} when present, otherwise stdout. Paths are shell-quoted.",
+          "description": "Shell command before compilation, execution, or submission. Receives source on stdin and via {input}; writes transformed UTF-8 source to {processed}. Command stdout is sent to stderr. Paths are shell-quoted.",
           "type": [
             "string",
             "null"
           ]
         },
         "presubmit": {
-          "description": "Shell command before submission, after preprocess. Receives source on stdin and via {input}; writes transformed UTF-8 source to {processed} when present, otherwise stdout. Paths are shell-quoted.",
+          "description": "Shell command before submission, after preprocess. Receives source on stdin and via {input}; writes transformed UTF-8 source to {processed}. Command stdout is sent to stderr. Paths are shell-quoted.",
           "type": [
             "string",
             "null"
@@ -234,6 +243,13 @@
           "type": "boolean",
           "const": false
         }
+      ]
+    },
+    "Remote": {
+      "type": "string",
+      "enum": [
+        "auto",
+        "manual"
       ]
     },
     "Setup": {

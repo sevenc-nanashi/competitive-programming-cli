@@ -1,13 +1,5 @@
 # Installation
 
-cpg supports Linux, macOS, and Windows. Building from source requires Rust 1.91 or newer and a native C/C++ toolchain (Xcode Command Line Tools on macOS, Visual Studio Build Tools and NASM on Windows).
-
-To install the current checkout:
-
-```bash
-cargo install --path . --locked
-```
-
 You can install cpg using cargo:
 
 ```bash
@@ -33,20 +25,10 @@ mise use -g github:sevenc-nanashi/competitive-programming-cli
 ## Experimental oj backend
 
 For judges without a native backend, install `uv` and make it available on `PATH`.
-On first use, cpg runs `uv venv` and installs its pinned fork of
-online-judge-api-client. This requires network access; `uv` can download a Python
-interpreter if needed. AtCoder, AtCoder Problems, yukicoder, Codeforces, and ShareOJ use native backends
-and do not require Python or `uv`.
+On first use, cpg runs `uv venv` and installs its [pinned fork of online-judge-api-client](https://github.com/sevenc-nanashi/online-judge-tools-api-client).
 
 See [experimental oj support](./configuration.md#experimental-oj-support) for
 usage, virtual environment paths, and limitations.
-
-## Windows
-
-Configuration commands, including setup and language commands, run through
-`cmd /C` on Windows. Use CMD syntax, such as `type` instead of `cat` and
-`%VARIABLE%` instead of `$VARIABLE`.
-Install the compilers and runtimes referenced by your configuration separately.
 
 ## Shell completion
 

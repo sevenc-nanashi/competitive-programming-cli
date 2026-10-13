@@ -322,6 +322,9 @@ fn read_oj_templates(config_path: &Path) -> Result<Vec<OjTemplate>> {
 #[serde(deny_unknown_fields)]
 #[schemars(title = "cpg configuration", extend("$id" = SCHEMA_URL))]
 pub struct Config {
+    /// Remote detection: auto checks SSH environment variables; manual requires --remote or CPG_REMOTE=1.
+    #[serde(default)]
+    pub remote: Remote,
     /// Workspace root. Expands a leading ~ to HOME; relative paths resolve from the current directory.
     #[schemars(length(min = 1))]
     pub root: Option<PathBuf>,
@@ -339,7 +342,28 @@ pub struct Config {
     pub language: BTreeMap<String, Language>,
 }
 
-#[derive(Debug, Deserialize, JsonSchema)]
+#[derive(Debug, Default, Deserialize, serde::Serialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum Remote {
+    #[default]
+    Auto,
+    Manual,
+}
+
+impl Remote {
+    pub fn enabled(&self, cli: Option<bool>) -> bool {
+        if let Some(enabled) = cli {
+            return enabled;
+        }
+        env::var_os("CPG_REMOTE").is_some_and(|value| value == "1")
+            || matches!(self, Self::Auto)
+                && ["SSH_CONNECTION", "SSH_CLIENT", "SSH_TTY"]
+                    .iter()
+                    .any(|name| env::var_os(name).is_some_and(|value| !value.is_empty()))
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum Clipboard {
     /// Use the terminal clipboard through OSC 52 on stderr.
@@ -430,9 +454,9 @@ fn setup_commands<'de, D: serde::Deserializer<'de>>(
 pub struct Language {
     /// File extensions without the leading dot. Use [] for the executable fallback.
     pub extensions: Vec<String>,
-    /// Shell command before compilation, execution, or submission. Receives source on stdin and via {input}; writes transformed UTF-8 source to {processed} when present, otherwise stdout. Paths are shell-quoted.
+    /// Shell command before compilation, execution, or submission. Receives source on stdin and via {input}; writes transformed UTF-8 source to {processed}. Command stdout is sent to stderr. Paths are shell-quoted.
     pub preprocess: Option<String>,
-    /// Shell command before submission, after preprocess. Receives source on stdin and via {input}; writes transformed UTF-8 source to {processed} when present, otherwise stdout. Paths are shell-quoted.
+    /// Shell command before submission, after preprocess. Receives source on stdin and via {input}; writes transformed UTF-8 source to {processed}. Command stdout is sent to stderr. Paths are shell-quoted.
     pub presubmit: Option<String>,
     /// Compilation shell command with shell-quoted {input} and {binary} paths. Omit for interpreted languages.
     pub compile: Option<String>,

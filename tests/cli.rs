@@ -16,6 +16,12 @@ fn command(directory: &TempDir) -> Command {
         .env("HOME", directory.path())
         .env("CARGO_MANIFEST_DIR", directory.path())
         .env("CPG_LOG", "")
+        .envs([
+            ("CPG_REMOTE", ""),
+            ("SSH_CONNECTION", ""),
+            ("SSH_CLIENT", ""),
+            ("SSH_TTY", ""),
+        ])
         .env("XDG_DATA_HOME", directory.path().join(".local/share"))
         .env("CPG_CONFIG_HOME", "~/config")
         .env("CPG_COOKIES_HOME", "~/cookies");
@@ -490,34 +496,22 @@ fn clipboard() {
         assert!(output.stdout.is_empty());
         assert!(String::from_utf8_lossy(&output.stderr).contains("Invalid CPG_LOG"));
     }
-    for preprocess in [
-        "tr a-z A-Z",
-        "tr a-z A-Z > {processed}; echo preprocess-log",
-    ] {
-        for presubmit in [
-            "cat; printf '!done'",
-            "cat {input} > {processed}; printf '!done' >> {processed}; echo presubmit-log",
-        ] {
-            fs::write(&config_path, format!("[clipboard]\nkind = 'command'\ncommand = \"cat > 'copied text'\"\n[language.text]\nextensions = ['txt']\nrun = 'cat {{input}}'\npreprocess = {preprocess:?}\npresubmit = {presubmit:?}\n")).unwrap();
-            let output = run(&directory, &args, 0);
-            assert!(output.stdout.is_empty());
-            for (stage, script) in [("preprocess", preprocess), ("presubmit", presubmit)] {
-                if script.contains("{processed}") {
-                    assert!(
-                        String::from_utf8_lossy(&output.stderr).contains(&format!("{stage}-log"))
-                    );
-                }
-            }
-            assert_eq!(
-                fs::read_to_string(directory.path().join("copied text")).unwrap(),
-                "HELLO\n!done"
-            );
-            assert_eq!(
-                fs::read_to_string(directory.path().join("solution.txt")).unwrap(),
-                "hello\n"
-            );
-        }
+    let preprocess = "tr a-z A-Z > {processed}; echo preprocess-log";
+    let presubmit = "cat {input} > {processed}; printf '!done' >> {processed}; echo presubmit-log";
+    fs::write(&config_path, format!("[clipboard]\nkind = 'command'\ncommand = \"cat > 'copied text'\"\n[language.text]\nextensions = ['txt']\nrun = 'cat {{input}}'\npreprocess = {preprocess:?}\npresubmit = {presubmit:?}\n")).unwrap();
+    let output = run(&directory, &args, 0);
+    assert!(output.stdout.is_empty());
+    for stage in ["preprocess", "presubmit"] {
+        assert!(String::from_utf8_lossy(&output.stderr).contains(&format!("{stage}-log")));
     }
+    assert_eq!(
+        fs::read_to_string(directory.path().join("copied text")).unwrap(),
+        "HELLO\n!done"
+    );
+    assert_eq!(
+        fs::read_to_string(directory.path().join("solution.txt")).unwrap(),
+        "hello\n"
+    );
 
     // Clipboard commands may keep a background process alive to serve the copied text.
     configure(
@@ -2070,10 +2064,10 @@ run = "{binary}"
     let config_path = directory.path().join("config/config.toml");
     let mut config: toml::Value =
         toml::from_str(&fs::read_to_string(&config_path).unwrap()).unwrap();
-    config["language"]["cpp"]
-        .as_table_mut()
-        .unwrap()
-        .insert("preprocess".into(), "ruby ~/expand.rb {input}".into());
+    config["language"]["cpp"].as_table_mut().unwrap().insert(
+        "preprocess".into(),
+        "ruby ~/expand.rb {input} > {processed}".into(),
+    );
     config["language"]["cpp"]
         .as_table_mut()
         .unwrap()
@@ -2097,10 +2091,10 @@ run = "{binary}"
         cpp
     );
 
-    config["language"]["ruby"]
-        .as_table_mut()
-        .unwrap()
-        .insert("preprocess".into(), "ruby ~/rewrite.rb {input}".into());
+    config["language"]["ruby"].as_table_mut().unwrap().insert(
+        "preprocess".into(),
+        "ruby ~/rewrite.rb {input} > {processed}".into(),
+    );
     config["language"]["ruby"]
         .as_table_mut()
         .unwrap()
@@ -3083,14 +3077,14 @@ mock = "ruby"
     let config_path = directory.path().join("config/config.toml");
     let mut config: toml::Value =
         toml::from_str(&fs::read_to_string(&config_path).unwrap()).unwrap();
-    config["language"]["ruby"]
-        .as_table_mut()
-        .unwrap()
-        .insert("preprocess".into(), "ruby ~/preprocess.rb {input}".into());
-    config["language"]["ruby"]
-        .as_table_mut()
-        .unwrap()
-        .insert("presubmit".into(), "ruby ~/presubmit.rb {input}".into());
+    config["language"]["ruby"].as_table_mut().unwrap().insert(
+        "preprocess".into(),
+        "ruby ~/preprocess.rb {input} > {processed}".into(),
+    );
+    config["language"]["ruby"].as_table_mut().unwrap().insert(
+        "presubmit".into(),
+        "ruby ~/presubmit.rb {input} > {processed}".into(),
+    );
     fs::write(&config_path, toml::to_string(&config).unwrap()).unwrap();
     fs::write(directory.path().join("preprocess.rb"), "abort unless File.read('marker') == 'single'; File.open('order', 'a') { |f| f.puts 'preprocess' }; puts '# preprocess'; puts File.read(ARGV.fetch(0))").unwrap();
     fs::write(directory.path().join("presubmit.rb"), "source = File.read(ARGV.fetch(0)); abort unless source.start_with?(\"# preprocess\\n\") && STDIN.read == source; File.open('order', 'a') { |f| f.puts 'presubmit' }; print source; puts '# presubmit'").unwrap();

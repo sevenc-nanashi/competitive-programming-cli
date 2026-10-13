@@ -2,7 +2,7 @@
 
 ## Submit solution
 
-You can submit a solution to a problem.
+You can submit a solution to a problem using the `submit` command.
 
 ```bash
 # Submit a solution to a problem
@@ -24,24 +24,20 @@ You can also specify the problem URL using `--problem`.
 cpg submit ./solution.cpp --problem https://atcoder.jp/contests/abc473/tasks/abc473_f
 ```
 
-Configure the judge's [submission language ID](./configuration.md#submission-language-ids)
-for each file type, or pass `--language ID`.
+Note that you need to:
+
+- be logged in to the judge to submit, and
+- have configured [submission language ID](./configuration.md#submission-language-ids)
+  for each file type (or pass `--language ID`).
+
 Use `--profile NAME` (`-P NAME`) to apply a language profile's `preprocess`,
-`presubmit`, and service-specific `submit` overrides. This also works with
-`--clipboard`. An explicit `--language ID` takes precedence over the profile.
+`presubmit`, and service-specific `submit` overrides.
 
 cpg fetches the available languages and displays their IDs if the configured
 ID is missing or invalid.
-A successful submission prints its ID and URL. If the judge's response is
-ambiguous, cpg reports that the outcome is unknown; check `results` before
-submitting again.
 
-With `--open`, cpg opens the returned submission URL after submitting. If the
-browser cannot be opened, the submission is still saved on the judge and its URL
-is printed; cpg reports the browser error and exits with code 2.
-
-`submit` warns and stops if the source is identical to its saved template, including
-when `--problem` is specified. To intentionally submit the unchanged file:
+`submit` refuses to submit a solution that has not changed from the template.
+This behavior can be overridden with `--allow-submit-unchanged-solution`.
 
 ```bash
 cpg submit ./solution.cpp --allow-submit-unchanged-solution
@@ -54,11 +50,12 @@ cpg submit ./solution.cpp --clipboard
 ```
 
 This runs the configured `preprocess` and `presubmit` commands, then copies the
-result using the [clipboard backend](./configuration.md#clipboard). It does not
-submit or contact the judge, and needs no problem metadata, cookies, or submission
-language ID. Add `--open` to print the problem URL and open it in your browser
-after copying; this requires the source's problem metadata. `--clipboard` cannot
-be combined with `--problem` or `--language`.
+result using the [clipboard backend](./configuration.md#clipboard).
+Add `--open` to print the problem URL and open it in your browser
+after copying.
+
+This is useful for judges that require captcha verification, especially AtCoder's
+past contests.
 
 > [!TIP]
 > For Codeforces, you can use [codeforces-clipboard-submission.js](https://sevenc7c.com/competitive-programming-cli/codeforces-clipboard-submission.user.js)
@@ -83,19 +80,7 @@ cpg results --ui
 ```
 
 The nearest `.cpg.toml` in the current directory or its ancestors selects the
-problem or contest. Results include your browser submissions as well as cpg
-submissions. The newest 20 are shown by default; use `--limit N` to change this.
-On a terminal, both modes use aligned columns and colored status labels. URLs
-appear below each submission in the normal listing. `--no-color` or `NO_COLOR`
-disables colors.
+problem or contest.
 
-The interactive monitor refreshes every three seconds. It pauses automatically
-after two hours without a newly observed submission or terminal interaction,
-including when there are no submissions. Regular refreshes and verdict changes
-do not reset this timer. Press `p` to pause or resume polling; resuming fetches
-results immediately and starts a new two-hour window. `r` refreshes once while
-keeping the current pause state, and `q` quits.
-
-When stdout is piped or redirected, both `results` and `results --ui` print a
-single snapshot in the original tab-separated format, with the same header and
-column order and no colors or terminal controls.
+When stdout is piped or redirected, `results` will output the results in a
+machine-readable format (TSV) instead of padded columns.
