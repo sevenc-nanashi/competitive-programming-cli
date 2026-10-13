@@ -136,15 +136,8 @@ fn run(cli: Cli, interrupted: &AtomicBool) -> Result<bool> {
             }
         }
         Commands::List(args) => {
-            let delimiter = match args.delimiter.as_str() {
-                "line" => '\n',
-                "null" => '\0',
-                "tab" => '\t',
-                value => value
-                    .parse::<char>()
-                    .context("--delimiter must be line, null, tab, or a single character")?,
-            };
             let config = Config::load(&paths)?;
+            let delimiter = args.delimiter;
             let root = config.root()?;
             let mode = match args.mode {
                 Some(mode) => mode,
@@ -153,12 +146,23 @@ fn run(cli: Cli, interrupted: &AtomicBool) -> Result<bool> {
             let format = args.format.replace("\\t", "\t");
             for (path, metadata) in workspace::list(&config, mode)? {
                 let path = path.strip_prefix(&root)?.to_string_lossy();
-                let line = format
-                    .replace("{path}", &path)
-                    .replace("{title}", metadata.title())
-                    .replace("{id}", metadata.id())
-                    .replace("{url}", metadata.url().as_ref())
-                    .replace("{service}", &metadata.service().to_string());
+                let line = if args.json {
+                    serde_json::json!({
+                        "path": path,
+                        "title": metadata.title(),
+                        "id": metadata.id(),
+                        "url": metadata.url().as_ref(),
+                        "service": metadata.service().to_string(),
+                    })
+                    .to_string()
+                } else {
+                    format
+                        .replace("{path}", &path)
+                        .replace("{title}", metadata.title())
+                        .replace("{id}", metadata.id())
+                        .replace("{url}", metadata.url().as_ref())
+                        .replace("{service}", &metadata.service().to_string())
+                };
                 print!("{line}{delimiter}");
             }
         }

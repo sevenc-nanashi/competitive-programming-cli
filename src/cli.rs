@@ -13,7 +13,7 @@ pub struct Cli {
     /// Disable colored output.
     #[usage(long, global)]
     pub no_color: bool,
-    /// Copy URLs instead of opening a browser and use OSC 52 for the clipboard.
+    /// Enable remote mode, overriding configuration and environment detection.
     #[usage(long, global, conflicts("--no-remote"))]
     pub remote: bool,
     /// Disable remote mode, overriding configuration and environment detection.
@@ -362,11 +362,44 @@ pub struct List {
     #[usage(arg_group)]
     pub mode: Option<ListMode>,
     /// Output format: {path}, {title}, {id}, {url}, and {service}; \t inserts a tab.
-    #[usage(long, short = 'f', default = "{path}")]
+    #[usage(long, short = 'f', default = "{path}", conflicts("--jsonl"))]
     pub format: String,
+    /// Output with json instead, with specified delimiter.
+    #[usage(long, default = "false", conflicts("--format"))]
+    pub json: bool,
     /// Record delimiter: line, null, tab, or a single character.
     #[usage(long, default = "line")]
-    pub delimiter: String,
+    pub delimiter: ListDelimiter,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ListDelimiter {
+    Line,
+    Null,
+    Tab,
+    Char(char),
+}
+impl std::str::FromStr for ListDelimiter {
+    type Err = String;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "line" => Ok(ListDelimiter::Line),
+            "null" => Ok(ListDelimiter::Null),
+            "tab" => Ok(ListDelimiter::Tab),
+            c if c.chars().count() == 1 => Ok(ListDelimiter::Char(c.chars().next().unwrap())),
+            _ => Err(format!("invalid delimiter: {s:?}")),
+        }
+    }
+}
+impl std::fmt::Display for ListDelimiter {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ListDelimiter::Line => write!(f, "\n"),
+            ListDelimiter::Null => write!(f, "\0"),
+            ListDelimiter::Tab => write!(f, "\t"),
+            ListDelimiter::Char(c) => write!(f, "{c}"),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, usage::ArgGroup)]
