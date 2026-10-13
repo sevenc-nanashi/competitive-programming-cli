@@ -514,7 +514,11 @@ impl ServiceBackend for OjBackend {
         })
     }
 
-    fn submissions(&self, _scope: &SubmissionScope, _limit: usize) -> Result<(Vec<Submission>, FetchMethod)> {
+    fn submissions(
+        &self,
+        _scope: &SubmissionScope,
+        _limit: usize,
+    ) -> Result<(Vec<Submission>, FetchMethod)> {
         bail!("Fetching submissions is not supported for oj backend");
     }
 }
