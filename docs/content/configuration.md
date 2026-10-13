@@ -26,47 +26,7 @@ The JSON Schema for the configuration file is available on
 `https://raw.githubusercontent.com/sevenc-nanashi/competitive-programming-cli/refs/tags/v{version}/docs/public/config.schema.json`,
 or print it locally with `cpg config --schema`.
 
-After setting the root, inspect the current paths with:
-
-```bash
-cpg config
-# Workspace root: /home/your-name/competitive-programming
-# Configuration directory: /home/your-name/.config/cpg
-# Cookies directory: /home/your-name/.local/share/cpg/cookies
-# oj virtual environment directory: /home/your-name/.local/share/cpg/oj-venv
-# Workspace template directory: /home/your-name/.config/cpg/workspace_template
-# Problem template directory: /home/your-name/.config/cpg/problem_template
-# Contest template directory: /home/your-name/.config/cpg/contest_template
-# Single problem template directory: /home/your-name/.config/cpg/single_problem_template
-
-# Print only the workspace root, for use in scripts
-cpg config --root
-
-# Or print only one of the other directories
-cpg config --config-dir
-cpg config --cookies-dir
-cpg config --oj-venv-dir
-cpg config --workspace-template-dir
-cpg config --problem-template-dir
-cpg config --contest-template-dir
-cpg config --single-problem-template-dir
-```
-
-Paths are absolute and reflect the environment overrides above and in
-[Login](#login). These commands do not create directories or modify settings.
-The oj virtual environment directory follows `XDG_DATA_HOME`, defaulting to
-`~/.local/share/cpg/oj-venv`.
-The flags are mutually exclusive. The full display and `--root` require a
-configured root; run `cpg init` or set `root` first. All directory flags also work
-before initialization. Template directories are located within the configuration
-directory, including when `$CPG_CONFIG_HOME` is set.
-
-[Language settings](#language-settings) belong in the same file. Path settings and CLI
-path arguments expand a leading `~` or `~/` to `$HOME` (`USERPROFILE` on Windows), including `root`, source
-files, test/generation directories, judge files, and configuration/Cookie paths.
-For example, `root = "~/competitive-programming"` is supported.
-Other environment variables in TOML paths are not expanded. Arguments after
-`--` are passed directly to the command; use your shell's expansion when needed.
+In addition to the configuration file, the following directories are created:
 
 - `$config/config.toml`: Configuration file.
 - `$config/config.local.toml`: Optional machine-specific overrides for `config.toml`.
@@ -83,18 +43,30 @@ Other environment variables in TOML paths are not expanded. Arguments after
   - Files and directories within this directory is called "single problem template".
   - This should contain files that makes single problem directory self-contained, such as overwriting `Cargo.toml` with one without workspace dependencies, etc.
 
-## Logging
-
-`CPG_LOG` accepts [tracing-subscriber](https://docs.rs/tracing-subscriber/latest/tracing_subscriber/filter/struct.EnvFilter.html)'s
-`EnvFilter` syntax: log levels (`off`, `error`, `warn`, `info`, `debug`, `trace`),
-comma-separated `target=level` directives, and span/field filters such as `cpg[request{method=GET}]=trace`.
-The default is `info` when the variable is unset or empty. Invalid filters cause
-cpg to exit with code 2. Logs go to stderr; command output on stdout is unchanged.
+These directories can be obtained by running `cpg config`:
 
 ```bash
-CPG_LOG=debug cpg prepare https://atcoder.jp/contests/abc473/tasks/abc473_f
-CPG_LOG=info,cpg=debug,reqwest=warn cpg prepare https://atcoder.jp/contests/abc473/tasks/abc473_f
-CPG_LOG=off cpg list
+cpg config
+# Workspace root: /home/your-name/competitive-programming
+# Configuration directory: /home/your-name/.config/cpg
+# Cookies directory: /home/your-name/.local/share/cpg/cookies
+# oj virtual environment directory: /home/your-name/.local/share/cpg/oj-venv
+# Workspace template directory: /home/your-name/.config/cpg/workspace_template
+# Problem template directory: /home/your-name/.config/cpg/problem_template
+# Contest template directory: /home/your-name/.config/cpg/contest_template
+# Single problem template directory: /home/your-name/.config/cpg/single_problem_template
+
+# Print the workspace root
+cpg config --root
+
+# Print the configuration directory
+cpg config --config-dir
+cpg config --cookies-dir
+cpg config --oj-venv-dir
+cpg config --workspace-template-dir
+cpg config --problem-template-dir
+cpg config --contest-template-dir
+cpg config --single-problem-template-dir
 ```
 
 ## Local overrides
@@ -114,6 +86,18 @@ compile = "clang++ -std=c++23 -O2 -o {binary} {input}"
 kind = "command"
 command = "/mnt/c/Windows/System32/clip.exe"
 ```
+
+## Logging
+
+`CPG_LOG` accepts [tracing-subscriber](https://docs.rs/tracing-subscriber/latest/tracing_subscriber/filter/struct.EnvFilter.html)'s
+`EnvFilter` syntax. Logs never appear on stdout.
+
+```bash
+CPG_LOG=debug cpg prepare https://atcoder.jp/contests/abc473/tasks/abc473_f
+CPG_LOG=info,cpg=debug,reqwest=warn cpg prepare https://atcoder.jp/contests/abc473/tasks/abc473_f
+CPG_LOG=off cpg list
+```
+
 
 ## Directory prefixes
 
