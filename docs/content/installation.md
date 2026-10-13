@@ -25,8 +25,7 @@ mise use -g github:sevenc-nanashi/competitive-programming-cli
 ## Experimental oj backend
 
 For judges without a native backend, install `uv` and make it available on `PATH`.
-On first use, cpg runs `uv venv` and installs its pinned fork of
-online-judge-api-client.
+On first use, cpg runs `uv venv` and installs its [pinned fork of online-judge-api-client](https://github.com/sevenc-nanashi/online-judge-tools-api-client).
 
 See [experimental oj support](./configuration.md#experimental-oj-support) for
 usage, virtual environment paths, and limitations.

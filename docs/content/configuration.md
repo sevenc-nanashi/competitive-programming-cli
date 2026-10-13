@@ -267,6 +267,7 @@ Use `--info` to verify the saved session and print its username and profile URL:
 cpg login atcoder --info
 cpg login yukicoder --info
 cpg login codeforces --info
+cpg login share-oj --info
 cpg login atcoder-problems --info
 ```
 

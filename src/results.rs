@@ -2,7 +2,7 @@ use crate::{
     cli::Results,
     config::{Clipboard, Config, Paths},
     model::{Metadata, Submission, SubmissionScope},
-    services::Services,
+    services::{FetchMethod, Services},
 };
 use anyhow::{Result, ensure};
 use console::{Alignment, Style, measure_text_width, pad_str, truncate_str};
@@ -24,6 +24,7 @@ use std::{
 };
 
 const REFRESH_INTERVAL: Duration = Duration::from_secs(3);
+const REFRESH_INTERVAL_FOR_POLYFILL: Duration = Duration::from_secs(30);
 const IDLE_TIMEOUT: Duration = Duration::from_secs(2 * 60 * 60);
 const HEADERS: [&str; 6] = ["STATUS", "PROBLEM", "RUNTIME", "LANGUAGE", "TIME", "ID"];
 
@@ -86,7 +87,7 @@ pub fn run(
     };
     tracing::info!("Fetching up to {} submissions for {url}...", args.limit);
     let services = Services::new(&paths)?;
-    let submissions = services
+    let (submissions, _method) = services
         .backend(&scope.service())
         .submissions(&scope, args.limit.get())?;
     tracing::info!("Fetched {} submission(s)", submissions.len());
@@ -266,14 +267,20 @@ fn monitor(
     while !interrupted.load(Ordering::Relaxed) {
         match update_rx.try_recv() {
             Ok(result) => {
-                submissions = result?;
+                let (new_submissions, method) = result?;
+                submissions = new_submissions;
                 idle.observe_submission(
                     submissions.first().map(|submission| submission.id.as_str()),
                     Instant::now(),
                 );
                 rows = table(&submissions);
                 fetching = false;
-                refresh_at = Instant::now() + REFRESH_INTERVAL;
+                refresh_at = Instant::now()
+                    + if method == FetchMethod::Polyfilled {
+                        REFRESH_INTERVAL_FOR_POLYFILL
+                    } else {
+                        REFRESH_INTERVAL
+                    };
             }
             Err(TryRecvError::Empty) => (),
             Err(TryRecvError::Disconnected) => anyhow::bail!("Submission monitor stopped"),
