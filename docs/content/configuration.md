@@ -98,7 +98,6 @@ CPG_LOG=info,cpg=debug,reqwest=warn cpg prepare https://atcoder.jp/contests/abc4
 CPG_LOG=off cpg list
 ```
 
-
 ## Directory prefixes
 
 To use lowercase letters for contest problem directory prefixes, add this at the
