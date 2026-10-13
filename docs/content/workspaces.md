@@ -180,6 +180,10 @@ cpg list -f '{path}\t{path} ({title})' --delimiter null |
 ```
 
 This command is for piping the output to other commands, such as `fzf`.
+
+If you need more advanced formatting, you can use `--json` to output JSON for each record
+and parse it with `jq` or other JSON tools.
+
 For example, you can create `ccd` command which changes the current working directory to the selected problem's directory.
 This feature is heavily inspired by [ghq](https://github.com/x-motemen/ghq).
 
