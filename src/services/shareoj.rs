@@ -1,5 +1,5 @@
 use super::{Http, ServiceBackend, pre_text, required, selector, sort_submissions, text};
-use crate::model::*;
+use crate::{model::*, services::FetchMethod};
 use anyhow::{Context, Result, bail, ensure};
 use scraper::Html;
 use serde::Deserialize;
@@ -243,10 +243,17 @@ impl ServiceBackend for ShareOjBackend {
         })
     }
 
-    fn submissions(&self, scope: &SubmissionScope, limit: usize) -> Result<Vec<Submission>> {
+    fn submissions(
+        &self,
+        scope: &SubmissionScope,
+        limit: usize,
+    ) -> Result<(Vec<Submission>, FetchMethod)> {
         self.whoami(&ServiceId::ShareOj)?;
         match scope {
-            Metadata::Problem { reference, .. } => self.problem_submissions(reference, limit),
+            Metadata::Problem { reference, .. } => Ok((
+                self.problem_submissions(reference, limit)?,
+                FetchMethod::Direct,
+            )),
             Metadata::Contest(contest) => {
                 // ponytail: one paginated fetch per problem; use a contest-wide mine API if one becomes available.
                 let mut submissions = Vec::new();
@@ -254,7 +261,7 @@ impl ServiceBackend for ShareOjBackend {
                     submissions.extend(self.problem_submissions(problem, limit)?);
                 }
                 sort_submissions(&mut submissions, limit);
-                Ok(submissions)
+                Ok((submissions, FetchMethod::Polyfilled))
             }
         }
     }

@@ -1,5 +1,5 @@
 use super::{ServiceBackend, atcoder::AtCoderBackend, sort_submissions};
-use crate::model::*;
+use crate::{model::*, services::FetchMethod};
 use anyhow::{Context, Result, ensure};
 use serde::Deserialize;
 use std::collections::HashMap;
@@ -95,23 +95,31 @@ impl ServiceBackend for AtCoderProblemsBackend {
     fn submit(&self, request: &SubmissionRequest<'_>) -> Result<Submission> {
         self.atcoder.submit(request)
     }
-    fn submissions(&self, scope: &SubmissionScope, limit: usize) -> Result<Vec<Submission>> {
+    fn submissions(
+        &self,
+        scope: &SubmissionScope,
+        limit: usize,
+    ) -> Result<(Vec<Submission>, FetchMethod)> {
         match scope {
             Metadata::Problem { .. } => self.atcoder.submissions(scope, limit),
             Metadata::Contest(contest) => {
                 let mut results = Vec::new();
                 for problem in &contest.problems {
-                    results.extend(self.atcoder.submissions(
-                        &Metadata::Problem {
-                            reference: problem.clone(),
-                            title: String::new(),
-                            template_checksums: Default::default(),
-                        },
-                        limit,
-                    )?);
+                    results.extend(
+                        self.atcoder
+                            .submissions(
+                                &Metadata::Problem {
+                                    reference: problem.clone(),
+                                    title: String::new(),
+                                    template_checksums: Default::default(),
+                                },
+                                limit,
+                            )?
+                            .0,
+                    );
                 }
                 sort_submissions(&mut results, limit);
-                Ok(results)
+                Ok((results, FetchMethod::Polyfilled))
             }
         }
     }

@@ -38,7 +38,11 @@ pub trait ServiceBackend {
     fn fetch_contest(&self, contest: &ContestRef) -> Result<Contest>;
     fn languages(&self, problem: &ProblemRef) -> Result<Vec<SubmissionLanguage>>;
     fn submit(&self, request: &SubmissionRequest<'_>) -> Result<Submission>;
-    fn submissions(&self, scope: &SubmissionScope, limit: usize) -> Result<Vec<Submission>>;
+    fn submissions(
+        &self,
+        scope: &SubmissionScope,
+        limit: usize,
+    ) -> Result<(Vec<Submission>, FetchMethod)>;
 }
 
 pub struct Services {
@@ -51,6 +55,16 @@ pub struct Services {
     #[cfg(feature = "mock")]
     mock: mock::MockBackend,
     missing_cookies: Mutex<HashMap<String, PathBuf>>,
+}
+
+/// Indicates how submissions were fetched from a service.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FetchMethod {
+    /// The service provides submissions in a single call.
+    Direct,
+    /// The service doesn't provide an suitable endpoint, so submissions were fetched
+    /// by multiple calls to the service.
+    Polyfilled,
 }
 
 impl Services {

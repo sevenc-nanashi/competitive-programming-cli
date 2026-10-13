@@ -1,5 +1,5 @@
 use super::{Http, ServiceBackend, form_action, form_fields, pre_text, required, selector, text};
-use crate::model::*;
+use crate::{model::*, services::FetchMethod};
 use anyhow::{Context, Result, bail, ensure};
 use scraper::{ElementRef, Html};
 use url::Url;
@@ -86,6 +86,7 @@ impl ServiceBackend for CodeforcesBackend {
         };
         let before = self
             .submissions(&scope, 1)?
+            .0
             .first()
             .map(|s| s.id.parse::<u64>())
             .transpose()?;
@@ -115,7 +116,11 @@ impl ServiceBackend for CodeforcesBackend {
         identify_submission(submissions, request.problem, before)
     }
 
-    fn submissions(&self, scope: &SubmissionScope, limit: usize) -> Result<Vec<Submission>> {
+    fn submissions(
+        &self,
+        scope: &SubmissionScope,
+        limit: usize,
+    ) -> Result<(Vec<Submission>, FetchMethod)> {
         let (url, problem) = match scope {
             Metadata::Problem { reference, .. } => (&reference.url, Some(reference.id.as_str())),
             Metadata::Contest(contest) => (&contest.reference.url, None),
@@ -147,7 +152,7 @@ impl ServiceBackend for CodeforcesBackend {
             }
         }
         results.truncate(limit);
-        Ok(results)
+        Ok((results, FetchMethod::Direct))
     }
 }
 

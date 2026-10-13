@@ -1,7 +1,7 @@
 use super::{
     Http, ServiceBackend, form_action, form_fields, next_page, pre_text, required, selector, text,
 };
-use crate::model::*;
+use crate::{model::*, services::FetchMethod};
 use anyhow::{Context, Result, bail, ensure};
 use scraper::{ElementRef, Html};
 use std::collections::BTreeMap;
@@ -207,6 +207,7 @@ impl ServiceBackend for AtCoderBackend {
         };
         let before = self
             .submissions(&scope, 1)?
+            .0
             .first()
             .map(|s| s.id.parse::<u64>())
             .transpose()?;
@@ -254,7 +255,11 @@ impl ServiceBackend for AtCoderBackend {
         Ok(new.remove(0))
     }
 
-    fn submissions(&self, scope: &SubmissionScope, limit: usize) -> Result<Vec<Submission>> {
+    fn submissions(
+        &self,
+        scope: &SubmissionScope,
+        limit: usize,
+    ) -> Result<(Vec<Submission>, FetchMethod)> {
         let (contest, problem) = match scope {
             Metadata::Problem { reference, .. } => (
                 reference
@@ -286,7 +291,7 @@ impl ServiceBackend for AtCoderBackend {
             }
         }
         results.truncate(limit);
-        Ok(results)
+        Ok((results, FetchMethod::Direct))
     }
 }
 

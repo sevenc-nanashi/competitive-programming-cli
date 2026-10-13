@@ -1,4 +1,4 @@
-use super::{ServiceBackend, sort_submissions};
+use super::{FetchMethod, ServiceBackend, sort_submissions};
 use crate::{config::expand_path, model::*, workspace::safe_id};
 use anyhow::{Context, Result, bail, ensure};
 use cookie::time::{OffsetDateTime, format_description};
@@ -218,11 +218,15 @@ impl ServiceBackend for MockBackend {
         Ok(submission)
     }
 
-    fn submissions(&self, scope: &SubmissionScope, limit: usize) -> Result<Vec<Submission>> {
+    fn submissions(
+        &self,
+        scope: &SubmissionScope,
+        limit: usize,
+    ) -> Result<(Vec<Submission>, FetchMethod)> {
         let settings = self.authenticated()?;
         let directory = root()?.join("submissions");
         if !directory.try_exists()? {
-            return Ok(Vec::new());
+            return Ok((Vec::new(), FetchMethod::Direct));
         }
         // ponytail: serialize mock judging; use per-submission locks if parallel judges are needed.
         let lock = fs::OpenOptions::new()
@@ -285,6 +289,6 @@ impl ServiceBackend for MockBackend {
             }
         }
         sort_submissions(&mut submissions, limit);
-        Ok(submissions)
+        Ok((submissions, FetchMethod::Direct))
     }
 }

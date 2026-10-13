@@ -1,7 +1,7 @@
 use std::{collections::HashMap, io::Write as _, sync::Mutex};
 
 use super::ServiceBackend;
-use crate::model::*;
+use crate::{model::*, services::FetchMethod};
 use anyhow::{Context, Result, bail};
 use serde::Deserialize;
 use url::Url;
@@ -514,7 +514,7 @@ impl ServiceBackend for OjBackend {
         })
     }
 
-    fn submissions(&self, _scope: &SubmissionScope, _limit: usize) -> Result<Vec<Submission>> {
+    fn submissions(&self, _scope: &SubmissionScope, _limit: usize) -> Result<(Vec<Submission>, FetchMethod)> {
         bail!("Fetching submissions is not supported for oj backend");
     }
 }

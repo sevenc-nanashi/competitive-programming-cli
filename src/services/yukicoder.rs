@@ -1,7 +1,7 @@
 use super::{
     Http, ServiceBackend, form_action, form_fields, next_page, pre_text, required, selector, text,
 };
-use crate::model::*;
+use crate::{model::*, services::FetchMethod};
 use anyhow::{Context, Result, bail, ensure};
 use scraper::{ElementRef, Html};
 use serde::Deserialize;
@@ -255,7 +255,11 @@ impl ServiceBackend for YukicoderBackend {
         })
     }
 
-    fn submissions(&self, scope: &SubmissionScope, limit: usize) -> Result<Vec<Submission>> {
+    fn submissions(
+        &self,
+        scope: &SubmissionScope,
+        limit: usize,
+    ) -> Result<(Vec<Submission>, FetchMethod)> {
         let base = match scope {
             Metadata::Problem { reference, .. } => &reference.url,
             Metadata::Contest(contest) => &contest.reference.url,
@@ -277,7 +281,7 @@ impl ServiceBackend for YukicoderBackend {
             }
         }
         results.truncate(limit);
-        Ok(results)
+        Ok((results, FetchMethod::Direct))
     }
 }
 
