@@ -125,7 +125,7 @@ fn run(cli: Cli, interrupted: &AtomicBool) -> Result<bool> {
                 println!("{url}");
             } else {
                 let config = Config::load(&paths)?;
-                if config.remote.enabled(remote_override) {
+                if args.clipboard || config.remote.enabled(remote_override) {
                     runner::copy_to_clipboard(&config.clipboard, url.as_str(), true, interrupted)?;
                     tracing::info!("Copied {url} to the clipboard");
                 } else {

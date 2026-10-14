@@ -152,6 +152,9 @@ pub struct Open {
     /// Print the URL without opening a browser.
     #[usage(long, short = 'n')]
     pub url_only: bool,
+    /// Copy the URL to the clipboard instead of opening a browser.
+    #[usage(long, short = 'c')]
+    pub clipboard: bool,
 }
 
 #[derive(Debug, usage::Args)]

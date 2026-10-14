@@ -192,10 +192,10 @@ cpg open --url-only
 cpg o -n
 ```
 
-Or use `--copy` to copy the URL to the clipboard instead of opening a browser:
+Or use `--clipboard` to copy the URL to the clipboard instead of opening a browser:
 
 ```bash
-cpg open --copy
+cpg open --clipboard
 # Or shortcut
 cpg o -c
 ```
