@@ -8,6 +8,9 @@ importers:
 
   .:
     devDependencies:
+      '@ox-content/theme-terminal':
+        specifier: ^3.2.14
+        version: 3.2.14(@ox-content/vite-plugin@3.2.10(vite@8.3.1))
       '@ox-content/vite-plugin':
         specifier: ^3.2.10
         version: 3.2.10(vite@8.3.1)
@@ -498,6 +501,14 @@ packages:
 
   '@ox-content/napi@3.2.10':
     resolution: {integrity: sha512-/wp9Hxp504W3Ex3So1TG4CPo5utMntlCyCRNVdspfpBTxsKRPDF897i1qjUyaxjvf6W/DBT53q+edMqJSgZO9Q==}
+
+  '@ox-content/theme-terminal@3.2.14':
+    resolution: {integrity: sha512-K6rvbqMd/rU7QZWWAk16zsFre6NBvwdzh4psrOuJNWzqMLuDVnv1jPxG9heaFGsO5wrmINAPpNQLN48ks9JhNw==}
+    peerDependencies:
+      '@ox-content/vite-plugin': '>=3.0.0-alpha.1'
+    peerDependenciesMeta:
+      '@ox-content/vite-plugin':
+        optional: true
 
   '@ox-content/vite-plugin@3.2.10':
     resolution: {integrity: sha512-QNrMPafVGO5i36iv3Pb9rfDahGOwVpCEsQOb+8tmAgR+JOuUAQbP8RN1HaVWZGUlmddT42LY2g9Q5Y298Y/bUg==}
@@ -2663,6 +2674,10 @@ snapshots:
       '@ox-content/binding-linux-x64-gnu': 3.2.10
       '@ox-content/binding-linux-x64-musl': 3.2.10
       '@ox-content/binding-win32-x64-msvc': 3.2.10
+
+  '@ox-content/theme-terminal@3.2.14(@ox-content/vite-plugin@3.2.10(vite@8.3.1))':
+    dependencies:
+      '@ox-content/vite-plugin': 3.2.10(vite@8.3.1)
 
   '@ox-content/vite-plugin@3.2.10(vite@8.3.1)':
     dependencies:

@@ -222,11 +222,11 @@ Template and setup commands are applied in this order:
 - Copy `workspace_template` to the workspace root.
 - Copy `contest_template` to the contest root. (for contests)
 - Copy `problem_template` to each problem directory.
-- Copy `single_problem_template` to the problem root. (for standalone problems)
+- Copy `single_problem_template` to the problem root. (for single problems)
 - Run `[setup.problem]` in each problem directory.
 - Run `[setup.workspace]` in the workspace root.
 - Run `[setup.contest]` in the contest root. (for contests)
-- Run `[setup.single_problem]` in the problem root. (for standalone problems)
+- Run `[setup.single_problem]` in the problem root. (for single problems)
 
 You would want to set `bundle install` or `git clone https://github.com/atcoder/ac-library.git` in the workspace template,
 for example.
@@ -305,7 +305,7 @@ Direct commands after `--` do not use these language settings.
 All language commands (`compile`, `run`, `preprocess`, and `presubmit`), including
 profile overrides, also support `{workspace}` and `{problem}`:
 
-- `{workspace}`: the absolute path to the contest root or standalone problem directory.
+- `{workspace}`: the absolute path to the contest root or single problem directory.
 - `{problem}`: the absolute path to the problem directory, even for sources in subdirectories.
 
 ```toml

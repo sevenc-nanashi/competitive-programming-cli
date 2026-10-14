@@ -10,6 +10,7 @@
     "fmt": "cd .. && docs/node_modules/.bin/oxfmt README.md docs/content docs/components docs/package.json docs/index.html docs/vite.config.ts docs/generate-reference.ts .github/workflows/docs.yml"
   },
   "devDependencies": {
+    "@ox-content/theme-terminal": "^3.2.14",
     "@ox-content/vite-plugin": "^3.2.10",
     "kdljs": "^0.3.0",
     "oxfmt": "^0.70.0",

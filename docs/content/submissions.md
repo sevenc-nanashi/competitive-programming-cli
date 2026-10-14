@@ -58,7 +58,7 @@ This is useful for judges that require captcha verification, especially AtCoder'
 past contests.
 
 > [!TIP]
-> For Codeforces, you can use [codeforces-clipboard-submission.js](https://sevenc7c.com/competitive-programming-cli/codeforces-clipboard-submission.user.js)
+> For Codeforces, you can use [codeforces-clipboard-submission.user.js](https://sevenc7c.com/competitive-programming-cli/codeforces-clipboard-submission.user.js)
 > to paste the copied solution instead of selecting the file. This is useful
 > when your solution file is not easily accessible in the browser's file picker,
 > such as when you're using a remote server or WSL.  

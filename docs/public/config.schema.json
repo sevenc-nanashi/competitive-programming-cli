@@ -274,7 +274,7 @@
           "default": []
         },
         "single_problem": {
-          "description": "Run after copying the single problem template, in the standalone problem root.",
+          "description": "Run after copying the single problem template, in the single problem root.",
           "allOf": [
             {
               "$ref": "#/definitions/SetupCommands"
@@ -283,7 +283,7 @@
           "default": []
         },
         "workspace": {
-          "description": "Run after copying the workspace template, in the standalone problem or contest root.",
+          "description": "Run after copying the workspace template, in the single problem or contest root.",
           "allOf": [
             {
               "$ref": "#/definitions/SetupCommands"

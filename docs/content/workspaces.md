@@ -1,7 +1,5 @@
 # Workspaces
 
-The directory you downloaded a single problem or contest problems will be called a "workspace".
-
 ## Download sample cases
 
 `cpg download` (`cpg d`) downloads one problem's samples into `./test/`.
@@ -14,15 +12,52 @@ cpg d https://atcoder.jp/contests/abc473/tasks/abc473_f
 cpg d https://atcoder.jp/contests/abc473/tasks/abc473_f -d samples
 ```
 
+## Workspace root
+
+The directory you downloaded a single problem or contest problems will be called a "workspace".
+
+Workspaces will be located under the workspace root, which is configured in `~/.config/cpg/config.toml`.
+For example, if the workspace root is `~/competitive-programming`, a single problem
+downloaded from AtCoder will be located at `~/competitive-programming/atcoder/problems/abc473_f`, and a
+contest will be located at `~/competitive-programming/atcoder/contests/abc473`.
+This feature is heavily inspired by [ghq](https://github.com/x-motemen/ghq), a git repository management tool
+which fixes the directory structure for git repositories. (`$root/$host/$path`, like `~/ghq/github.com/sevenc-nanashi/competitive-programming-cli`)
+
+After using cpg for a while, your workspace root will look like this:
+
+```file-tree
+- ~/cpg/
+  - atcoder/
+    - contests/
+      - aalc001/
+      - abc465/
+      - abc466/
+      - abc467/
+      - .../
+      - adt_all_20260908_1/
+      - adt_all_20260909_1/
+      - .../
+    - problems/
+      - abc294_g/
+      - abc313_d/
+      - .../
+  - yukicoder/
+    - contests/
+      - 594/
+      - .../
+  - share-oj/
+    - contests/
+      - dc6fc9dd-4019-463a-a486-12c3fc10af59/
+    - problems/
+      - 898f6783-900e-4035-9a03-500571a20d06/
+      - 796156e7-bc25-4b68-82ec-494135b75dc5/
+      - .../
+  - .../
+```
+
 ## Prepare a single problem
 
 You can download a single problem from a contest.
-The downloaded problem will be saved in a directory `$root/$host/problems/$problem_id`, where:
-
-- `$root` is the root directory of your workspace, which is specified in the configuration file.
-- `$host` is the host of the online judge, such as `atcoder`.
-- `$problem_id` is the problem ID, such as `abc473_f`.
-
 The directory will contain:
 
 - `.cpg.toml` file, which contains metadata of the problem.
@@ -55,21 +90,33 @@ There are no template engines or variable substitutions. The templates are copie
 Use the `[setup]` section in the configuration file to run commands after copying templates,
 like replacing `package.name` in `Cargo.toml` with the problem ID, or creating a `Makefile` from a template.
 
+Your single problem directory will look like this:
+
+```file-tree
+- abc473_f/
+  - .cpg.toml
+  - ac-library/ **
+  - test/
+    - sample-1.in
+    - sample-1.out
+    - sample-2.in
+    - sample-2.out
+    - sample-3.in
+    - sample-3.out
+    - sample-4.in
+    - sample-4.out
+  - Gemfile **
+  - Gemfile.lock **
+  - compile_flags.txt **
+  - judge.rb **
+  - main.cpp **
+  - main.rb **
+  - naive.rb **
+```
+
 ## Prepare contest problems
 
 You can download all problems from a contest.
-The downloaded problems will be saved in a directory `$root/$host/contests/$contest_id/$index_$problem_id`, where:
-
-- `$root` is the root directory of your workspace, which is specified in the configuration file.
-- `$host` is the host of the online judge, such as `atcoder`.
-- `$contest_id` is the contest ID, such as `abc473`.
-- `$index` is the problem index, such as `01`, `02`, ..., or `a`, `b`, ...
-  - Set [`alphabetic`](./configuration.md#directory_prefixes) to `true` to use letters instead of numbers.
-  - This exists for sorting problems in the order they appear in the contest, for when:
-    - The contest contains multiple problems from different contests (e.g. AtCoder Daily Training),
-    - The problem IDs are not sorted in the order they appear in the contest (e.g. Yukicoder).
-- `$problem_id` is the problem ID, such as `abc473_a`.
-
 The contest directory will contain:
 
 - `.cpg.toml` file, which contains metadata of the contest.
@@ -93,6 +140,36 @@ cpg prepare https://atcoder.jp/contests/abc473
 
 # Or shortcut
 cpg p https://atcoder.jp/contests/abc473
+```
+
+Your contest directory will look like this:
+
+```file-tree
+- abc479/
+  - .cpg.toml
+  - ac-library/ **
+  - 1_abc479_a/
+    - .cpg.toml
+    - test/
+      - sample-1.in
+      - sample-1.out
+      - sample-2.in
+      - sample-2.out
+      - sample-3.in
+      - sample-3.out
+    - main.cpp **
+    - main.rb **
+    - naive.rb **
+    - judge.rb **
+  - 2_abc479_b/
+  - 3_abc479_c/
+  - 4_abc479_d/
+  - 5_abc479_e/
+  - 6_abc479_f/
+  - 7_abc479_g/
+  - Gemfile **
+  - Gemfile.lock **
+  - compile_flags.txt **
 ```
 
 ## Open the current problem or contest
@@ -127,13 +204,13 @@ cpg o -c
 
 You can list the workspaces you've downloaded using the `list` command.
 
-By default, `list` shows workspace directories: contests and standalone problems.
+By default, `list` shows workspace directories: contests and single problems.
 Paths are relative to the workspace root, which you can get with `cpg config --root`.
 Choose one of the following mutually exclusive filters:
 
 | Option                  | Directories listed                                  |
 | ----------------------- | --------------------------------------------------- |
-| `--workspace` (default) | Contests and standalone problems                    |
+| `--workspace` (default) | Contests and single problems                        |
 | `--contests`            | Contests                                            |
 | `--problems`            | Standalone problems                                 |
 | `--all-problems`        | Standalone problems and individual contest problems |
@@ -148,7 +225,7 @@ cpg config --root
 # List contest directories
 cpg list --contests
 
-# List standalone problem directories
+# List single problem directories
 cpg list --problems
 
 # Include individual problems within contests
@@ -185,7 +262,6 @@ If you need more advanced formatting, you can use `--json` to output JSON for ea
 and parse it with `jq` or other JSON tools.
 
 For example, you can create `ccd` command which changes the current working directory to the selected problem's directory.
-This feature is heavily inspired by [ghq](https://github.com/x-motemen/ghq).
 
 ```bash
 ccd() {
