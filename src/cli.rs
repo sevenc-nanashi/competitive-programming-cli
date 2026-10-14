@@ -408,12 +408,12 @@ impl std::fmt::Display for ListDelimiter {
 #[derive(Debug, Clone, Copy, usage::ArgGroup)]
 #[usage(name = "kind")]
 pub enum ListMode {
-    /// List contests and standalone problems (default).
+    /// List contests and single problems (default).
     Workspace,
     /// List contests.
     Contests,
-    /// List standalone problems.
+    /// List single problems.
     Problems,
-    /// List standalone problems and problems within contests.
+    /// List single problems and problems within contests.
     AllProblems,
 }

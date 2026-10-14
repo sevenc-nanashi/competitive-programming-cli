@@ -163,7 +163,7 @@ pub fn init(paths: &Paths, args: &crate::cli::Init, interrupted: &AtomicBool) ->
         ("contest_template", "files for the contest directory"),
         (
             "single_problem_template",
-            "overrides for standalone problems",
+            "overrides for single problems",
         ),
     ];
     fs::create_dir_all(&root).with_context(|| format!("Cannot create {}", root.display()))?;
@@ -414,7 +414,7 @@ impl Clipboard {
 #[derive(Debug, Default, Deserialize, JsonSchema)]
 #[serde(default, deny_unknown_fields)]
 pub struct Setup {
-    /// Run after copying the workspace template, in the standalone problem or contest root.
+    /// Run after copying the workspace template, in the single problem or contest root.
     #[serde(deserialize_with = "setup_commands")]
     #[schemars(with = "SetupCommands")]
     pub workspace: Vec<String>,
@@ -426,7 +426,7 @@ pub struct Setup {
     #[serde(deserialize_with = "setup_commands")]
     #[schemars(with = "SetupCommands")]
     pub contest: Vec<String>,
-    /// Run after copying the single problem template, in the standalone problem root.
+    /// Run after copying the single problem template, in the single problem root.
     #[serde(deserialize_with = "setup_commands")]
     #[schemars(with = "SetupCommands")]
     pub single_problem: Vec<String>,

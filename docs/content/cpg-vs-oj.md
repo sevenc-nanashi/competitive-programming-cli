@@ -14,7 +14,7 @@ I've used them for a long time, but wanted a more integrated workflow for managi
     hurdle for solving problems)
 - Prefixes contest problem directories with indexes.
   - Useful for virtual contests and Yukicoder contests, where problems are not ordered by ID.
-- Shares workspace templates between standalone problems and contests.
+- Shares workspace templates between single problems and contests.
 - Compiles and tests a source file in one command, using configured language commands and build profiles.
   - In addition to running solutions, `preprocess` and `presubmit` hooks can transform source files before
     testing or submission.

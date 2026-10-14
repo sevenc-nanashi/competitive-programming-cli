@@ -34,6 +34,9 @@ export default defineConfig({
             { text: "Submissions and results", link: "/submissions.md" },
             { text: "Command reference", link: "/command-reference.md" },
           ],
+          footer: {
+            copyright: "2026 © Nanashi. Licensed under MIT License.",
+          },
           socialLinks: {
             github: "https://github.com/sevenc-nanashi/competitive-programming-cli",
           },

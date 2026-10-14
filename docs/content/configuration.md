@@ -199,12 +199,12 @@ run in order. Put scripts in the corresponding template directory so
 they are available when the commands run. Commands also run when that template
 directory is absent, allowing setup entirely through commands.
 
-| Key              | Template                  | Working directory                  |
-| ---------------- | ------------------------- | ---------------------------------- |
-| `workspace`      | `workspace_template`      | Standalone problem or contest root |
-| `problem`        | `problem_template`        | Each problem directory             |
-| `contest`        | `contest_template`        | Contest root                       |
-| `single_problem` | `single_problem_template` | Standalone problem root            |
+| Key              | Template                  | Working directory              |
+| ---------------- | ------------------------- | ------------------------------ |
+| `workspace`      | `workspace_template`      | Single problem or contest root |
+| `problem`        | `problem_template`        | Each problem directory         |
+| `contest`        | `contest_template`        | Contest root                   |
+| `single_problem` | `single_problem_template` | Single problem root            |
 
 <!-- For `cpg prepare` with a problem URL, templates are copied in the order: -->
 <!-- `workspace`, `problem`, then `single_problem`. Setup commands run in the order -->

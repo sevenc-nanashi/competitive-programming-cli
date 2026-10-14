@@ -208,12 +208,12 @@ By default, `list` shows workspace directories: contests and single problems.
 Paths are relative to the workspace root, which you can get with `cpg config --root`.
 Choose one of the following mutually exclusive filters:
 
-| Option                  | Directories listed                                  |
-| ----------------------- | --------------------------------------------------- |
-| `--workspace` (default) | Contests and single problems                        |
-| `--contests`            | Contests                                            |
-| `--problems`            | Standalone problems                                 |
-| `--all-problems`        | Standalone problems and individual contest problems |
+| Option                  | Directories listed                              |
+| ----------------------- | ----------------------------------------------- |
+| `--workspace` (default) | Contests and single problems                    |
+| `--contests`            | Contests                                        |
+| `--problems`            | Single problems                                 |
+| `--all-problems`        | Single problems and individual contest problems |
 
 ```bash
 # List workspaces you've downloaded
