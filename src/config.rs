@@ -161,10 +161,7 @@ pub fn init(paths: &Paths, args: &crate::cli::Init, interrupted: &AtomicBool) ->
             "solution files for every problem, e.g. solution.cpp",
         ),
         ("contest_template", "files for the contest directory"),
-        (
-            "single_problem_template",
-            "overrides for single problems",
-        ),
+        ("single_problem_template", "overrides for single problems"),
     ];
     fs::create_dir_all(&root).with_context(|| format!("Cannot create {}", root.display()))?;
     fs::create_dir_all(&paths.config)?;
