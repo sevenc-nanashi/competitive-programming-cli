@@ -13,6 +13,9 @@ pub struct Cli {
     /// Disable colored output.
     #[usage(long, global)]
     pub no_color: bool,
+    /// Change the directory to run in.
+    #[usage(long, short = 'C', global, value_hint = usage::ValueHint::DirPath)]
+    pub cd: Option<PathBuf>,
     /// Enable remote mode, overriding configuration and environment detection.
     #[usage(long, global, conflicts("--no-remote"))]
     pub remote: bool,

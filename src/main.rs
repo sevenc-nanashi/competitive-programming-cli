@@ -31,6 +31,11 @@ fn run(cli: Cli, interrupted: &AtomicBool) -> Result<bool> {
     } else {
         None
     };
+    if let Some(dir) = cli.cd {
+        tracing::info!("Changing directory to {}", dir.display());
+        std::env::set_current_dir(&dir)
+            .with_context(|| format!("Cannot change directory to {}", dir.display()))?;
+    }
     match cli.command {
         Commands::Completion(args) => {
             let shell = usage::complete::Shell::from_name(&args.shell)
