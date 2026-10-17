@@ -1,4 +1,4 @@
-<small>[日本語版ドキュメント](https://sevenc7c.com/competitive-programming-cli/installation/ja/index.html)</small>
+<small>[日本語版ドキュメント](https://sevenc7c.com/competitive-programming-cli/ja/index.html)</small>
 
 ---
 
