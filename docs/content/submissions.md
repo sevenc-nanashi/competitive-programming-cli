@@ -8,7 +8,7 @@ You can submit a solution to a problem using the `submit` command.
 # Submit a solution to a problem
 cpg submit ./solution.cpp
 
-# Or shortcut
+# Or shorthand
 cpg s ./solution.cpp
 
 # Submit and open the submission page in your browser
@@ -72,7 +72,7 @@ You can list the results of your submissions.
 # List results of submissions
 cpg results
 
-# Or shortcut
+# Or shorthand
 cpg r
 
 # Or monitor the results in an interactive terminal UI

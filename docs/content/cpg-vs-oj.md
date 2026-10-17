@@ -34,7 +34,7 @@ commands first. Direct commands after `--` do not require language settings.
 | Prepare a contest or a problem       | `oj-prepare URL`                                         | `cpg prepare URL`                                       |
 | Compile and test C++                 | `g++ solution.cpp -o solution && oj test -c ./solution`  | `cpg test solution.cpp`<sup>1</sup>                     |
 | Test a Ruby command                  | `oj test -c "ruby solution.rb"`                          | `cpg test solution.rb`                                  |
-| Run test against specific input file | `oj test -c "ruby solution.rb" -i test/sample-1.in`      | `cpg test --input-path ./test/sample-1.in solution.rb`  |
+| Run test against specific input file | `oj test -c "ruby solution.rb" test/sample-1.in`         | `cpg test --input-path ./test/sample-1.in solution.rb`  |
 | Generate inputs in `test/`           | `oj generate-input "ruby random.rb"`                     | `cpg generate random.rb`<sup>2</sup>                    |
 | Generate missing answers in `test/`  | `oj generate-output -c "ruby naive.rb"`                  | `cpg generate --answer naive.rb`                        |
 | Run an interactive judge             | `oj test-reactive -c "ruby solution.rb" "ruby judge.rb"` | `cpg test --interactive --judge "judge.rb" solution.rb` |

@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { writeFileSync } from "node:fs";
+import { copyFileSync, writeFileSync } from "node:fs";
 
 for (const [args, file] of [
   [["__usage_spec__"], "cpg.usage.kdl"],
@@ -21,3 +21,4 @@ execFileSync(
   ["generate", "markdown", "--file", "cpg.usage.kdl", "--out-file", "content/command-reference.md"],
   { cwd: import.meta.dirname, stdio: "inherit" },
 );
+copyFileSync("content/command-reference.md", "content/ja/command-reference.md");

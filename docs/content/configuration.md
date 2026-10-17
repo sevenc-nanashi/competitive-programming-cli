@@ -182,9 +182,11 @@ You can disable SSH detection in `$config/config.toml` with:
 remote = "manual"
 ```
 
-## Commands after copying templates
+## Templates and setup commands
 
-Add `[setup]` to `$config/config.toml` to run shell commands after copying templates:
+You can put files in the template directories to copy them into the workspace or problem directories when preparing problems or contests.
+
+Also, you can run commands after copying templates by configuring `[setup]` to `$config/config.toml` to run shell commands after copying templates:
 
 ```toml
 [setup]
@@ -258,8 +260,7 @@ It prints the user name on the first stdout line and the profile URL on the seco
 
 ## Experimental oj support
 
-URLs outside the native AtCoder, AtCoder Problems, yukicoder, and Codeforces backends are
-automatically passed to a [fork of online-judge-api-client](https://github.com/sevenc-nanashi/online-judge-tools-api-client).
+URLs outside the native backends are automatically passed to a [fork of online-judge-api-client](https://github.com/sevenc-nanashi/online-judge-tools-api-client).
 Supported URLs and operations depend on that client and the judge. For example:
 
 ```bash
@@ -303,7 +304,7 @@ When preprocessing is configured, `{input}` points to the transformed source.
 Direct commands after `--` do not use these language settings.
 
 All language commands (`compile`, `run`, `preprocess`, and `presubmit`), including
-profile overrides, also support `{workspace}` and `{problem}`:
+profile overrides, support the following placeholders:
 
 - `{workspace}`: the absolute path to the contest root or single problem directory.
 - `{problem}`: the absolute path to the problem directory, even for sources in subdirectories.
@@ -338,8 +339,7 @@ run = "pypy3 {input}"
 yukicoder = "pypy3"
 ```
 
-Submission runs only `preprocess` and `presubmit`; it does not compile or run the
-source. An explicit `--language ID` takes precedence over the profile's `submit` setting.
+An explicit `--language ID` takes precedence over the profile's `submit` setting.
 
 ### Executable files
 
@@ -484,5 +484,4 @@ yukicoder = "cpp23"
 
 To expand only for submission, rename `preprocess` to `presubmit` and add
 `-I "$HOME/ac-library"` to your compilation command so local tests can find
-the headers without expansion. Configure the appropriate
-[submission language ID](#submission-language-ids) before submitting.
+the headers without expansion.

@@ -71,24 +71,15 @@ Additional samples are named `sample-2.in`, `sample-2.out`, etc.
 The `.cpg.toml` metadata records the service, problem ID, canonical URL, title,
 and original contest/internal IDs where applicable.
 
-If multiple template files contain the same file name, the last one will overwrite the previous ones.
-Existing problem or contest directories are never overwritten. Downloads are
-staged in a temporary directory and published only after all files are ready.
-Template symlinks are rejected.
-Optional [`[setup]` commands](./configuration.md#commands-after-copying-templates)
-run after templates are copied and must succeed before the workspace is published.
+Check [Templates and Setup Commands](./configuration.md#templates-and-setup-commands) for more information about templates and setup commands.
 
 ```bash
 # Download a problem from AtCoder
 cpg prepare https://atcoder.jp/contests/abc473/tasks/abc473_f
 
-# Or shortcut
+# Or shorthand
 cpg p https://atcoder.jp/contests/abc473/tasks/abc473_f
 ```
-
-There are no template engines or variable substitutions. The templates are copied as-is.
-Use the `[setup]` section in the configuration file to run commands after copying templates,
-like replacing `package.name` in `Cargo.toml` with the problem ID, or creating a `Makefile` from a template.
 
 Your single problem directory will look like this:
 
@@ -114,7 +105,7 @@ Your single problem directory will look like this:
   - naive.rb **
 ```
 
-## Prepare contest problems
+## Prepare contest
 
 You can download all problems from a contest.
 The contest directory will contain:
@@ -131,14 +122,13 @@ The problem directories will contain:
 
 Contest metadata retains the ordered problem list.
 
-Similar to single problem downloads, optional [`[setup]` commands](./configuration.md#commands-after-copying-templates)
-run after templates are copied and must succeed before the workspace is published.
+Refer to [Templates and Setup Commands](./configuration.md#templates-and-setup-commands) for more information about templates and setup commands.
 
 ```bash
 # Download contest problems from AtCoder
 cpg prepare https://atcoder.jp/contests/abc473
 
-# Or shortcut
+# Or shorthand
 cpg p https://atcoder.jp/contests/abc473
 ```
 
@@ -172,11 +162,11 @@ Your contest directory will look like this:
   - compile_flags.txt **
 ```
 
-## Open the current problem or contest
+## Open the current problem or contest in your browser
 
 ```bash
 cpg open
-# Or shortcut
+# Or shorthand
 cpg o
 ```
 
@@ -188,7 +178,7 @@ Use `--url-only` to print just the URL to stdout without opening a browser:
 
 ```bash
 cpg open --url-only
-# Or shortcut
+# Or shorthand
 cpg o -n
 ```
 
@@ -196,7 +186,7 @@ Or use `--clipboard` to copy the URL to the clipboard instead of opening a brows
 
 ```bash
 cpg open --clipboard
-# Or shortcut
+# Or shorthand
 cpg o -c
 ```
 

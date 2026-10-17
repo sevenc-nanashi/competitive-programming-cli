@@ -8,7 +8,7 @@ You can randomly generate test cases using the `generate` command and a generato
 # Specify generator
 cpg generate ./random.rb
 
-# Or shortcut
+# Or shorthand
 cpg g ./random.rb
 
 # Or specify directory to save the generated test cases
@@ -27,6 +27,9 @@ After generating test cases, you can run naive solution against the generated te
 ```bash
 # Run naive solution against the generated test cases
 cpg generate --answer ./naive.rb
+
+# Or shorthand:
+cpg g -a ./naive.rb
 
 # Or specify full command to execute
 cpg generate --answer -- ruby ./naive.rb

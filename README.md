@@ -1,3 +1,7 @@
+<small>[日本語版ドキュメント](https://sevenc7c.com/competitive-programming-cli/installation/ja/index.html)</small>
+
+---
+
 # Competitive Programming CLI (cpg)
 
 > [!WARNING]

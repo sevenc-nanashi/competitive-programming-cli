@@ -10,7 +10,7 @@ You can test a solution against the sample test cases using the `test` command.
 # Test a solution against the sample test cases
 cpg test ./solution.cpp
 
-# Or shortcut
+# Or shorthand
 cpg t ./solution.cpp
 
 # Or specify the test case directory
@@ -120,9 +120,7 @@ Use `--panes` (`-p`) to choose the I/O layout:
 
 - `none` (`1`, default): display input, expected output, and actual output vertically.
 - `outputs` (`2`): display input above side-by-side expected and actual output.
-- `all` (`3`): display input, expected output, and actual output side by side. Input
-  and expected output align at the bottom; expected and actual output align at
-  the top. This helps match query inputs to their answers.
+- `all` (`3`): display input, expected output, and actual output side by side.
 
 Add `--query-numbers` (`-n`) to number lines relative to the expected output.
 
@@ -131,14 +129,16 @@ cpg test -p outputs -n ./solution.cpp
 cpg test -p all -n --show-io always ./solution.cpp
 ```
 
-Input, expected output, and actual output are displayed like this:
+Input and expected output align at the bottom, and expected output and actual output align at the top.
+Queries are numbered relative to the expected output.
 
 ```text
-  | Input:  | Expected output: | Actual output:
-  | 2       :                  :
-1 | query A | answer A         | answer A
-2 | query B | answer B         | wrong
-3 :         :                  | extra
+  | Input:    | Expected output: | Actual output:
+  | 2         :                  :
+  | condition :                  :
+1 | query A   | answer A         | answer A
+2 | query B   | answer B         | wrong
+3 :           :                  | extra
 ```
 
 Use `--highlight line` or `--highlight word` (`-H`) to highlight differences on
