@@ -58,7 +58,6 @@ struct Runtimes {
 #[serde(rename_all = "camelCase")]
 struct ApiSubmission {
     id: String,
-    problem_id: String,
     created_at: String,
     runtime: String,
     status: String,
@@ -85,7 +84,11 @@ fn url(path: &str) -> Result<Url> {
 }
 
 fn api_url(problem: &ProblemRef) -> Result<Url> {
-    url(&format!("api{}", problem.url.path()))
+    let id = api_id(&problem.id)?;
+    match &problem.contest_id {
+        Some(contest) => url(&format!("api/contests/{}/problems/{id}", api_id(contest)?)),
+        None => url(&format!("api/problems/{id}")),
+    }
 }
 
 impl ShareOjBackend {
@@ -93,7 +96,7 @@ impl ShareOjBackend {
         let mut submissions = Vec::new();
         let mut offset = 0;
         while submissions.len() < limit {
-            let mut endpoint = url(&format!("api{}/submissions", problem.url.path()))?;
+            let mut endpoint = url(&format!("{}/submissions", api_url(problem)?.path()))?;
             endpoint
                 .query_pairs_mut()
                 .append_pair("mine", "1")
@@ -101,7 +104,7 @@ impl ShareOjBackend {
             let page: SubmissionPage = self.http.json(&endpoint)?;
             for item in page.items {
                 if !item.easy_test {
-                    submissions.push(item.into_submission()?);
+                    submissions.push(item.into_submission(&problem.id)?);
                 }
             }
             if !page.has_more {
@@ -180,7 +183,7 @@ impl ServiceBackend for ShareOjBackend {
     fn fetch_contest(&self, contest: &ContestRef) -> Result<Contest> {
         let data: ApiContest = self
             .http
-            .json(&url(&format!("api/contests/{}", contest.id))?)?;
+            .json(&url(&format!("api/contests/{}", api_id(&contest.id)?))?)?;
         ensure!(
             !data.problems.is_empty() && data.problems.iter().all(|p| !p.id.is_empty()),
             "ShareOJ contest problems are not available yet; wait until publication or check your access in the browser"
@@ -222,12 +225,12 @@ impl ServiceBackend for ShareOjBackend {
             "ShareOJ source must contain non-whitespace text and be at most 65,536 bytes"
         );
         let mut body = serde_json::json!({
-            "problemId": request.problem.id,
+            "problemId": api_id(&request.problem.id)?,
             "runtime": request.language,
             "source": request.source,
         });
         if let Some(contest) = &request.problem.contest_id {
-            body["contestId"] = contest.clone().into();
+            body["contestId"] = api_id(contest)?.into();
         }
         let response: ApiId = self.http.post_json(&url("api/my/submissions")?, &body)?;
         ensure!(
@@ -270,6 +273,11 @@ impl ServiceBackend for ShareOjBackend {
 }
 
 fn resource_id(id: &str) -> Result<String> {
+    api_id(id)?;
+    Ok(id.to_owned())
+}
+
+fn api_id(id: &str) -> Result<String> {
     ensure!(
         !id.is_empty() && id.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-'),
         "Invalid ShareOJ resource ID"
@@ -302,7 +310,7 @@ fn resource_id(id: &str) -> Result<String> {
 }
 
 impl ApiSubmission {
-    fn into_submission(self) -> Result<Submission> {
+    fn into_submission(self, problem_id: &str) -> Result<Submission> {
         let (status, time) = if self.status == "DONE" {
             let result = self
                 .result
@@ -318,7 +326,7 @@ impl ApiSubmission {
         Ok(Submission {
             url: url(&format!("my/submissions/{}", self.id))?,
             id: self.id,
-            problem_id: self.problem_id,
+            problem_id: problem_id.to_owned(),
             submitted_at: self.created_at,
             language: self.runtime,
             status,
