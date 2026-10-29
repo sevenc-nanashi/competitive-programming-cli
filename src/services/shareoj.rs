@@ -134,26 +134,28 @@ impl ServiceBackend for ShareOjBackend {
         );
         let parts: Vec<_> = input.path().trim_matches('/').split('/').collect();
         let (id, contest_id) = match parts.as_slice() {
-            ["problems", id] => (*id, None),
+            ["problems", id] => (resource_id(id)?, None),
             ["contests", id] => {
-                validate_id(id)?;
+                let id = resource_id(id)?;
                 return Ok(ResourceRef::Contest(ContestRef {
                     service: ServiceId::ShareOj,
-                    id: (*id).into(),
                     url: url(&format!("contests/{id}"))?,
+                    id,
                 }));
             }
             ["contests", contest, "problems", id] => {
-                validate_id(contest)?;
-                (*id, Some((*contest).to_owned()))
+                (resource_id(id)?, Some(resource_id(contest)?))
             }
             _ => bail!("Unsupported ShareOJ URL: {input}; expected a problem or contest URL"),
         };
-        validate_id(id)?;
+        let path = match &contest_id {
+            Some(contest) => format!("contests/{contest}/problems/{id}"),
+            None => format!("problems/{id}"),
+        };
         Ok(ResourceRef::Problem(ProblemRef {
             service: ServiceId::ShareOj,
-            id: id.into(),
-            url: url(&parts.join("/"))?,
+            id,
+            url: url(&path)?,
             contest_id,
             internal_id: None,
         }))
@@ -267,12 +269,36 @@ impl ServiceBackend for ShareOjBackend {
     }
 }
 
-fn validate_id(id: &str) -> Result<()> {
+fn resource_id(id: &str) -> Result<String> {
     ensure!(
         !id.is_empty() && id.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-'),
         "Invalid ShareOJ resource ID"
     );
-    Ok(())
+    if id.len() != 22 || id.contains('-') {
+        return Ok(id.to_owned());
+    }
+    // ShareOJ encodes UUIDs as 22 base62 digits in public URLs.
+    let alphabet = b"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+    let mut value = 0u128;
+    for byte in id.bytes() {
+        let digit = alphabet
+            .iter()
+            .position(|&b| b == byte)
+            .expect("validated ID");
+        value = value
+            .checked_mul(62)
+            .and_then(|value| value.checked_add(digit as u128))
+            .context("Invalid ShareOJ resource ID: exceeds UUID range")?;
+    }
+    let hex = format!("{value:032x}");
+    Ok(format!(
+        "{}-{}-{}-{}-{}",
+        &hex[..8],
+        &hex[8..12],
+        &hex[12..16],
+        &hex[16..20],
+        &hex[20..]
+    ))
 }
 
 impl ApiSubmission {
