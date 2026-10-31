@@ -15,14 +15,14 @@ cargo binstall "competitive-programming-cli@>0.1.0-preview.0"
 The release workflow builds the following archives, each with a SHA-256 checksum,
 for the [releases page](https://github.com/sevenc-nanashi/competitive-programming-cli/releases).
 
-You can install those binaries manually or use `mise` or `packslip` to install them:
+You can install those binaries manually or use [mise](https://mise.jdx.dev) or [packslip](https://packslip.jdx.dev) to install them:
 
 ```bash
 # Using mise
 mise use -g github:sevenc-nanashi/competitive-programming-cli
 
 # Using packslip
-packslip install github.com/sevenc-nanashi/competitive-programming-cli
+packslip install github.com/sevenc-nanashi/competitive-programming-cli --pin ps1_iprtl2s5dcfnxce6p5udl6lnhi --version ">0.1.0-preview.0"
 ```
 
 ## Experimental oj backend
