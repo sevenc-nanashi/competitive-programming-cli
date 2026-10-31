@@ -15,7 +15,7 @@ path = "src/main.rs"
 
 [dependencies]
 anyhow = "1"
-arboard = { version = "3.6.1", default-features = false, features = ["wayland-data-control"] }
+arboard = { version = "3.7.0", default-features = false, features = ["wayland-data-control"] }
 chrono = "0.4.45"
 colored = "3"
 console = "0.16"
@@ -27,10 +27,10 @@ open = "5"
 process-wrap = { version = "10", default-features = false, features = ["std", "process-group", "job-object"] }
 reqwest = { version = "0.13", default-features = false, features = ["blocking", "cookies", "form", "json", "multipart", "query", "rustls"] }
 schemars = "1"
-scraper = "0.25"
+scraper = "0.29"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-sha2 = "0.10"
+sha2 = "0.11"
 shlex = "2"
 tempfile = "3"
 toml = "1"
@@ -38,16 +38,16 @@ tracing = "0.1"
 tracing-log = "0.2"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 url = { version = "2", features = ["serde"] }
-usage = { package = "usage-rs", version = "6", features = ["validation", "completions"] }
+usage-rs = { version = "7", features = ["validation", "completions"] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 procfs = { version = "0.18", default-features = false }
 
 [target.'cfg(unix)'.dependencies]
-signal-hook = "0.3"
+signal-hook = "0.4"
 
 [target.'cfg(any(target_os = "macos", windows))'.dependencies]
-sysinfo = { version = "0.37", default-features = false, features = ["system"] }
+sysinfo = { version = "0.38", default-features = false, features = ["system"] }
 
 [target.'cfg(windows)'.dependencies]
 ctrlc = { version = "3.5", features = ["termination"] }

@@ -38,7 +38,7 @@ fn run(cli: Cli, interrupted: &AtomicBool) -> Result<bool> {
     }
     match cli.command {
         Commands::Completion(args) => {
-            let shell = usage::complete::Shell::from_name(&args.shell)
+            let shell = usage_rs::complete::Shell::from_name(&args.shell)
                 .context("Unsupported completion shell")?;
             print!("{}", Cli::completion_script(shell));
         }

@@ -48,7 +48,10 @@ pub fn find_metadata(directory: &Path) -> Result<Option<(PathBuf, Metadata)>> {
 }
 
 pub fn checksum(source: &[u8]) -> String {
-    format!("{:x}", Sha256::digest(source))
+    Sha256::digest(source)
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect()
 }
 
 fn template_checksums(directory: &Path) -> Result<BTreeMap<PathBuf, String>> {

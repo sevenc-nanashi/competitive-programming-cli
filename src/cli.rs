@@ -7,14 +7,14 @@ use std::{
 use url::Url;
 
 /// Download, test, and submit competitive programming solutions.
-#[derive(Debug, usage::Cli)]
+#[derive(Debug, usage_rs::Cli)]
 #[usage(bin = "cpg", version, completion)]
 pub struct Cli {
     /// Disable colored output.
     #[usage(long, global)]
     pub no_color: bool,
     /// Change the directory to run in.
-    #[usage(long, short = 'C', global, value_hint = usage::ValueHint::DirPath)]
+    #[usage(long, short = 'C', global, value_hint = usage_rs::ValueHint::DirPath)]
     pub cd: Option<PathBuf>,
     /// Enable remote mode, overriding configuration and environment detection.
     #[usage(long, global, conflicts("--no-remote"))]
@@ -26,7 +26,7 @@ pub struct Cli {
     pub command: Commands,
 }
 
-#[derive(Debug, usage::Subcommands)]
+#[derive(Debug, usage_rs::Subcommands)]
 pub enum Commands {
     /// Print a shell completion script to source or save in your shell configuration.
     Completion(Completion),
@@ -61,27 +61,27 @@ pub enum Commands {
     List(List),
 }
 
-#[derive(Debug, usage::Args)]
+#[derive(Debug, usage_rs::Args)]
 pub struct Completion {
     /// Shell to generate completions for.
     #[usage(choices("bash", "elvish", "fish", "nu", "powershell", "zsh"))]
     pub shell: String,
 }
 
-#[derive(Debug, usage::Args)]
+#[derive(Debug, usage_rs::Args)]
 pub struct Init {
     /// Import [templates] from an oj-prepare configuration file.
-    #[usage(long, value_hint = usage::ValueHint::FilePath)]
+    #[usage(long, value_hint = usage_rs::ValueHint::FilePath)]
     pub from_oj: Option<PathBuf>,
 }
 
-#[derive(Debug, usage::Args)]
+#[derive(Debug, usage_rs::Args)]
 pub struct Config {
     #[usage(arg_group)]
     pub field: Option<ConfigField>,
 }
 
-#[derive(Debug, Clone, Copy, usage::ArgGroup)]
+#[derive(Debug, Clone, Copy, usage_rs::ArgGroup)]
 #[usage(name = "field")]
 pub enum ConfigField {
     /// Print the configuration JSON Schema generated from cpg's configuration types.
@@ -104,53 +104,53 @@ pub enum ConfigField {
     SingleProblemTemplateDir,
 }
 
-#[derive(Debug, usage::Args)]
+#[derive(Debug, usage_rs::Args)]
 pub struct Login {
     /// Online judge whose session should be imported or inspected.
     #[usage(complete = login_complete_service)]
     pub service: ServiceId,
     /// Netscape-format cookie file to import; required unless `--info` is given.
-    #[usage(long, required_unless("--info"), value_hint = usage::ValueHint::FilePath)]
+    #[usage(long, required_unless("--info"), value_hint = usage_rs::ValueHint::FilePath)]
     pub cookie_file: Option<PathBuf>,
     /// Verify saved cookies and print the username and profile URL on separate lines.
     #[usage(long, conflicts("--cookie-file"))]
     pub info: bool,
 }
 fn login_complete_service(
-    partial: &<Login as usage::spec::CommandArgs>::Partial,
-    _ctx: &usage::complete::CompleteCtx<'_>,
-) -> Vec<usage::complete::Candidate<'static>> {
+    partial: &<Login as usage_rs::spec::CommandArgs>::Partial,
+    _ctx: &usage_rs::complete::CompleteCtx<'_>,
+) -> Vec<usage_rs::complete::Candidate<'static>> {
     let service_id = String::from_utf8_lossy(&partial.service);
     if let Some(service_host) = service_id.strip_prefix("oj+") {
-        return vec![usage::complete::Candidate::described(
+        return vec![usage_rs::complete::Candidate::described(
             service_id.to_string(),
             format!("`{service_host}` via `oj`"),
         )];
     }
     crate::model::SERVICE_ID_COMPLETIONS
         .iter()
-        .map(|(id, label)| usage::complete::Candidate::described(*id, *label))
+        .map(|(id, label)| usage_rs::complete::Candidate::described(*id, *label))
         .collect()
 }
 
-#[derive(Debug, usage::Args)]
+#[derive(Debug, usage_rs::Args)]
 pub struct Download {
     /// Problem URL to download sample cases from.
-    #[usage(value_hint = usage::ValueHint::Url)]
+    #[usage(value_hint = usage_rs::ValueHint::Url)]
     pub url: Url,
     /// Directory to save sample cases in.
-    #[usage(long, short = 'd', default = "test", value_hint = usage::ValueHint::DirPath)]
+    #[usage(long, short = 'd', default = "test", value_hint = usage_rs::ValueHint::DirPath)]
     pub directory: PathBuf,
 }
 
-#[derive(Debug, usage::Args)]
+#[derive(Debug, usage_rs::Args)]
 pub struct Prepare {
     /// Problem or contest URL to prepare.
-    #[usage(value_hint = usage::ValueHint::Url)]
+    #[usage(value_hint = usage_rs::ValueHint::Url)]
     pub url: Url,
 }
 
-#[derive(Debug, usage::Args)]
+#[derive(Debug, usage_rs::Args)]
 pub struct Open {
     /// Print the URL without opening a browser.
     #[usage(long, short = 'n')]
@@ -160,7 +160,7 @@ pub struct Open {
     pub clipboard: bool,
 }
 
-#[derive(Debug, usage::Args)]
+#[derive(Debug, usage_rs::Args)]
 pub struct ProgramArgs {
     /// Source or executable file to compile/run using language configuration.
     ///
@@ -168,7 +168,7 @@ pub struct ProgramArgs {
     #[usage(
         conflicts("command"),
         required_unless("command"),
-        value_hint = usage::ValueHint::FilePath
+        value_hint = usage_rs::ValueHint::FilePath
     )]
     pub file: Option<PathBuf>,
     /// Command and arguments after --, passed through unchanged.
@@ -179,7 +179,7 @@ pub struct ProgramArgs {
     pub profile: Option<String>,
 }
 
-#[derive(Debug, Clone, Copy, Default, usage::ValueEnum)]
+#[derive(Debug, Clone, Copy, Default, usage_rs::ValueEnum)]
 pub enum FloatErrorType {
     /// Accept when either absolute or relative error is within the tolerance.
     #[default]
@@ -193,7 +193,7 @@ pub enum FloatErrorType {
     Relative,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, usage::ValueEnum)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, usage_rs::ValueEnum)]
 pub enum ShowIo {
     /// Show I/O for every test case.
     #[usage(visible_alias = "a")]
@@ -206,7 +206,7 @@ pub enum ShowIo {
     Never,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, usage::ValueEnum)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, usage_rs::ValueEnum)]
 pub enum Panes {
     /// Show input, expected output, and actual output vertically.
     #[usage(visible_alias = "1")]
@@ -219,7 +219,7 @@ pub enum Panes {
     All,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, usage::ValueEnum)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, usage_rs::ValueEnum)]
 pub enum Highlight {
     /// Highlight differing lines.
     #[usage(visible_alias = "l")]
@@ -229,7 +229,7 @@ pub enum Highlight {
     Word,
 }
 
-#[derive(Debug, usage::Args)]
+#[derive(Debug, usage_rs::Args)]
 pub struct Test {
     #[usage(flatten)]
     pub program: ProgramArgs,
@@ -249,7 +249,7 @@ pub struct Test {
     /// Directory containing .in and .out test files.
     ///
     /// Defaults to the source directory's test subdirectory, or ./test for a direct command.
-    #[usage(long, short = 'd', value_hint = usage::ValueHint::DirPath)]
+    #[usage(long, short = 'd', value_hint = usage_rs::ValueHint::DirPath)]
     pub test_dir: Option<PathBuf>,
     /// Wall-clock limit per case, in milliseconds.
     #[usage(long, short = 't')]
@@ -305,12 +305,12 @@ pub struct Test {
     pub interactive: bool,
 }
 
-#[derive(Debug, usage::Args)]
+#[derive(Debug, usage_rs::Args)]
 pub struct Generate {
     #[usage(flatten)]
     pub program: ProgramArgs,
     /// Directory containing generated inputs and answers.
-    #[usage(long, default = "random", short = 'd', value_hint = usage::ValueHint::DirPath)]
+    #[usage(long, default = "random", short = 'd', value_hint = usage_rs::ValueHint::DirPath)]
     pub dir: PathBuf,
     /// Generate missing .out files using a reference solution.
     #[usage(long, conflicts("--count"), short = 'a')]
@@ -323,10 +323,10 @@ pub struct Generate {
     pub jobs: NonZeroUsize,
 }
 
-#[derive(Debug, usage::Args)]
+#[derive(Debug, usage_rs::Args)]
 pub struct Submit {
     /// Solution source file to submit.
-    #[usage(value_hint = usage::ValueHint::FilePath)]
+    #[usage(value_hint = usage_rs::ValueHint::FilePath)]
     pub file: PathBuf,
     /// Language source transformation and submission language profile.
     #[usage(long, short = 'P')]
@@ -341,7 +341,7 @@ pub struct Submit {
     #[usage(long, short = 'o')]
     pub open: bool,
     /// Submit to this problem URL instead of detecting it from the source's .cpg.toml.
-    #[usage(long, value_hint = usage::ValueHint::Url)]
+    #[usage(long, value_hint = usage_rs::ValueHint::Url)]
     pub problem: Option<Url>,
     /// Server language ID, overriding the language configuration.
     #[usage(long, short = 'l')]
@@ -351,7 +351,7 @@ pub struct Submit {
     pub allow_submit_unchanged_solution: bool,
 }
 
-#[derive(Debug, usage::Args)]
+#[derive(Debug, usage_rs::Args)]
 pub struct Results {
     /// Monitor submissions in an interactive terminal UI.
     /// Automatically pause after two hours without new submissions or terminal interaction.
@@ -363,7 +363,7 @@ pub struct Results {
     pub limit: NonZeroUsize,
 }
 
-#[derive(Debug, usage::Args)]
+#[derive(Debug, usage_rs::Args)]
 pub struct List {
     #[usage(arg_group)]
     pub mode: Option<ListMode>,
@@ -408,7 +408,7 @@ impl std::fmt::Display for ListDelimiter {
     }
 }
 
-#[derive(Debug, Clone, Copy, usage::ArgGroup)]
+#[derive(Debug, Clone, Copy, usage_rs::ArgGroup)]
 #[usage(name = "kind")]
 pub enum ListMode {
     /// List contests and single problems (default).
