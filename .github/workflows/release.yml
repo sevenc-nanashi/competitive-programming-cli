@@ -192,6 +192,7 @@ jobs:
         with:
           artifacts: ${{ runner.temp }}/assets/*
           bin: cpg
+          tag: v${{ inputs.version }}
           resources: |
             cli-spec/usage=asset:./metadata/target/cpg.usage.kdl
             completion/bash,zsh,fish,nu,elvish,powershell=exec:cpg completion {shell}
@@ -199,4 +200,4 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release edit "v${{ inputs.version }}" --draft=false
+          gh release edit "v${{ inputs.version }}" --draft=false --prerelease=${{ needs.prepare.outputs.prerelease }}
