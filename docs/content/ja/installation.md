@@ -17,7 +17,7 @@ cargo binstall "competitive-programming-cli@>0.1.0-preview.0"
 ```
 
 リリースワークフローでビルドしたアーカイブと SHA-256 チェックサムは、[リリースページ](https://github.com/sevenc-nanashi/competitive-programming-cli/releases)で配布しています。
-[mise](https://mise.jdx.dev) や [packslip](https://packslip.jdx.dev) を使ってインストールすることもできます。
+[mise](https://mise.en.dev) や [packslip](https://packslip.dev) を使ってインストールすることもできます。
 
 ```bash
 # mise
