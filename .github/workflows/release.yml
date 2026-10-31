@@ -115,17 +115,11 @@ jobs:
           cp "target/$RELEASE_TARGET/release/cpg$EXE_EXTENSION" README.md LICENSE "$RUNNER_TEMP/metadata/target/notice.md" "$RUNNER_TEMP/metadata/target/command-reference.md" "$RUNNER_TEMP/metadata/docs/public/config.schema.json" "$RUNNER_TEMP/dist/"
           cd "$RUNNER_TEMP"
           tar -C dist -czf "cpg-$RELEASE_TARGET.tar.gz" "cpg$EXE_EXTENSION" README.md LICENSE notice.md command-reference.md config.schema.json
-          if [[ "$RUNNER_OS" == "macOS" ]]; then
-            shasum -a 256 "cpg-$RELEASE_TARGET.tar.gz" > "cpg-$RELEASE_TARGET.tar.gz.sha256"
-          else
-            sha256sum "cpg-$RELEASE_TARGET.tar.gz" > "cpg-$RELEASE_TARGET.tar.gz.sha256"
-          fi
       - uses: actions/upload-artifact@v7.0.2
         with:
           name: cpg-${{ matrix.target }}
           path: |
             ${{ runner.temp }}/cpg-*.tar.gz
-            ${{ runner.temp }}/cpg-*.tar.gz.sha256
 
   release:
     needs: [prepare, build]
@@ -190,7 +184,7 @@ jobs:
       - name: Packslip
         uses: jdx/packslip@v1.11.2
         with:
-          artifacts: ${{ runner.temp }}/assets/*
+          artifacts: ${{ runner.temp }}/assets/*.tar.gz
           bin: cpg
           tag: v${{ inputs.version }}
           resources: |
