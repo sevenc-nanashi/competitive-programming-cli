@@ -19,7 +19,7 @@ You can install those binaries manually or use [mise](https://mise.en.dev) or [p
 
 ```bash
 # Using mise
-mise use -g --tool-option prerelease=true "packslip:github.com/sevenc-nanashi/competitive-programming-cli" 
+mise use -g --tool-option prerelease=true "packslip:github.com/sevenc-nanashi/competitive-programming-cli"
 
 # Using packslip
 packslip install github.com/sevenc-nanashi/competitive-programming-cli --pin ps1_iprtl2s5dcfnxce6p5udl6lnhi --version ">0.1.0-preview.0"
