@@ -37,7 +37,7 @@ jobs:
       - uses: taiki-e/install-action@v2
         with:
           tool: cargo-edit,cargo-about@0.7.1
-      - uses: jdx/mise-action@v4
+      - uses: jdx/mise-action@v5
         with:
           install_args: usage
       - name: Prepare version
@@ -59,7 +59,8 @@ jobs:
         run: target/debug/cpg config --schema > docs/public/config.schema.json
       - name: Generate third-party notices
         run: cargo about generate --locked --fail about.hbs --output-file target/notice.md
-      - uses: actions/upload-artifact@v4
+      - name: Upload release metadata
+        uses: actions/upload-artifact@v7
         with:
           name: release-metadata
           path: |
@@ -67,6 +68,7 @@ jobs:
             Cargo.lock
             docs/public/config.schema.json
             target/notice.md
+            target/cpg.usage.kdl
             target/command-reference.md
 
   build:
@@ -97,7 +99,7 @@ jobs:
           targets: ${{ matrix.target }}
       - uses: ilammy/setup-nasm@v1
         if: runner.os == 'Windows'
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: release-metadata
           path: ${{ runner.temp }}/metadata
@@ -118,7 +120,7 @@ jobs:
           else
             sha256sum "cpg-$RELEASE_TARGET.tar.gz" > "cpg-$RELEASE_TARGET.tar.gz.sha256"
           fi
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: cpg-${{ matrix.target }}
           path: |
@@ -132,6 +134,7 @@ jobs:
     permissions:
       contents: write
       id-token: write
+      attestations: write
     env:
       RELEASE_VERSION: ${{ inputs.version }}
     steps:
@@ -139,11 +142,11 @@ jobs:
         with:
           fetch-depth: 0
       - uses: dtolnay/rust-toolchain@stable
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: release-metadata
           path: ${{ runner.temp }}/metadata
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           pattern: cpg-*
           merge-multiple: true
@@ -171,14 +174,28 @@ jobs:
         run: |
           git push origin "HEAD:refs/heads/main"
           git push origin "refs/tags/v$RELEASE_VERSION"
-      - uses: softprops/action-gh-release@v3
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: v${{ inputs.version }}
-          prerelease: ${{ needs.prepare.outputs.prerelease }}
+          draft: true
           fail_on_unmatched_files: true
           generate_release_notes: true
           files: |
             ${{ runner.temp }}/assets/*
             ${{ runner.temp }}/metadata/target/notice.md
             ${{ runner.temp }}/metadata/target/command-reference.md
+            ${{ runner.temp }}/metadata/target/cpg.usage.kdl
             ${{ runner.temp }}/metadata/docs/public/config.schema.json
+      - name: Packslip
+        uses: jdx/packslip@v1
+        with:
+          artifacts: ${{ runner.temp }}/assets/*
+          bin: cpg
+          resources: |
+            cli-spec/usage=asset:./metadata/target/cpg.usage.kdl
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release edit "v${{ inputs.version }}" --draft=false

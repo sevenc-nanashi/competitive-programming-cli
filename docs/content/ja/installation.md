@@ -17,11 +17,14 @@ cargo binstall "competitive-programming-cli@>0.1.0-preview.0"
 ```
 
 リリースワークフローでビルドしたアーカイブと SHA-256 チェックサムは、[リリースページ](https://github.com/sevenc-nanashi/competitive-programming-cli/releases)で配布しています。
-バイナリを手動でインストールするか、`mise` などのパッケージマネージャーを利用できます。
+`mise` や `packslip` を使ってインストールすることもできます。
 
 ```bash
-# Using mise
+# mise
 mise use -g github:sevenc-nanashi/competitive-programming-cli
+
+# packslip
+packslip install github.com/sevenc-nanashi/competitive-programming-cli
 ```
 
 <a id="experimental-oj-backend"></a>
