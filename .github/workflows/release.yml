@@ -188,7 +188,7 @@ jobs:
           bin: cpg
           tag: v${{ inputs.version }}
           resources: |
-            cli-spec/usage=asset:./metadata/target/cpg.usage.kdl
+            cli-spec/usage=asset:${{ runner.temp }}/metadata/target/cpg.usage.kdl
             completion/bash,zsh,fish,nu,elvish,powershell=exec:cpg completion {shell}
       - name: Publish release
         env:
