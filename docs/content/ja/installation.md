@@ -21,7 +21,7 @@ cargo binstall "competitive-programming-cli@>0.1.0-preview.0"
 
 ```bash
 # mise
-mise use -g github:sevenc-nanashi/competitive-programming-cli
+mise use -g --tool-option prerelease=true "packslip:github.com/sevenc-nanashi/competitive-programming-cli" 
 
 # packslip
 packslip install github.com/sevenc-nanashi/competitive-programming-cli --pin ps1_iprtl2s5dcfnxce6p5udl6lnhi --version ">0.1.0-preview.0"
