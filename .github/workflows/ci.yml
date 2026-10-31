@@ -13,7 +13,7 @@ jobs:
   check:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@stable
@@ -24,7 +24,7 @@ jobs:
       - run: cargo clippy --locked --all-targets --all-features -- -D warnings
       - run: cargo test --locked
       - run: cargo test --locked --all-features
-      - uses: taiki-e/install-action@v2
+      - uses: taiki-e/install-action@v2.88.1
         with:
           tool: cargo-about@0.7.1
       - run: cargo about generate --locked --fail about.hbs --output-file target/notice.md
@@ -40,13 +40,13 @@ jobs:
       run:
         shell: bash
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy
-      - uses: ilammy/setup-nasm@v1
+      - uses: ilammy/setup-nasm@v1.5.2
         if: runner.os == 'Windows'
       - run: cargo clippy --locked --all-targets --all-features -- -D warnings
       - run: cargo test --locked
