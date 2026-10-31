@@ -194,6 +194,7 @@ jobs:
           bin: cpg
           resources: |
             cli-spec/usage=asset:./metadata/target/cpg.usage.kdl
+            completion/bash,zsh,fish,nu,elvish,powershell=exec:cpg completion {shell}
       - name: Publish release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
