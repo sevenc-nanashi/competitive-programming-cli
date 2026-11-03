@@ -16,22 +16,66 @@ impl KcsBackend {
 
     fn submission_ids(&self, url: &Url) -> Result<Vec<String>> {
         let (_, document) = self.http.get(url)?;
-        required(&document, "#submissions-list")?;
-        let prefix = url
-            .path()
-            .strip_suffix("mine")
-            .context("Invalid KCS submissions URL")?;
-        let mut ids = Vec::new();
-        for link in document.select(&selector("#submissions-list a[href]")) {
-            let href = link.value().attr("href").expect("selected href");
-            if let Some(id) = href.strip_prefix(prefix)
-                && id.parse::<u64>().is_ok()
-                && !ids.iter().any(|existing| existing == id)
-            {
-                ids.push(id.to_owned());
+        Ok(self
+            .parse_submissions(&document, url)?
+            .into_iter()
+            .map(|submission| submission.id)
+            .collect())
+    }
+
+    fn parse_submissions(&self, document: &Html, page: &Url) -> Result<Vec<Submission>> {
+        let listing = required(document, "#submissions-list")?;
+        let mut submissions = Vec::new();
+        for row in listing.select(&selector("table tbody tr")) {
+            let cells: Vec<_> = row.select(&selector("td")).collect();
+            ensure!(cells.len() == 10, "KCS submissions table format changed");
+            let detail = cells[0]
+                .select(&selector("a[href]"))
+                .next()
+                .context("Missing KCS submission link")?;
+            let url = page.join(detail.value().attr("href").expect("selected href"))?;
+            let id = url
+                .path_segments()
+                .and_then(|mut segments| segments.next_back())
+                .context("Missing KCS submission ID")?
+                .to_owned();
+            id.parse::<u64>().context("Invalid KCS submission ID")?;
+            ensure!(url == page.join(&id)?, "Unexpected KCS submission URL");
+            let problem = cells[2]
+                .select(&selector("a[href]"))
+                .next()
+                .context("Missing KCS submitted problem link")?;
+            let problem = self
+                .resolve_url(&page.join(problem.value().attr("href").expect("selected href"))?)?
+                .problem()?;
+            let status = text(cells[3])
+                .split_whitespace()
+                .collect::<Vec<_>>()
+                .join(" ");
+            let status = match status.as_str() {
+                "Accepted" => "AC",
+                "Wrong Answer" => "WA",
+                "Time Limit Exceeded" => "TLE",
+                "Memory Limit Exceeded" => "MLE",
+                "Runtime Error" => "RE",
+                "Compile Error" => "CE",
+                "Internal Error" => "IE",
+                "Waiting Judge" => "WJ",
+                "Running" => "Judging",
+                status => status,
             }
+            .to_owned();
+            submissions.push(Submission {
+                id,
+                url,
+                problem_id: problem.id,
+                submitted_at: text(cells[9]),
+                language: text(cells[5]),
+                status,
+                time: text(cells[7]),
+            });
         }
-        Ok(ids)
+        Ok(submissions)
     }
 }
 
@@ -195,9 +239,52 @@ impl ServiceBackend for KcsBackend {
 
     fn submissions(
         &self,
-        _scope: &SubmissionScope,
-        _limit: usize,
+        scope: &SubmissionScope,
+        limit: usize,
     ) -> Result<(Vec<Submission>, FetchMethod)> {
-        bail!("KCS result monitoring is not supported; view submissions in your browser")
+        let (contest, problem) = match scope {
+            Metadata::Problem { reference, .. } => (
+                reference
+                    .contest_id
+                    .as_ref()
+                    .context("Missing KCS contest ID")?,
+                Some(&reference.id),
+            ),
+            Metadata::Contest(contest) => (&contest.reference.id, None),
+        };
+        let mut results = Vec::new();
+        for page in 1.. {
+            let mut url = Url::parse(&format!(
+                "https://kcs.miz-miz.biz/contests/{contest}/submissions/mine"
+            ))?;
+            url.query_pairs_mut().append_pair("page", &page.to_string());
+            let (_, document) = self.http.get(&url)?;
+            results.extend(
+                self.parse_submissions(&document, &url)?
+                    .into_iter()
+                    .filter(|submission| problem.is_none_or(|id| *id == submission.problem_id)),
+            );
+            if results.len() >= limit {
+                break;
+            }
+            let mut has_next = false;
+            for link in document.select(&selector("#submissions-list a[hx-get]")) {
+                let target = url.join(link.value().attr("hx-get").expect("selected hx-get"))?;
+                if target.origin() == url.origin()
+                    && target.path() == url.path()
+                    && target
+                        .query_pairs()
+                        .any(|(key, value)| key == "page" && value == (page + 1).to_string())
+                {
+                    has_next = true;
+                    break;
+                }
+            }
+            if !has_next {
+                break;
+            }
+        }
+        results.truncate(limit);
+        Ok((results, FetchMethod::Direct))
     }
 }
