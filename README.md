@@ -29,6 +29,7 @@ Currently supported online judges:
 - Yukicoder
 - Codeforces (regular contests, Problemset, and Gym)
 - ShareOJ
+- Kagamiz Contest System (no sample downloads, only problem directory creation)
 - _Experimental:_ other online judges, via a [fork of online-judge-api-client](https://github.com/sevenc-nanashi/online-judge-tools-api-client).
 
 The experimental backend requires `uv` and manages a separate Python virtual

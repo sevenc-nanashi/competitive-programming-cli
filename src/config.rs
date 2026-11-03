@@ -462,7 +462,7 @@ pub struct Language {
     /// Named command and submission language overrides selected with --profile. Omitted settings inherit language settings.
     #[serde(default)]
     pub profile: BTreeMap<String, Profile>,
-    /// Submission language IDs keyed by service (atcoder, yukicoder, codeforces, or share-oj). AtCoder Problems uses atcoder. IDs must be strings.
+    /// Submission language IDs keyed by service (atcoder, yukicoder, codeforces, etc). IDs must be strings.
     #[serde(default)]
     pub submit: BTreeMap<String, String>,
 }

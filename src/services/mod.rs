@@ -1,5 +1,6 @@
 mod atcoder;
 mod codeforces;
+mod kcs;
 #[cfg(feature = "mock")]
 mod mock;
 mod oj;
@@ -7,6 +8,7 @@ mod problems;
 mod shareoj;
 mod yukicoder;
 
+use self::kcs::KcsBackend;
 use self::{
     atcoder::AtCoderBackend, codeforces::CodeforcesBackend, problems::AtCoderProblemsBackend,
     shareoj::ShareOjBackend, yukicoder::YukicoderBackend,
@@ -51,6 +53,7 @@ pub struct Services {
     yukicoder: YukicoderBackend,
     codeforces: CodeforcesBackend,
     shareoj: ShareOjBackend,
+    kcs: KcsBackend,
     oj: OjBackend,
     #[cfg(feature = "mock")]
     mock: mock::MockBackend,
@@ -97,6 +100,9 @@ impl Services {
         let shareoj = ShareOjBackend {
             http: Http::from_cookies(&load_cookies(&ServiceId::ShareOj)?, &ServiceId::ShareOj)?,
         };
+        let kcs = KcsBackend {
+            http: Http::from_cookies(&load_cookies(&ServiceId::Kcs)?, &ServiceId::Kcs)?,
+        };
         let oj = OjBackend {
             fetch_cache: Mutex::default(),
             venv_dir: paths.oj_venv.clone(),
@@ -111,6 +117,7 @@ impl Services {
             yukicoder,
             codeforces,
             shareoj,
+            kcs,
             oj,
             #[cfg(feature = "mock")]
             mock: mock::MockBackend {
@@ -127,6 +134,7 @@ impl Services {
             ServiceId::Yukicoder => &self.yukicoder,
             ServiceId::Codeforces => &self.codeforces,
             ServiceId::ShareOj => &self.shareoj,
+            ServiceId::Kcs => &self.kcs,
             ServiceId::Oj(_) => &self.oj,
             #[cfg(feature = "mock")]
             ServiceId::Mock => &self.mock,
@@ -182,6 +190,10 @@ impl Services {
             }
             .whoami(auth_service)?,
             ServiceId::ShareOj => ShareOjBackend {
+                http: Http::from_cookies(&raw, auth_service)?,
+            }
+            .whoami(auth_service)?,
+            ServiceId::Kcs => KcsBackend {
                 http: Http::from_cookies(&raw, auth_service)?,
             }
             .whoami(auth_service)?,
@@ -262,6 +274,7 @@ impl Http {
             ServiceId::Yukicoder => "yukicoder.me",
             ServiceId::Codeforces => "codeforces.com",
             ServiceId::ShareOj => "share-oj.net",
+            ServiceId::Kcs => "kcs.miz-miz.biz",
             ServiceId::Oj(_) => todo!(),
             #[cfg(feature = "mock")]
             ServiceId::Mock => anyhow::bail!("Mock services do not use HTTP"),
