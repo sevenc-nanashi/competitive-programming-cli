@@ -3,6 +3,7 @@ use crate::{model::*, services::FetchMethod};
 use anyhow::{Context, Result, bail, ensure};
 use scraper::Html;
 use serde::Deserialize;
+use sha2::{Digest, Sha256};
 use url::Url;
 
 pub(super) struct ShareOjBackend {
@@ -14,6 +15,53 @@ pub(super) struct ShareOjBackend {
 struct ApiProblem {
     title: String,
     has_samples: bool,
+}
+
+#[derive(Deserialize)]
+struct ApiSamples {
+    items: Vec<ApiSample>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ApiSample {
+    input: String,
+    output: String,
+    input_file: Option<SampleFile>,
+    output_file: Option<SampleFile>,
+}
+
+#[derive(Deserialize)]
+struct SampleFile {
+    url: Url,
+    size: u64,
+    sha256: String,
+}
+
+impl SampleFile {
+    fn download(self) -> Result<String> {
+        // Signed file URLs use a separate client so judge cookies are never sent.
+        let bytes = reqwest::blocking::Client::builder()
+            .timeout(std::time::Duration::from_secs(30))
+            .build()?
+            .get(self.url)
+            .send()?
+            .error_for_status()?
+            .bytes()?;
+        ensure!(
+            bytes.len() as u64 == self.size,
+            "ShareOJ sample file size mismatch"
+        );
+        ensure!(
+            Sha256::digest(&bytes)
+                .iter()
+                .map(|byte| format!("{byte:02x}"))
+                .collect::<String>()
+                == self.sha256,
+            "ShareOJ sample file checksum mismatch"
+        );
+        Ok(String::from_utf8(bytes.to_vec())?)
+    }
 }
 
 #[derive(Deserialize)]
@@ -92,6 +140,28 @@ fn api_url(problem: &ProblemRef) -> Result<Url> {
 }
 
 impl ShareOjBackend {
+    fn api_samples(&self, problem: &ProblemRef) -> Result<Vec<Sample>> {
+        let data: ApiSamples = self.http.json(&url(&format!(
+            "api/problems/{}/samples",
+            api_id(&problem.id)?
+        ))?)?;
+        data.items
+            .into_iter()
+            .map(|sample| {
+                Ok(Sample {
+                    input: match sample.input_file {
+                        Some(file) => file.download()?,
+                        None => sample.input,
+                    },
+                    output: match sample.output_file {
+                        Some(file) => file.download()?,
+                        None => sample.output,
+                    },
+                })
+            })
+            .collect()
+    }
+
     fn problem_submissions(&self, problem: &ProblemRef, limit: usize) -> Result<Vec<Submission>> {
         let mut submissions = Vec::new();
         let mut offset = 0;
@@ -166,12 +236,27 @@ impl ServiceBackend for ShareOjBackend {
 
     fn fetch_problem(&self, problem: &ProblemRef) -> Result<Problem> {
         let data: ApiProblem = self.http.json(&api_url(problem)?)?;
-        let (_, document) = self.http.get(&problem.url)?;
-        let samples = samples(&document)?;
+        let samples = match self.api_samples(problem) {
+            Ok(samples) => samples,
+            Err(error) => {
+                tracing::warn!("ShareOJ sample API failed: {error:#}; trying the problem page");
+                match self
+                    .http
+                    .get(&problem.url)
+                    .and_then(|(_, document)| samples(&document))
+                {
+                    Ok(samples) => samples,
+                    Err(error) => {
+                        tracing::warn!(
+                            "ShareOJ sample scraping failed: {error:#}; continuing without samples"
+                        );
+                        Vec::new()
+                    }
+                }
+            }
+        };
         if data.has_samples && samples.is_empty() {
-            tracing::warn!(
-                "ShareOJ samples could not be extracted from this problem's statement; add samples manually"
-            );
+            tracing::warn!("No ShareOJ samples were downloaded; add samples manually");
         }
         Ok(Problem {
             reference: problem.clone(),
