@@ -301,7 +301,6 @@ impl OjBackend {
         // TODO: Support non-uv environment
         let temp_cookie_base_path = tempfile::Builder::new()
             .prefix("cpg-oj-cookie")
-            .disable_cleanup(true)
             .tempdir_in(&self.cookie_dir)
             .context("Failed to create temporary directory for cookie")?;
         let temp_cookie_netscape_path = if let Some(cookie_bin) = &cookie_bin {
