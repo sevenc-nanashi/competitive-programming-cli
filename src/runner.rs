@@ -1171,6 +1171,49 @@ impl OutputBlock {
         })
     }
 
+    fn highlight_float(
+        &mut self,
+        other: &Self,
+        mode: Highlight,
+        options: &Test,
+        is_expected: bool,
+    ) {
+        let mut other_words = other
+            .lines
+            .iter()
+            .flat_map(|line| line.text[..line.marker_start].split_ascii_whitespace());
+        for line in &mut self.lines {
+            line.highlight_style = if is_expected {
+                Style::new().green()
+            } else {
+                Style::new().red()
+            };
+            let mut offset = 0;
+            for part in
+                line.text[..line.marker_start].split_inclusive(|c: char| c.is_ascii_whitespace())
+            {
+                let word = part.trim_end_matches(|c: char| c.is_ascii_whitespace());
+                if !word.is_empty()
+                    && !other_words.next().is_some_and(|other| {
+                        let (expected, actual) = if is_expected {
+                            (word, other)
+                        } else {
+                            (other, word)
+                        };
+                        matches(expected.as_bytes(), actual.as_bytes(), options)
+                    })
+                {
+                    line.highlights.push(offset..offset + word.len());
+                }
+                offset += part.len();
+            }
+            if mode == Highlight::Line && !line.highlights.is_empty() {
+                line.highlights.clear();
+                line.highlights.push(0..line.text.len());
+            }
+        }
+    }
+
     fn vertical(&self, numbered: bool, expected_count: usize, digits: usize) -> String {
         let mut output = format!("{}\n", self.style.apply_to(format!("{}:", self.label)));
         for (index, line) in self.lines.iter().enumerate() {
@@ -1337,11 +1380,16 @@ fn print_test_io(
     if let Some(highlight) = options.highlight
         && has_expected
     {
-        for (index, line) in expected.lines.iter_mut().enumerate() {
-            line.highlight(actual.lines.get(index), highlight, Style::new().green());
-        }
-        for (index, line) in actual.lines.iter_mut().enumerate() {
-            line.highlight(expected.lines.get(index), highlight, Style::new().red());
+        if options.float_error.is_some() {
+            expected.highlight_float(&actual, highlight, options, true);
+            actual.highlight_float(&expected, highlight, options, false);
+        } else {
+            for (index, line) in expected.lines.iter_mut().enumerate() {
+                line.highlight(actual.lines.get(index), highlight, Style::new().green());
+            }
+            for (index, line) in actual.lines.iter_mut().enumerate() {
+                line.highlight(expected.lines.get(index), highlight, Style::new().red());
+            }
         }
     }
     let digits = expected.count.max(actual.count).to_string().len();
