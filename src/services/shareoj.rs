@@ -122,8 +122,16 @@ struct Judgement {
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct SubmissionPage {
-    items: Vec<ApiSubmission>,
+struct ContestSubmission {
+    problem_id: String,
+    #[serde(flatten)]
+    submission: ApiSubmission,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SubmissionPage<T = ApiSubmission> {
+    items: Vec<T>,
     has_more: bool,
 }
 
@@ -345,13 +353,31 @@ impl ServiceBackend for ShareOjBackend {
                 FetchMethod::Direct,
             )),
             Metadata::Contest(contest) => {
-                // ponytail: one paginated fetch per problem; use a contest-wide mine API if one becomes available.
                 let mut submissions = Vec::new();
-                for problem in &contest.problems {
-                    submissions.extend(self.problem_submissions(problem, limit)?);
+                let mut offset = 0;
+                while submissions.len() < limit {
+                    let mut endpoint = url(&format!(
+                        "api/contests/{}/submissions",
+                        api_id(&contest.reference.id)?
+                    ))?;
+                    endpoint
+                        .query_pairs_mut()
+                        .append_pair("mine", "1")
+                        .append_pair("limit", "50")
+                        .append_pair("offset", &offset.to_string());
+                    let page: SubmissionPage<ContestSubmission> = self.http.json(&endpoint)?;
+                    for item in page.items {
+                        if !item.submission.easy_test {
+                            submissions.push(item.submission.into_submission(&item.problem_id)?);
+                        }
+                    }
+                    if !page.has_more {
+                        break;
+                    }
+                    offset += 50;
                 }
                 sort_submissions(&mut submissions, limit);
-                Ok((submissions, FetchMethod::Polyfilled))
+                Ok((submissions, FetchMethod::Direct))
             }
         }
     }
