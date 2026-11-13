@@ -225,6 +225,7 @@ impl ServiceBackend for YukicoderBackend {
             request.problem.url.as_str().trim_end_matches('/')
         ))?;
         let (page, document) = self.http.get(&page)?;
+        Self::authenticated(&document)?;
         let form = required(&document, "form#submit_form")
             .context("yukicoder submission form is unavailable; check your cookies")?;
         let csrf = required(&document, "meta[name='csrf-token']")?
