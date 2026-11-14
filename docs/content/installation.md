@@ -3,13 +3,11 @@
 You can install cpg using cargo:
 
 ```bash
-# NOTE: Only prereleases are available at this time.
-
 # Build from source
-cargo install "competitive-programming-cli@>0.1.0-preview.0"
+cargo install competitive-programming-cli
 
 # Or download the pre-built binaries using cargo-binstall
-cargo binstall "competitive-programming-cli@>0.1.0-preview.0"
+cargo binstall competitive-programming-cli
 ```
 
 The release workflow builds the following archives, each with a SHA-256 checksum,
@@ -19,10 +17,10 @@ You can install those binaries manually or use [mise](https://mise.en.dev) or [p
 
 ```bash
 # Using mise
-mise use -g --tool-option prerelease=true "packslip:github.com/sevenc-nanashi/competitive-programming-cli"
+mise use -g "packslip:github.com/sevenc-nanashi/competitive-programming-cli"
 
 # Using packslip
-packslip install github.com/sevenc-nanashi/competitive-programming-cli --pin ps1_iprtl2s5dcfnxce6p5udl6lnhi --version ">0.1.0-preview.0"
+packslip install github.com/sevenc-nanashi/competitive-programming-cli --pin ps1_iprtl2s5dcfnxce6p5udl6lnhi
 ```
 
 ## Experimental oj backend
