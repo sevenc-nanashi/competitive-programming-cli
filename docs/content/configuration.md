@@ -402,7 +402,7 @@ See [submitting solutions](./submissions.md).
 Copy the settings you need into `$config/config.toml` and install the compilers
 or interpreters used by their commands.
 
-### C++ with debugging and a fast profile
+### C++
 
 This configuration uses GCC with C++23. The default build enables debug symbols and
 [UndefinedBehaviorSanitizer](https://gcc.gnu.org/onlinedocs/gcc/Instrumentation-Options.html).

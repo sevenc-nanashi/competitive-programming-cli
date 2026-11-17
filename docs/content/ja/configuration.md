@@ -286,7 +286,7 @@ cpg login oj+onlinejudge.u-aizu.ac.jp --cookie-file /path/to/cookies.txt
 
 ## 言語設定
 
-`$config/config.toml` に `[language.<name>]` テーブルを追加してください。
+`$config/config.toml` に `[language.<name>]` テーブルを追加すると、言語ごとのコンパイルや実行のコマンドを設定できます。
 cpg はソースファイルの拡張子で言語を選びます。この設定は解答、生成スクリプト、愚直解、ジャッジのファイルに適用されます。
 
 | キー         | 必須   | 用途                                                         |
@@ -414,7 +414,7 @@ ID は数字の場合も引用符で囲んだ文字列にする必要があり�
 
 <a id="c-with-debugging-and-a-fast-profile"></a>
 
-### C++ のデバッグ設定と fast プロファイル
+### C++
 
 この設定は GCC と C++23 を使います。
 デフォルトのビルドではデバッグシンボルと [UndefinedBehaviorSanitizer](https://gcc.gnu.org/onlinedocs/gcc/Instrumentation-Options.html) を有効にします。
@@ -477,7 +477,7 @@ yukicoder = "pypy3"
 
 <a id="expand-atcoder-library-headers"></a>
 
-### AtCoder Library のヘッダーの展開
+### AtCoder Library の展開
 
 [ac-library](https://github.com/atcoder/ac-library) を `~/ac-library` にチェックアウトしておき、[expander](https://github.com/atcoder/ac-library/blob/master/expander.py) でローカルでのコンパイル前と提出前に ACL のヘッダーをソース内に展開します。
 Python 3 と GCC が必要です。
