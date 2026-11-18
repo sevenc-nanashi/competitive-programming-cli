@@ -38,7 +38,9 @@ jobs:
         with:
           persist-credentials: false
       - uses: jdx/mise-action@v4.3.0
-      - uses: dtolnay/rust-toolchain@stable
+      - run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
       - run: aube ci
       - run: aube run fmt --check
       - run: aube run build
