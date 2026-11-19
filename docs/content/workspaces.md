@@ -12,6 +12,15 @@ cpg d https://atcoder.jp/contests/abc473/tasks/abc473_f
 cpg d https://atcoder.jp/contests/abc473/tasks/abc473_f -d samples
 ```
 
+Currently, `cpg download` supports following online judges:
+
+- AtCoder
+- AtCoder Problems (Virtual Contests)
+- Yukicoder
+- Codeforces (regular contests, Problemset, and Gym)
+- ShareOJ
+- _Experimental:_ other online judges that [oj](https://github.com/online-judge-tools/oj) supports, see [experimental oj support](./configuration.md#experimental-oj-support)
+
 ## Workspace root
 
 The directory you downloaded a single problem or contest problems will be called a "workspace".

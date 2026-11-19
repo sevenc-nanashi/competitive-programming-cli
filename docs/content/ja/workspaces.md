@@ -13,6 +13,15 @@ cpg d https://atcoder.jp/contests/abc473/tasks/abc473_f
 cpg d https://atcoder.jp/contests/abc473/tasks/abc473_f -d samples
 ```
 
+現在、`cpg download` は以下のサイトに対応しています：
+
+- AtCoder
+- AtCoder Problems（Virtual Contests）
+- Yukicoder
+- Codeforces（通常のコンテスト、Problemset、Gym）
+- ShareOJ
+- _実験的:_ [oj](https://github.com/online-judge-tools/oj)が対応しているサイト（詳細は[oj サポート](./configuration.md#experimental-oj-support)を参照してください）
+
 <a id="workspace-root"></a>
 
 ## ワークスペースのルート

@@ -94,7 +94,7 @@ command = "/mnt/c/Windows/System32/clip.exe"
 ## ログ
 
 `CPG_LOG` には [tracing-subscriber](https://docs.rs/tracing-subscriber/latest/tracing_subscriber/filter/struct.EnvFilter.html) の `EnvFilter` 構文を指定できます。
-ログは標準出力には出力しません。
+ログは常に標準エラー出力に出力されます。
 
 ```bash
 CPG_LOG=debug cpg prepare https://atcoder.jp/contests/abc473/tasks/abc473_f
